@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { createClient } from "@/lib/supabase/client";
+import { confirmBugReportAction, rejectBugReportAction } from "./actions";
 import { formatDateTime } from "@/lib/utils";
 
 export type BugReportStatus = "pending" | "confirmed" | "rejected";
@@ -34,7 +34,6 @@ const STATUS_TONE: Record<BugReportStatus, "warning" | "success" | "danger"> = {
 };
 
 export function BugsClient({ initialReports }: { initialReports: BugReportRow[] }) {
-  const supabase = createClient();
   const [reports, setReports] = useState<BugReportRow[]>(initialReports);
   const [tab, setTab] = useState<(typeof TABS)[number]>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -50,6 +49,7 @@ export function BugsClient({ initialReports }: { initialReports: BugReportRow[] 
   const filtered = tab === "all" ? reports : reports.filter((r) => r.status === tab);
 
   async function confirmReport(id: string) {
+    const target = reports.find((r) => r.id === id);
     const patch = {
       status: "confirmed" as const,
       reward_granted: true,
@@ -58,24 +58,27 @@ export function BugsClient({ initialReports }: { initialReports: BugReportRow[] 
     };
     const prev = reports;
     setReports((p) => p.map((r) => (r.id === id ? { ...r, ...patch } : r)));
-    const { error } = await supabase.from("bug_reports").update(patch).eq("id", id);
-    if (error) {
+    try {
+      await confirmBugReportAction(id, target?.title ?? "Bug report");
+    } catch (err) {
       setReports(prev);
-      alert(error.message);
+      alert(err instanceof Error ? err.message : "Couldn't confirm the report.");
     }
   }
 
   async function reject(id: string) {
     if (!note.trim()) return;
+    const target = reports.find((r) => r.id === id);
     const patch = { status: "rejected" as const, admin_note: note, reviewed_at: new Date().toISOString() };
     const prev = reports;
     setReports((p) => p.map((r) => (r.id === id ? { ...r, ...patch } : r)));
     setRejectingId(null);
     setNote("");
-    const { error } = await supabase.from("bug_reports").update(patch).eq("id", id);
-    if (error) {
+    try {
+      await rejectBugReportAction(id, target?.title ?? "Bug report", patch.admin_note);
+    } catch (err) {
       setReports(prev);
-      alert(error.message);
+      alert(err instanceof Error ? err.message : "Couldn't reject the report.");
     }
   }
 

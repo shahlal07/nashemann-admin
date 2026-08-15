@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { createClient } from "@/lib/supabase/client";
 import { formatDateTime } from "@/lib/utils";
 import type { ConversationRow, SupportMessageRow } from "../SupportClient";
+import { sendSupportReplyAction, closeSupportConversationAction } from "../actions";
 
 export function ConversationThreadClient({
   conversationId,
@@ -60,31 +61,30 @@ export function ConversationThreadClient({
     setSending(true);
     const body = reply;
     setReply("");
-    const { data: message, error } = await supabase
-      .from("support_messages")
-      .insert({ conversation_id: conversationId, sender_type: "admin", body })
-      .select()
-      .single();
-    if (error || !message) {
-      alert(error?.message ?? "Couldn't send the reply.");
+    try {
+      const message = await sendSupportReplyAction(conversationId, conversation.name, body);
+      setConversation((prev) =>
+        prev
+          ? prev.support_messages.some((m) => m.id === message.id)
+            ? prev
+            : { ...prev, support_messages: [...prev.support_messages, message as SupportMessageRow] }
+          : prev
+      );
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Couldn't send the reply.");
+    } finally {
       setSending(false);
-      return;
     }
-    setConversation((prev) =>
-      prev
-        ? prev.support_messages.some((m) => m.id === message.id)
-          ? prev
-          : { ...prev, support_messages: [...prev.support_messages, message as SupportMessageRow] }
-        : prev
-    );
-    await supabase.from("support_conversations").update({ admin_unread: false }).eq("id", conversationId);
-    setSending(false);
   }
 
   async function handleClose() {
+    if (!conversation) return;
     setConversation((prev) => (prev ? { ...prev, status: "closed" } : prev));
-    const { error } = await supabase.from("support_conversations").update({ status: "closed" }).eq("id", conversationId);
-    if (error) alert(error.message);
+    try {
+      await closeSupportConversationAction(conversationId, conversation.name);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Couldn't close the conversation.");
+    }
   }
 
   return (

@@ -9,8 +9,8 @@ export default async function PricingPlansPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: isStaff } = await supabase.rpc("is_staff");
-  if (!isStaff) redirect("/login");
+  const { data: isFinanceStaff } = await supabase.rpc("is_finance_staff");
+  if (!isFinanceStaff) redirect("/");
 
   const { data: pricing } = await supabase
     .from("platform_pricing")

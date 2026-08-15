@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/Badge";
 import { ImageUpload } from "@/components/public/ImageUpload";
 import { TiltCard } from "@/components/public/TiltCard";
 import { createClient } from "@/lib/supabase/client";
+import { logAccountSecurityEventAction } from "./actions";
 
 const inputClass =
   "w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-3.5 py-2.5 text-sm text-[var(--text)] outline-none transition-colors focus:border-[var(--accent-violet)] accent-ring";
@@ -100,12 +101,14 @@ export function AccountClient({
       if (name !== initialName) {
         const { error } = await supabase.from("staff_profiles").update({ name }).eq("id", userId);
         if (error) throw error;
+        await logAccountSecurityEventAction("staff_profile_updated", `Name changed to ${name}`);
       }
 
       if (email !== initialEmail) {
         const { error } = await supabase.auth.updateUser({ email });
         if (error) throw error;
         setCredsNotice("Check your inbox to confirm the new email address.");
+        await logAccountSecurityEventAction("staff_email_change_requested", `Requested change to ${email}`);
       }
 
       if (password) {
@@ -113,6 +116,7 @@ export function AccountClient({
         if (error) throw error;
         setPassword("");
         setConfirmPassword("");
+        await logAccountSecurityEventAction("staff_password_changed", "Password changed from account settings");
       }
 
       setSavedCreds(true);
@@ -160,6 +164,7 @@ export function AccountClient({
       if (verifyError) throw verifyError;
       setMfaStatus("enabled");
       setCode("");
+      await logAccountSecurityEventAction("staff_2fa_enabled", "Two-factor authentication enabled");
     } catch (err) {
       setMfaError(err instanceof Error ? err.message : "Invalid code, try again.");
     } finally {
@@ -175,6 +180,7 @@ export function AccountClient({
       if (error) throw error;
       setMfaStatus("disabled");
       setFactorId(null);
+      await logAccountSecurityEventAction("staff_2fa_disabled", "Two-factor authentication disabled");
     } catch (err) {
       setMfaError(err instanceof Error ? err.message : "Failed to disable 2FA");
     } finally {

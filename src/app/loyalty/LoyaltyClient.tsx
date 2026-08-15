@@ -7,7 +7,7 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
 import { Button } from "@/components/ui/Button";
 import { formatPKR } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
+import { adjustLoyaltyPointsAction, resetLoyaltyLeaderboardEntryAction } from "./actions";
 
 export type LeaderboardEntry = {
   id: string;
@@ -40,19 +40,25 @@ export function LoyaltyClient({
     const entry = leaderboard.find((e) => e.id === id);
     if (!entry) return;
     const nextPoints = Math.max(0, entry.lifetimePoints + value);
-    const supabase = createClient();
-    const { error } = await supabase.from("vendor_loyalty").update({ lifetime_points: nextPoints }).eq("vendor_id", id);
-    if (error) return;
-    setLeaderboard((prev) => prev.map((e) => (e.id === id ? { ...e, lifetimePoints: nextPoints } : e)));
-    setDelta((prev) => ({ ...prev, [id]: "" }));
+    try {
+      await adjustLoyaltyPointsAction(id, entry.name, value, nextPoints);
+      setLeaderboard((prev) => prev.map((e) => (e.id === id ? { ...e, lifetimePoints: nextPoints } : e)));
+      setDelta((prev) => ({ ...prev, [id]: "" }));
+    } catch {
+      // no-op: leave the leaderboard as-is on failure
+    }
   }
 
   async function removeFromLeaderboard(id: string) {
-    const supabase = createClient();
-    const { error } = await supabase.from("vendor_loyalty").update({ lifetime_points: 0, credits: 0 }).eq("vendor_id", id);
-    if (error) return;
-    setLeaderboard((prev) => prev.map((e) => (e.id === id ? { ...e, lifetimePoints: 0, credits: 0 } : e)));
-    setConfirmingRemove(null);
+    const entry = leaderboard.find((e) => e.id === id);
+    if (!entry) return;
+    try {
+      await resetLoyaltyLeaderboardEntryAction(id, entry.name);
+      setLeaderboard((prev) => prev.map((e) => (e.id === id ? { ...e, lifetimePoints: 0, credits: 0 } : e)));
+      setConfirmingRemove(null);
+    } catch {
+      // no-op
+    }
   }
 
   const totalCredits = redemptions.reduce((s, r) => s + r.credits, 0);

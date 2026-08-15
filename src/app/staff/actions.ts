@@ -1,26 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { requireSuperAdmin, ROLE_LABELS, type StaffRole } from "@/lib/authz";
 
-async function requireSuperAdmin() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
-
-  const { data: staffProfile } = await supabase
-    .from("staff_profiles")
-    .select("name, role")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (!staffProfile || staffProfile.role !== "super_admin") throw new Error("Only a super admin can manage staff.");
-
-  return { supabase, actor: staffProfile.name ?? user.email ?? "Unknown" };
-}
-
-export async function inviteStaffAction(input: { name: string; email: string; role: "super_admin" | "platform_staff" }) {
+export async function inviteStaffAction(input: { name: string; email: string; role: StaffRole }) {
   const { supabase, actor } = await requireSuperAdmin();
 
   const { error: inviteError } = await supabase.functions.invoke("invite-staff", {
@@ -38,15 +21,17 @@ export async function inviteStaffAction(input: { name: string; email: string; ro
     action: "staff_invited",
     actor,
     entity: input.name,
-    detail: `Invited as ${input.role === "super_admin" ? "Super Admin" : "Platform Staff"}`,
+    detail: `Invited as ${ROLE_LABELS[input.role]}`,
   });
 
   revalidatePath("/staff");
   revalidatePath("/audit-log");
 }
 
-export async function updateStaffRoleAction(staffId: string, name: string, role: "super_admin" | "platform_staff") {
-  const { supabase, actor } = await requireSuperAdmin();
+export async function updateStaffRoleAction(staffId: string, name: string, role: StaffRole) {
+  const { supabase, actor, staffProfile } = await requireSuperAdmin();
+
+  if (staffId === staffProfile?.id) throw new Error("You can't change your own role.");
 
   const { error } = await supabase.from("staff_profiles").update({ role }).eq("id", staffId);
   if (error) throw new Error(error.message);
@@ -55,7 +40,7 @@ export async function updateStaffRoleAction(staffId: string, name: string, role:
     action: "staff_role_updated",
     actor,
     entity: name,
-    detail: `Role changed to ${role === "super_admin" ? "Super Admin" : "Platform Staff"}`,
+    detail: `Role changed to ${ROLE_LABELS[role]}`,
   });
 
   revalidatePath("/staff");

@@ -10,20 +10,24 @@ export default async function SettlementsPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: isStaff } = await supabase.rpc("is_staff");
-  if (!isStaff) redirect("/login");
+  const { data: isFinanceStaff } = await supabase.rpc("is_finance_staff");
+  if (!isFinanceStaff) redirect("/");
 
-  const { data } = await supabase
-    .from("settlements")
-    .select(
-      "id, vendor_id, month, orders_count, gross_revenue, platform_fee, status, amount_paid, due_date, waived_reason, reversed_reason, vendors(name), settlement_payments(id, amount, method, reference, notes, paid_at, staff_profiles(name))"
-    )
-    .order("month", { ascending: false });
+  const [{ data }, { data: rates }] = await Promise.all([
+    supabase
+      .from("settlements")
+      .select(
+        "id, vendor_id, month, orders_count, gross_revenue, platform_fee, status, amount_paid, due_date, waived_reason, reversed_reason, vendors(name, currency), settlement_payments(id, amount, method, reference, notes, paid_at, staff_profiles(name))"
+      )
+      .order("month", { ascending: false }),
+    supabase.from("currency_rates").select("currency, rate_to_pkr"),
+  ]);
 
   const settlements: SettlementRow[] = (data ?? []).map((s) => ({
     id: s.id,
     vendorId: s.vendor_id,
-    vendorName: (s.vendors as unknown as { name: string } | null)?.name ?? "Unknown vendor",
+    vendorName: (s.vendors as unknown as { name: string; currency: string } | null)?.name ?? "Unknown vendor",
+    vendorCurrency: (s.vendors as unknown as { name: string; currency: string } | null)?.currency ?? "PKR",
     month: s.month,
     ordersCount: s.orders_count,
     grossRevenue: Number(s.gross_revenue),
@@ -60,7 +64,7 @@ export default async function SettlementsPage() {
         title="Settlements"
         description="Monthly platform-fee reconciliation per vendor, across both pricing plans."
       />
-      <SettlementsTable initialSettlements={settlements} />
+      <SettlementsTable initialSettlements={settlements} rates={rates ?? []} />
     </div>
   );
 }

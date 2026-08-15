@@ -9,6 +9,7 @@ import { CheckCircle2, Layers, AlertCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { ImageUpload } from "@/components/public/ImageUpload";
 import { TiltCard } from "@/components/public/TiltCard";
+import { createVendorStoreAction } from "../actions";
 
 const inputClass =
   "w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-3.5 py-2.5 text-sm text-[var(--text)] outline-none transition-colors placeholder:text-[var(--text-faint)] focus:border-[var(--accent-violet)] accent-ring";
@@ -75,49 +76,27 @@ export default function CreateStorePage() {
       logoUrl = supabase.storage.from("vendor-logos").getPublicUrl(path).data.publicUrl;
     }
 
-    const { data: vendor, error: vendorError } = await supabase
-      .from("vendors")
-      .insert({
-        name: businessName,
+    try {
+      const vendorId = await createVendorStoreAction({
+        businessName,
         subdomain,
         category,
         city,
         plan,
-        status: "active",
-        theme_accent_from: accentFrom,
-        theme_accent_to: accentTo,
-        theme_logo_emoji: logoEmoji,
-        theme_logo_url: logoUrl,
-      })
-      .select("id")
-      .single();
-
-    if (vendorError || !vendor) {
-      setError(
-        vendorError?.code === "23505"
-          ? `Subdomain "${subdomain}" is already taken — pick another one.`
-          : `Couldn't create the store: ${vendorError?.message ?? "unknown error"}`
-      );
+        themeAccentFrom: accentFrom,
+        themeAccentTo: accentTo,
+        themeLogoEmoji: logoEmoji,
+        themeLogoUrl: logoUrl,
+        ownerName,
+        ownerEmail,
+      });
+      setCreatedVendorId(vendorId);
+      setDone(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't create the store.");
+    } finally {
       setSubmitting(false);
-      return;
     }
-
-    const { error: adminError } = await supabase.from("vendor_admins").insert({
-      vendor_id: vendor.id,
-      name: ownerName,
-      email: ownerEmail,
-      role: "owner",
-    });
-
-    if (adminError) {
-      setError(`Store created, but couldn't add the owner account: ${adminError.message}`);
-      setSubmitting(false);
-      return;
-    }
-
-    setCreatedVendorId(vendor.id);
-    setSubmitting(false);
-    setDone(true);
   }
 
   if (done) {

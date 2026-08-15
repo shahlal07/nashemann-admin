@@ -10,12 +10,20 @@ export default async function VendorDetailPage({ params }: { params: Promise<{ i
   const { data: vendor } = await supabase
     .from("vendors")
     .select(
-      "id, name, subdomain, custom_domain, category, city, status, plan, orders_last_30d, revenue_last_30d, joined_at, theme_accent_from, theme_accent_to, theme_logo_emoji, theme_font"
+      "id, name, subdomain, custom_domain, category, city, status, plan, orders_last_30d, revenue_last_30d, joined_at, theme_accent_from, theme_accent_to, theme_logo_emoji, theme_font, white_label_enabled, currency"
     )
     .eq("id", id)
     .maybeSingle();
 
   if (!vendor) notFound();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: currentStaff } = user
+    ? await supabase.from("staff_profiles").select("role").eq("id", user.id).maybeSingle()
+    : { data: null };
+  const isFinanceStaff = ["super_admin", "admin", "finance"].includes(currentStaff?.role ?? "");
 
   const [{ data: admins }, { data: categorySchema }, { data: settlements }, { data: reviews }, { data: tenantHealth }] =
     await Promise.all([
@@ -60,6 +68,7 @@ export default async function VendorDetailPage({ params }: { params: Promise<{ i
       categorySchema={categorySchema}
       health={health}
       churnRisk={churnRisk}
+      isFinanceStaff={isFinanceStaff}
     />
   );
 }

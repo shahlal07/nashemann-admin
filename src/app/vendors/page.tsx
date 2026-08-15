@@ -11,6 +11,7 @@ import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
 import { createClient } from "@/lib/supabase/client";
 import { formatPKR } from "@/lib/utils";
 import { computeChurnRisk, type SettlementSignal, type TenantHealthSignal } from "@/lib/vendor-signals";
+import { bulkSetVendorStatusAction } from "./actions";
 
 type PricingPlan = "per_order" | "monthly";
 
@@ -105,13 +106,17 @@ export default function VendorsPage() {
   async function bulkSetStatus(status: "suspended" | "active") {
     if (selected.size === 0) return;
     setBulkBusy(true);
-    const supabase = createClient();
     const ids = Array.from(selected);
-    const { error } = await supabase.from("vendors").update({ status }).in("id", ids);
-    setBulkBusy(false);
-    if (error) return;
-    setVendors((prev) => prev.map((v) => (selected.has(v.id) ? { ...v, status } : v)));
-    setSelected(new Set());
+    const names = vendors.filter((v) => selected.has(v.id)).map((v) => v.name);
+    try {
+      await bulkSetVendorStatusAction(ids, names, status);
+      setVendors((prev) => prev.map((v) => (selected.has(v.id) ? { ...v, status } : v)));
+      setSelected(new Set());
+    } catch {
+      // no-op: leave selection as-is on failure
+    } finally {
+      setBulkBusy(false);
+    }
   }
 
   return (

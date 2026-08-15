@@ -29,5 +29,5 @@ export default async function StaffPage() {
     lastActiveAt: s.last_active_at,
   }));
 
-  return <StaffClient staff={staff} isSuperAdmin={currentStaff?.role === "super_admin"} />;
+  return <StaffClient staff={staff} isSuperAdmin={currentStaff?.role === "super_admin"} currentStaffId={user.id} />;
 }

@@ -9,6 +9,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
 import { useToast } from "@/components/ui/Toast";
 import { formatPKR, formatDate } from "@/lib/utils";
+import { formatInCurrency, type CurrencyRate } from "@/lib/currency";
 
 export type FeeStatus = "pending" | "partially_paid" | "paid" | "waived" | "reversed";
 
@@ -16,6 +17,7 @@ export type PlatformFeeRow = {
   id: string;
   vendorId: string;
   vendorName: string;
+  vendorCurrency: string;
   month: string;
   platformFee: number;
   amountPaid: number;
@@ -72,9 +74,11 @@ function toCSV(rows: PlatformFeeRow[]) {
 export function PlatformFeesClient({
   rows,
   vendorOptions,
+  rates = [],
 }: {
   rows: PlatformFeeRow[];
   vendorOptions: { id: string; name: string }[];
+  rates?: CurrencyRate[];
 }) {
   const { showToast } = useToast();
   const [vendorFilter, setVendorFilter] = useState("all");
@@ -198,7 +202,12 @@ export function PlatformFeesClient({
                 <tr key={r.id} className="border-b border-[var(--border)] last:border-0">
                   <td className="py-3 pr-4 font-medium text-[var(--text)]">{r.vendorName}</td>
                   <td className="py-3 pr-4 text-[var(--text-muted)]">{monthLabel(r.month)}</td>
-                  <td className="py-3 pr-4 font-semibold text-[var(--text)]">{formatPKR(r.platformFee)}</td>
+                  <td className="py-3 pr-4 font-semibold text-[var(--text)]">
+                    {formatPKR(r.platformFee)}
+                    {r.vendorCurrency !== "PKR" && (
+                      <span className="ml-1.5 font-normal text-[var(--text-faint)]">(~{formatInCurrency(r.platformFee, r.vendorCurrency, rates)})</span>
+                    )}
+                  </td>
                   <td className="py-3 pr-4 text-[var(--text-muted)]">{formatPKR(r.amountPaid)}</td>
                   <td className="py-3 pr-4 text-[var(--text-muted)]">{r.dueDate ? formatDate(r.dueDate) : "—"}</td>
                   <td className="py-3">

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { requireMutatingStaff } from "@/lib/authz";
 
 export type SiteContentPayload = {
   hero: unknown;
@@ -16,14 +16,7 @@ export type SiteContentPayload = {
 };
 
 export async function saveSiteContentAction(payload: Partial<SiteContentPayload>) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
-
-  const { data: isStaff } = await supabase.rpc("is_staff");
-  if (!isStaff) throw new Error("Not authorized");
+  const { supabase, user, staffProfile } = await requireMutatingStaff();
 
   const rows = Object.entries(payload).map(([key, value]) => ({
     key,
@@ -33,12 +26,6 @@ export async function saveSiteContentAction(payload: Partial<SiteContentPayload>
 
   const { error } = await supabase.from("site_content").upsert(rows, { onConflict: "key" });
   if (error) throw new Error(error.message);
-
-  const { data: staffProfile } = await supabase
-    .from("staff_profiles")
-    .select("name")
-    .eq("id", user.id)
-    .maybeSingle();
 
   await supabase.from("audit_log").insert({
     action: "website_content_updated",

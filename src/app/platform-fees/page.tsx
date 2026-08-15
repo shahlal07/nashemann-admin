@@ -10,18 +10,22 @@ export default async function PlatformFeesPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: isStaff } = await supabase.rpc("is_staff");
-  if (!isStaff) redirect("/login");
+  const { data: isFinanceStaff } = await supabase.rpc("is_finance_staff");
+  if (!isFinanceStaff) redirect("/");
 
-  const { data } = await supabase
-    .from("settlements")
-    .select("id, vendor_id, month, platform_fee, amount_paid, status, due_date, vendors(name)")
-    .order("month", { ascending: false });
+  const [{ data }, { data: rates }] = await Promise.all([
+    supabase
+      .from("settlements")
+      .select("id, vendor_id, month, platform_fee, amount_paid, status, due_date, vendors(name, currency)")
+      .order("month", { ascending: false }),
+    supabase.from("currency_rates").select("currency, rate_to_pkr"),
+  ]);
 
   const rows: PlatformFeeRow[] = (data ?? []).map((s) => ({
     id: s.id,
     vendorId: s.vendor_id,
-    vendorName: (s.vendors as unknown as { name: string } | null)?.name ?? "Unknown vendor",
+    vendorName: (s.vendors as unknown as { name: string; currency: string } | null)?.name ?? "Unknown vendor",
+    vendorCurrency: (s.vendors as unknown as { name: string; currency: string } | null)?.currency ?? "PKR",
     month: s.month,
     platformFee: Number(s.platform_fee),
     amountPaid: Number(s.amount_paid ?? 0),
@@ -39,7 +43,7 @@ export default async function PlatformFeesPage() {
         title="Platform Fees"
         description="A filterable, exportable ledger of what every vendor owes Nashemann — sourced from monthly settlements."
       />
-      <PlatformFeesClient rows={rows} vendorOptions={vendorOptions} />
+      <PlatformFeesClient rows={rows} vendorOptions={vendorOptions} rates={rates ?? []} />
     </div>
   );
 }

@@ -8,26 +8,38 @@ import { Button } from "@/components/ui/Button";
 import { timeAgo, formatDate } from "@/lib/utils";
 import { UserPlus, Trash2 } from "lucide-react";
 import { inviteStaffAction, removeStaffAction, updateStaffRoleAction } from "./actions";
+import { ROLE_LABELS, type StaffRole } from "@/lib/authz";
 
 const inputClass =
   "w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-3.5 py-2.5 text-sm text-[var(--text)] outline-none transition-colors focus:border-[var(--accent-violet)] accent-ring";
 const labelClass = "mb-1.5 block text-xs font-medium text-[var(--text-muted)]";
 
+const ASSIGNABLE_ROLES: StaffRole[] = ["super_admin", "admin", "finance", "support", "read_only"];
+
+const ROLE_TONE: Record<StaffRole, "violet" | "info" | "success" | "warning" | "neutral"> = {
+  super_admin: "violet",
+  admin: "info",
+  finance: "success",
+  support: "warning",
+  read_only: "neutral",
+  platform_staff: "neutral",
+};
+
 export type StaffRow = {
   id: string;
   name: string;
   email: string;
-  role: "super_admin" | "platform_staff";
+  role: StaffRole;
   addedAt: string;
   lastActiveAt: string;
 };
 
-export function StaffClient({ staff, isSuperAdmin }: { staff: StaffRow[]; isSuperAdmin: boolean }) {
+export function StaffClient({ staff, isSuperAdmin, currentStaffId }: { staff: StaffRow[]; isSuperAdmin: boolean; currentStaffId: string }) {
   const [rows, setRows] = useState(staff);
   const [inviting, setInviting] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"super_admin" | "platform_staff">("platform_staff");
+  const [role, setRole] = useState<StaffRole>("admin");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -40,19 +52,24 @@ export function StaffClient({ staff, isSuperAdmin }: { staff: StaffRow[]; isSupe
         setInviting(false);
         setName("");
         setEmail("");
-        setRole("platform_staff");
+        setRole("admin");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to invite staff member");
       }
     });
   }
 
-  function changeRole(id: string, nextRole: "super_admin" | "platform_staff") {
+  function changeRole(id: string, nextRole: StaffRole) {
     const target = rows.find((r) => r.id === id);
     if (!target) return;
+    setError(null);
     startTransition(async () => {
-      await updateStaffRoleAction(id, target.name, nextRole);
-      setRows((prev) => prev.map((r) => (r.id === id ? { ...r, role: nextRole } : r)));
+      try {
+        await updateStaffRoleAction(id, target.name, nextRole);
+        setRows((prev) => prev.map((r) => (r.id === id ? { ...r, role: nextRole } : r)));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to update role");
+      }
     });
   }
 
@@ -92,9 +109,12 @@ export function StaffClient({ staff, isSuperAdmin }: { staff: StaffRow[]; isSupe
             </label>
             <label className="block">
               <span className={labelClass}>Role</span>
-              <select value={role} onChange={(e) => setRole(e.target.value as typeof role)} className={inputClass}>
-                <option value="platform_staff">Platform Staff</option>
-                <option value="super_admin">Super Admin</option>
+              <select value={role} onChange={(e) => setRole(e.target.value as StaffRole)} className={inputClass}>
+                {ASSIGNABLE_ROLES.map((r) => (
+                  <option key={r} value={r}>
+                    {ROLE_LABELS[r]}
+                  </option>
+                ))}
               </select>
             </label>
             {error && <p className="text-xs text-[var(--danger)] sm:col-span-3">{error}</p>}
@@ -129,22 +149,23 @@ export function StaffClient({ staff, isSuperAdmin }: { staff: StaffRow[]; isSupe
               <div className="flex items-center gap-4">
                 <span className="text-xs text-[var(--text-faint)]">Joined {formatDate(s.addedAt)}</span>
                 <span className="text-xs text-[var(--text-faint)]">Active {timeAgo(s.lastActiveAt)}</span>
-                {isSuperAdmin ? (
+                {isSuperAdmin && s.id !== currentStaffId ? (
                   <select
                     value={s.role}
-                    onChange={(e) => changeRole(s.id, e.target.value as StaffRow["role"])}
+                    onChange={(e) => changeRole(s.id, e.target.value as StaffRole)}
                     disabled={pending}
                     className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-xs text-[var(--text)] outline-none"
                   >
-                    <option value="platform_staff">Platform Staff</option>
-                    <option value="super_admin">Super Admin</option>
+                    {ASSIGNABLE_ROLES.map((r) => (
+                      <option key={r} value={r}>
+                        {ROLE_LABELS[r]}
+                      </option>
+                    ))}
                   </select>
                 ) : (
-                  <Badge tone={s.role === "super_admin" ? "violet" : "neutral"}>
-                    {s.role === "super_admin" ? "Super Admin" : "Platform Staff"}
-                  </Badge>
+                  <Badge tone={ROLE_TONE[s.role]}>{ROLE_LABELS[s.role]}</Badge>
                 )}
-                {isSuperAdmin && (
+                {isSuperAdmin && s.id !== currentStaffId && (
                   <button
                     onClick={() => remove(s.id)}
                     disabled={pending}

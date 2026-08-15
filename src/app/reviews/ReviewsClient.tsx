@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { createClient } from "@/lib/supabase/client";
+import { postReviewReplyAction, removeReviewReplyAction, deleteReviewAction } from "./actions";
 import { formatDate } from "@/lib/utils";
 
 export type ReviewRow = {
@@ -41,7 +41,6 @@ const AI_DRAFTS = [
 ];
 
 export function ReviewsClient({ initialReviews }: { initialReviews: ReviewRow[] }) {
-  const supabase = createClient();
   const [reviews, setReviews] = useState<ReviewRow[]>(initialReviews);
   const [replyingId, setReplyingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -64,36 +63,42 @@ export function ReviewsClient({ initialReviews }: { initialReviews: ReviewRow[] 
   }
 
   async function postReply(id: string) {
-    const now = new Date().toISOString();
+    const target = reviews.find((r) => r.id === id);
     const prev = reviews;
-    setReviews((p) => p.map((r) => (r.id === id ? { ...r, admin_reply_body: draft, admin_reply_at: now } : r)));
+    const optimisticNow = new Date().toISOString();
+    setReviews((p) => p.map((r) => (r.id === id ? { ...r, admin_reply_body: draft, admin_reply_at: optimisticNow } : r)));
     setReplyingId(null);
     setDraft("");
-    const { error } = await supabase.from("reviews").update({ admin_reply_body: draft, admin_reply_at: now }).eq("id", id);
-    if (error) {
+    try {
+      await postReviewReplyAction(id, target?.product_name ?? "Review", draft);
+    } catch (err) {
       setReviews(prev);
-      alert(error.message);
+      alert(err instanceof Error ? err.message : "Couldn't post the reply.");
     }
   }
 
   async function removeReply(id: string) {
+    const target = reviews.find((r) => r.id === id);
     const prev = reviews;
     setReviews((p) => p.map((r) => (r.id === id ? { ...r, admin_reply_body: null, admin_reply_at: null } : r)));
-    const { error } = await supabase.from("reviews").update({ admin_reply_body: null, admin_reply_at: null }).eq("id", id);
-    if (error) {
+    try {
+      await removeReviewReplyAction(id, target?.product_name ?? "Review");
+    } catch (err) {
       setReviews(prev);
-      alert(error.message);
+      alert(err instanceof Error ? err.message : "Couldn't remove the reply.");
     }
   }
 
   async function deleteReview(id: string) {
     if (!confirm("Delete this review permanently?")) return;
+    const target = reviews.find((r) => r.id === id);
     const prev = reviews;
     setReviews((p) => p.filter((r) => r.id !== id));
-    const { error } = await supabase.from("reviews").delete().eq("id", id);
-    if (error) {
+    try {
+      await deleteReviewAction(id, target?.product_name ?? "Review");
+    } catch (err) {
       setReviews(prev);
-      alert(error.message);
+      alert(err instanceof Error ? err.message : "Couldn't delete the review.");
     }
   }
 

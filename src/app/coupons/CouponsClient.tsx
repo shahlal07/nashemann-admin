@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { createClient } from "@/lib/supabase/client";
+import { createCouponAction, toggleCouponActiveAction, deleteCouponAction } from "./actions";
 
 export type DiscountType = "percent" | "fixed" | "free_shipping";
 export type CouponScope = "universal" | "vendor";
@@ -47,7 +47,6 @@ export function CouponsClient({
   initialCoupons: CouponRow[];
   vendors: VendorLite[];
 }) {
-  const supabase = createClient();
   const [coupons, setCoupons] = useState<CouponRow[]>(initialCoupons);
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -78,36 +77,35 @@ export function CouponsClient({
     e.preventDefault();
     if (!code.trim() || saving) return;
     setSaving(true);
-    const { data, error } = await supabase
-      .from("coupons")
-      .insert({
-        code: code.toUpperCase().trim(),
+    try {
+      const data = await createCouponAction({
+        code,
         scope,
-        vendor_id: scope === "universal" ? null : vendorId,
-        discount_type: discountType,
-        discount_value: discountType === "free_shipping" ? 0 : discountValue,
-        min_order_amount: minOrderAmount,
-        max_uses: maxUses === "" ? null : Number(maxUses),
-      })
-      .select()
-      .single();
-    setSaving(false);
-    if (error || !data) {
-      alert(error?.message ?? "Couldn't create the coupon.");
-      return;
+        vendorId: scope === "universal" ? null : vendorId,
+        vendorName: scope === "universal" ? null : vendorName(vendorId),
+        discountType,
+        discountValue,
+        minOrderAmount,
+        maxUses: maxUses === "" ? null : Number(maxUses),
+      });
+      setCoupons((prev) => [data, ...prev]);
+      resetForm();
+      setCreating(false);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Couldn't create the coupon.");
+    } finally {
+      setSaving(false);
     }
-    setCoupons((prev) => [data as CouponRow, ...prev]);
-    resetForm();
-    setCreating(false);
   }
 
   async function toggleActive(c: CouponRow) {
     const nextActive = !c.active;
     setCoupons((prev) => prev.map((x) => (x.id === c.id ? { ...x, active: nextActive } : x)));
-    const { error } = await supabase.from("coupons").update({ active: nextActive }).eq("id", c.id);
-    if (error) {
+    try {
+      await toggleCouponActiveAction(c.id, c.code, nextActive);
+    } catch (err) {
       setCoupons((prev) => prev.map((x) => (x.id === c.id ? { ...x, active: c.active } : x)));
-      alert(error.message);
+      alert(err instanceof Error ? err.message : "Couldn't update the coupon.");
     }
   }
 
@@ -118,10 +116,11 @@ export function CouponsClient({
     }
     const prevCoupons = coupons;
     setCoupons((prev) => prev.filter((x) => x.id !== c.id));
-    const { error } = await supabase.from("coupons").delete().eq("id", c.id);
-    if (error) {
+    try {
+      await deleteCouponAction(c.id, c.code);
+    } catch (err) {
       setCoupons(prevCoupons);
-      alert(error.message);
+      alert(err instanceof Error ? err.message : "Couldn't delete the coupon.");
     }
   }
 

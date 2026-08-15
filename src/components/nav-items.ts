@@ -31,6 +31,8 @@ export type NavItem = {
   icon: LucideIcon;
   /** Shown as a small pill next to the label when > 0 (e.g. pending applications). */
   badgeKey?: "pendingApplications" | "pendingInfluencerApplications" | "pendingBugReports";
+  /** Hidden from Support and Read-Only staff -- these pages redirect them away server-side too (is_finance_staff()). */
+  financeOnly?: boolean;
 };
 
 export type NavSection = {
@@ -75,9 +77,9 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     label: "Finance",
     items: [
-      { label: "Platform Fees", href: "/platform-fees", icon: Wallet },
-      { label: "Settlements", href: "/settlements", icon: Receipt },
-      { label: "Pricing Plans", href: "/pricing", icon: Tags },
+      { label: "Platform Fees", href: "/platform-fees", icon: Wallet, financeOnly: true },
+      { label: "Settlements", href: "/settlements", icon: Receipt, financeOnly: true },
+      { label: "Pricing Plans", href: "/pricing", icon: Tags, financeOnly: true },
       {
         label: "Influencers",
         href: "/influencers",

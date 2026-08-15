@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { formatDateTime } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
+import { sendAnnouncementAction } from "./actions";
 
 export type AnnouncementCategory = "product_update" | "policy_change" | "promotion";
 
@@ -48,27 +48,18 @@ export function AnnouncementsClient({
     e.preventDefault();
     if (!title.trim() || !message.trim()) return;
     setSending(true);
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from("sent_announcements")
-      .insert({ category, title, message, recipient_count: recipientCount })
-      .select("id, category, title, message, recipient_count, sent_at")
-      .single();
-    setSending(false);
-    if (error || !data) return;
-    const record: SentAnnouncement = {
-      id: data.id,
-      category: data.category,
-      title: data.title,
-      message: data.message,
-      recipientCount: data.recipient_count,
-      sentAt: data.sent_at,
-    };
-    setSent((prev) => [record, ...prev]);
-    setJustSent(recipientCount);
-    setTitle("");
-    setMessage("");
-    setTimeout(() => setJustSent(null), 3000);
+    try {
+      const record = await sendAnnouncementAction({ category, title, message, recipientCount });
+      setSent((prev) => [record, ...prev]);
+      setJustSent(recipientCount);
+      setTitle("");
+      setMessage("");
+      setTimeout(() => setJustSent(null), 3000);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Couldn't send the announcement.");
+    } finally {
+      setSending(false);
+    }
   }
 
   return (

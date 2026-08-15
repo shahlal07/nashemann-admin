@@ -1,26 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
-
-async function requireStaff() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
-
-  const { data: isStaff } = await supabase.rpc("is_staff");
-  if (!isStaff) throw new Error("Not authorized");
-
-  const { data: staffProfile } = await supabase
-    .from("staff_profiles")
-    .select("id, name")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  return { supabase, user, staffProfile };
-}
+import { requireFinanceStaff as requireStaff } from "@/lib/authz";
 
 function monthLabel(month: string) {
   return new Date(month).toLocaleDateString("en-PK", { month: "long", year: "numeric" });

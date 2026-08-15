@@ -22,9 +22,19 @@ import {
 import { Card, CardHeader } from "@/components/ui/Card";
 import { VendorStatusBadge, Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { createClient } from "@/lib/supabase/client";
 import { formatPKR, formatDate } from "@/lib/utils";
 import type { VendorHealth, ChurnRisk } from "@/lib/vendor-signals";
+import {
+  setVendorWhiteLabelAction,
+  saveVendorThemeAction,
+  toggleVendorStatusAction,
+  changeVendorPlanAction,
+  changeVendorCurrencyAction,
+  addVendorAdminAction,
+  removeVendorAdminAction,
+} from "./actions";
+
+const CURRENCY_OPTIONS = ["PKR", "USD", "AED", "SAR"] as const;
 
 const TABS = ["Overview", "Branding & Theme", "Admins & Access", "Billing", "Danger Zone"] as const;
 type Tab = (typeof TABS)[number];
@@ -51,6 +61,8 @@ export type VendorRow = {
   theme_accent_to: string;
   theme_logo_emoji: string;
   theme_font: string;
+  white_label_enabled: boolean;
+  currency: string;
 };
 
 export type VendorAdminRow = {
@@ -134,14 +146,17 @@ export function VendorDetailClient({
   categorySchema,
   health,
   churnRisk,
+  isFinanceStaff,
 }: {
   vendor: VendorRow;
   initialAdmins: VendorAdminRow[];
   categorySchema: CategorySchemaRow;
   health: VendorHealth;
   churnRisk: ChurnRisk;
+  isFinanceStaff: boolean;
 }) {
   const [vendor, setVendor] = useState(initialVendor);
+  const [whiteLabelBusy, setWhiteLabelBusy] = useState(false);
   const [tab, setTab] = useState<Tab>("Overview");
   const [theme, setTheme] = useState({
     accentFrom: vendor.theme_accent_from,
@@ -151,6 +166,7 @@ export function VendorDetailClient({
   });
   const [status, setStatus] = useState(vendor.status);
   const [plan, setPlan] = useState(vendor.plan);
+  const [currencyBusy, setCurrencyBusy] = useState(false);
   const [savingTheme, setSavingTheme] = useState(false);
   const [saved, setSaved] = useState(false);
   const [admins, setAdmins] = useState(initialAdmins);
@@ -163,59 +179,77 @@ export function VendorDetailClient({
   async function saveTheme() {
     setSavingTheme(true);
     setError(null);
-    const supabase = createClient();
-    const { error: updateError } = await supabase
-      .from("vendors")
-      .update({
+    try {
+      await saveVendorThemeAction(vendor.id, vendor.name, theme);
+      setVendor((v) => ({
+        ...v,
         theme_accent_from: theme.accentFrom,
         theme_accent_to: theme.accentTo,
         theme_logo_emoji: theme.logoEmoji,
         theme_font: theme.font,
-      })
-      .eq("id", vendor.id);
-
-    setSavingTheme(false);
-    if (updateError) {
-      setError(`Couldn't save theme: ${updateError.message}`);
-      return;
+      }));
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1800);
+    } catch (err) {
+      setError(err instanceof Error ? `Couldn't save theme: ${err.message}` : "Couldn't save theme");
+    } finally {
+      setSavingTheme(false);
     }
-    setVendor((v) => ({
-      ...v,
-      theme_accent_from: theme.accentFrom,
-      theme_accent_to: theme.accentTo,
-      theme_logo_emoji: theme.logoEmoji,
-      theme_font: theme.font,
-    }));
-    setSaved(true);
-    setTimeout(() => setSaved(false), 1800);
   }
 
   async function toggleStatus() {
     setBusy(true);
     setError(null);
     const nextStatus: VendorStatus = status === "suspended" ? "active" : "suspended";
-    const supabase = createClient();
-    const { error: updateError } = await supabase.from("vendors").update({ status: nextStatus }).eq("id", vendor.id);
-    setBusy(false);
-    if (updateError) {
-      setError(`Couldn't update status: ${updateError.message}`);
-      return;
+    try {
+      await toggleVendorStatusAction(vendor.id, vendor.name, nextStatus);
+      setStatus(nextStatus);
+    } catch (err) {
+      setError(err instanceof Error ? `Couldn't update status: ${err.message}` : "Couldn't update status");
+    } finally {
+      setBusy(false);
     }
-    setStatus(nextStatus);
   }
 
   async function changePlan() {
     setBusy(true);
     setError(null);
     const nextPlan: PricingPlan = plan === "per_order" ? "monthly" : "per_order";
-    const supabase = createClient();
-    const { error: updateError } = await supabase.from("vendors").update({ plan: nextPlan }).eq("id", vendor.id);
-    setBusy(false);
-    if (updateError) {
-      setError(`Couldn't change plan: ${updateError.message}`);
-      return;
+    try {
+      await changeVendorPlanAction(vendor.id, vendor.name, nextPlan);
+      setPlan(nextPlan);
+    } catch (err) {
+      setError(err instanceof Error ? `Couldn't change plan: ${err.message}` : "Couldn't change plan");
+    } finally {
+      setBusy(false);
     }
-    setPlan(nextPlan);
+  }
+
+  async function changeCurrency(next: string) {
+    setCurrencyBusy(true);
+    setError(null);
+    try {
+      await changeVendorCurrencyAction(vendor.id, vendor.name, next);
+      setVendor((v) => ({ ...v, currency: next }));
+    } catch (err) {
+      setError(err instanceof Error ? `Couldn't change currency: ${err.message}` : "Couldn't change currency");
+    } finally {
+      setCurrencyBusy(false);
+    }
+  }
+
+  async function toggleWhiteLabel() {
+    setWhiteLabelBusy(true);
+    setError(null);
+    const next = !vendor.white_label_enabled;
+    try {
+      await setVendorWhiteLabelAction(vendor.id, vendor.name, next);
+      setVendor((v) => ({ ...v, white_label_enabled: next }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't update white-label setting");
+    } finally {
+      setWhiteLabelBusy(false);
+    }
   }
 
   async function addAdmin(e: React.FormEvent) {
@@ -223,34 +257,31 @@ export function VendorDetailClient({
     if (!newAdminName.trim() || !newAdminEmail.trim()) return;
     setBusy(true);
     setError(null);
-    const supabase = createClient();
-    const { data, error: insertError } = await supabase
-      .from("vendor_admins")
-      .insert({ vendor_id: vendor.id, name: newAdminName.trim(), email: newAdminEmail.trim(), role: "staff" })
-      .select("id, name, email, role, added_at")
-      .single();
-    setBusy(false);
-    if (insertError || !data) {
-      setError(`Couldn't add admin: ${insertError?.message ?? "unknown error"}`);
-      return;
+    try {
+      const data = await addVendorAdminAction(vendor.id, vendor.name, newAdminName, newAdminEmail);
+      setAdmins((prev) => [...prev, data as VendorAdminRow]);
+      setNewAdminName("");
+      setNewAdminEmail("");
+      setAddingAdmin(false);
+    } catch (err) {
+      setError(err instanceof Error ? `Couldn't add admin: ${err.message}` : "Couldn't add admin");
+    } finally {
+      setBusy(false);
     }
-    setAdmins((prev) => [...prev, data as VendorAdminRow]);
-    setNewAdminName("");
-    setNewAdminEmail("");
-    setAddingAdmin(false);
   }
 
   async function removeAdmin(id: string) {
+    const target = admins.find((a) => a.id === id);
     setBusy(true);
     setError(null);
-    const supabase = createClient();
-    const { error: deleteError } = await supabase.from("vendor_admins").delete().eq("id", id);
-    setBusy(false);
-    if (deleteError) {
-      setError(`Couldn't remove admin: ${deleteError.message}`);
-      return;
+    try {
+      await removeVendorAdminAction(vendor.id, vendor.name, id, target ? `${target.name} (${target.email})` : id);
+      setAdmins((prev) => prev.filter((a) => a.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? `Couldn't remove admin: ${err.message}` : "Couldn't remove admin");
+    } finally {
+      setBusy(false);
     }
-    setAdmins((prev) => prev.filter((a) => a.id !== id));
   }
 
   return (
@@ -573,6 +604,59 @@ export function VendorDetailClient({
             </div>
             <Button variant="secondary" size="sm" onClick={changePlan} disabled={busy}>
               Change plan
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {tab === "Billing" && (
+        <Card className="mt-4">
+          <CardHeader
+            title="Display currency"
+            description="Groundwork only — amounts are still stored and settled in PKR; this only changes what's shown alongside the PKR figure, using placeholder FX rates."
+          />
+          <div className="flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--border)] p-4">
+            <p className="text-sm font-medium text-[var(--text)]">{vendor.currency}</p>
+            <select
+              value={vendor.currency}
+              onChange={(e) => changeCurrency(e.target.value)}
+              disabled={currencyBusy}
+              className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-sm text-[var(--text)] outline-none"
+            >
+              {CURRENCY_OPTIONS.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+        </Card>
+      )}
+
+      {tab === "Billing" && (
+        <Card className="mt-4">
+          <CardHeader
+            title="White-label"
+            description="Hides the 'Powered by Nashemann' badge on this vendor's storefront-facing surfaces (e.g. the homepage showcase card)."
+          />
+          <div className="flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--border)] p-4">
+            <div>
+              <p className="text-sm font-medium text-[var(--text)]">
+                {vendor.white_label_enabled ? "White-label enabled" : "White-label disabled"}
+              </p>
+              <p className="mt-0.5 text-xs text-[var(--text-faint)]">
+                {isFinanceStaff
+                  ? "Toggling this immediately changes what customers see on this vendor's public surfaces."
+                  : "Only Finance or a super admin can change this setting."}
+              </p>
+            </div>
+            <Button
+              variant={vendor.white_label_enabled ? "danger" : "primary"}
+              size="sm"
+              onClick={toggleWhiteLabel}
+              disabled={!isFinanceStaff || whiteLabelBusy}
+            >
+              {whiteLabelBusy ? "Saving…" : vendor.white_label_enabled ? "Disable" : "Enable"}
             </Button>
           </div>
         </Card>

@@ -8,8 +8,8 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { createClient } from "@/lib/supabase/client";
 import { formatDateTime } from "@/lib/utils";
+import { composeSupportMessageAction } from "./actions";
 
 export type SupportMessageRow = {
   id: string;
@@ -46,7 +46,6 @@ export function SupportClient({
   initialConversations: ConversationRow[];
   vendors: VendorWithAdmins[];
 }) {
-  const supabase = createClient();
   const [conversations, setConversations] = useState<ConversationRow[]>(initialConversations);
   const [composing, setComposing] = useState(false);
   const [recipient, setRecipient] = useState("");
@@ -62,56 +61,31 @@ export function SupportClient({
     const owner = vendor.vendor_admins[0];
     const name = owner?.name ?? vendor.name;
     const email = owner?.email ?? `${vendor.subdomain}@nashemann.com`;
-
     const existing = conversations.find((c) => c.email.toLowerCase() === email.toLowerCase());
 
-    if (existing) {
-      const { data: message, error } = await supabase
-        .from("support_messages")
-        .insert({ conversation_id: existing.id, sender_type: "customer", body })
-        .select()
-        .single();
-      if (!error && message) {
-        await supabase.from("support_conversations").update({ status: "open", admin_unread: true }).eq("id", existing.id);
+    try {
+      const result = await composeSupportMessageAction({ vendorName: vendor.name, recipientName: name, recipientEmail: email, body });
+      if (existing) {
         setConversations((prev) =>
           prev.map((c) =>
             c.id === existing.id
-              ? { ...c, status: "open", admin_unread: true, support_messages: [...c.support_messages, message as SupportMessageRow] }
+              ? { ...c, status: "open", admin_unread: true, support_messages: [...c.support_messages, result.message as SupportMessageRow] }
               : c
           )
         );
-      } else if (error) {
-        alert(error.message);
-      }
-    } else {
-      const { data: convo, error: convoError } = await supabase
-        .from("support_conversations")
-        .insert({ name, email, status: "open", admin_unread: true })
-        .select()
-        .single();
-      if (convoError || !convo) {
-        alert(convoError?.message ?? "Couldn't start the conversation.");
-        setSending(false);
-        return;
-      }
-      const { data: message, error: msgError } = await supabase
-        .from("support_messages")
-        .insert({ conversation_id: convo.id, sender_type: "customer", body })
-        .select()
-        .single();
-      if (msgError) {
-        alert(msgError.message);
       } else {
         setConversations((prev) => [
-          { ...(convo as ConversationRow), support_messages: message ? [message as SupportMessageRow] : [] },
+          { ...(result.conversation as ConversationRow), support_messages: [result.message as SupportMessageRow] },
           ...prev,
         ]);
       }
+      setBody("");
+      setComposing(false);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Couldn't send the message.");
+    } finally {
+      setSending(false);
     }
-
-    setSending(false);
-    setBody("");
-    setComposing(false);
   }
 
   const lastPreview = (c: ConversationRow) => {

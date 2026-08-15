@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { formatPKR, formatDateTime } from "@/lib/utils";
+import { formatInCurrency, type CurrencyRate } from "@/lib/currency";
 import { RecordPaymentModal } from "./RecordPaymentModal";
 import { ReasonModal } from "./ReasonModal";
 import { waiveSettlementAction, reverseSettlementAction } from "./actions";
@@ -26,6 +27,7 @@ export type SettlementRow = {
   id: string;
   vendorId: string;
   vendorName: string;
+  vendorCurrency: string;
   month: string;
   ordersCount: number;
   grossRevenue: number;
@@ -71,7 +73,7 @@ function isOverdue(row: SettlementRow) {
   return new Date(row.dueDate) < new Date(new Date().toDateString());
 }
 
-export function SettlementsTable({ initialSettlements }: { initialSettlements: SettlementRow[] }) {
+export function SettlementsTable({ initialSettlements, rates = [] }: { initialSettlements: SettlementRow[]; rates?: CurrencyRate[] }) {
   const [settlements, setSettlements] = useState(initialSettlements);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [paymentTarget, setPaymentTarget] = useState<SettlementRow | null>(null);
@@ -150,7 +152,14 @@ export function SettlementsTable({ initialSettlements }: { initialSettlements: S
                       <td className="py-3 pr-4 text-[var(--text-muted)]">{monthLabel(s.month)}</td>
                       <td className="py-3 pr-4 text-[var(--text)]">{s.ordersCount}</td>
                       <td className="py-3 pr-4 text-[var(--text)]">{formatPKR(s.grossRevenue)}</td>
-                      <td className="py-3 pr-4 font-semibold text-[var(--text)]">{formatPKR(s.platformFee)}</td>
+                      <td className="py-3 pr-4 font-semibold text-[var(--text)]">
+                        {formatPKR(s.platformFee)}
+                        {s.vendorCurrency !== "PKR" && (
+                          <span className="ml-1.5 font-normal text-[var(--text-faint)]">
+                            (~{formatInCurrency(s.platformFee, s.vendorCurrency, rates)})
+                          </span>
+                        )}
+                      </td>
                       <td className="py-3 pr-4 text-[var(--text-muted)]">{formatPKR(s.amountPaid)}</td>
                       <td className="py-3 pr-4">
                         <div className="flex items-center gap-1.5">

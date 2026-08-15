@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { createClient } from "@/lib/supabase/client";
 import { formatDateTime } from "@/lib/utils";
+import { decideVendorApplicationAction } from "./actions";
 
 type ApplicationStatus = "pending" | "approved" | "rejected";
 type RequestedPlan = "per_order" | "monthly";
@@ -179,57 +180,24 @@ export default function ApplicationsPage() {
   async function decide(app: Application, status: "approved" | "rejected") {
     setError(null);
     setDecidingId(app.id);
-    const supabase = createClient();
-
-    if (status === "approved") {
-      const { data: vendor, error: vendorError } = await supabase
-        .from("vendors")
-        .insert({
-          name: app.business_name,
-          subdomain: app.subdomain_preference,
-          category: app.business_type,
-          city: app.city,
-          plan: app.requested_plan,
-          status: "active",
-        })
-        .select("id")
-        .single();
-
-      if (vendorError || !vendor) {
-        setError(
-          vendorError?.code === "23505"
-            ? `Subdomain "${app.subdomain_preference}" is already taken — resolve the conflict before approving.`
-            : `Couldn't create the vendor: ${vendorError?.message ?? "unknown error"}`
-        );
-        setDecidingId(null);
-        return;
-      }
-
-      const { error: adminError } = await supabase.from("vendor_admins").insert({
-        vendor_id: vendor.id,
-        name: app.owner_name,
-        email: app.owner_email,
-        role: "owner",
+    try {
+      await decideVendorApplicationAction({
+        applicationId: app.id,
+        businessName: app.business_name,
+        subdomainPreference: app.subdomain_preference,
+        category: app.business_type,
+        city: app.city,
+        requestedPlan: app.requested_plan,
+        ownerName: app.owner_name,
+        ownerEmail: app.owner_email,
+        status,
       });
-
-      if (adminError) {
-        setError(`Vendor created, but couldn't add the owner admin: ${adminError.message}`);
-      }
-    }
-
-    const { error: updateError } = await supabase
-      .from("vendor_applications")
-      .update({ status, reviewed_at: new Date().toISOString() })
-      .eq("id", app.id);
-
-    if (updateError) {
-      setError(`Couldn't update the application status: ${updateError.message}`);
+      setApplications((prev) => prev.map((a) => (a.id === app.id ? { ...a, status } : a)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't update this application.");
+    } finally {
       setDecidingId(null);
-      return;
     }
-
-    setApplications((prev) => prev.map((a) => (a.id === app.id ? { ...a, status } : a)));
-    setDecidingId(null);
   }
 
   function toggleSelect(id: string) {

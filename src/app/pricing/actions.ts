@@ -1,21 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { requireFinanceStaff } from "@/lib/authz";
 
 export async function savePricingAction(input: {
   perOrderFee: number;
   monthlyFee: number;
   customDomainFee: number;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
-
-  const { data: isStaff } = await supabase.rpc("is_staff");
-  if (!isStaff) throw new Error("Not authorized");
+  const { supabase, user, staffProfile } = await requireFinanceStaff();
 
   const breakEven = Math.ceil(input.monthlyFee / input.perOrderFee);
 
@@ -29,12 +22,6 @@ export async function savePricingAction(input: {
     })
     .eq("id", true);
   if (error) throw new Error(error.message);
-
-  const { data: staffProfile } = await supabase
-    .from("staff_profiles")
-    .select("name")
-    .eq("id", user.id)
-    .maybeSingle();
 
   await supabase.from("audit_log").insert({
     action: "platform_fee_updated",
