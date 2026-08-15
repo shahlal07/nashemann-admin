@@ -1,6 +1,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { groqComplete } from "@/lib/groq";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 async function requireStaff() {
   const supabase = await createClient();
@@ -17,8 +19,27 @@ function formatPKRLike(n: number) {
   return "Rs " + Math.round(n).toLocaleString("en-PK");
 }
 
-export async function getAssistantReply(question: string): Promise<string> {
-  const supabase = await requireStaff();
+const ASSISTANT_SYSTEM_PROMPT = `You are Nashemann's internal admin AI assistant, used by platform staff inside the admin dashboard. You help staff understand vendor health, revenue, and applications on the platform.
+
+Rules:
+- Answer ONLY using the "Real data" block you're given for this question -- never invent numbers, vendor names, or statuses.
+- If the real data block says no data was found for the topic, say so plainly and don't guess.
+- If the real data block says the question is outside what you can look up, say you can currently only answer about platform revenue, vendor health, break-even/plan comparisons, and pending vendor applications.
+- Be concise and direct -- a sentence or two, phrased naturally, not a template.
+- You cannot take any action or change any data -- you only answer questions.`;
+
+async function phraseReply(question: string, facts: string): Promise<string> {
+  try {
+    return await groqComplete([
+      { role: "system", content: ASSISTANT_SYSTEM_PROMPT },
+      { role: "user", content: `Staff question: "${question}"\n\nReal data:\n${facts}` },
+    ]);
+  } catch {
+    return facts;
+  }
+}
+
+async function getGroundedFacts(question: string, supabase: SupabaseClient): Promise<string> {
   const q = question.toLowerCase();
 
   if (/revenue|earn|fee/.test(q)) {
@@ -83,5 +104,11 @@ export async function getAssistantReply(question: string): Promise<string> {
     return `${count ?? 0} vendor application(s) are waiting for review right now.`;
   }
 
-  return "I can only answer questions here, not change anything — try asking about revenue, vendor health, or pending applications.";
+  return "This question is outside what I can look up. I can currently only answer about platform revenue, vendor health, break-even/plan comparisons, and pending vendor applications.";
+}
+
+export async function getAssistantReply(question: string): Promise<string> {
+  const supabase = await requireStaff();
+  const facts = await getGroundedFacts(question, supabase);
+  return phraseReply(question, facts);
 }
