@@ -1,0 +1,161 @@
+@import "tailwindcss";
+
+:root {
+  /* Base surfaces — deep graphite, not pure black, so panels can sit
+     visibly on top without needing heavy borders everywhere. */
+  --bg: #08080b;
+  --bg-radial: radial-gradient(
+      1200px circle at 15% -10%,
+      rgba(124, 92, 252, 0.16),
+      transparent 55%
+    ),
+    radial-gradient(1000px circle at 100% 0%, rgba(255, 176, 32, 0.1), transparent 50%);
+  --surface: rgba(255, 255, 255, 0.035);
+  --surface-solid: #101014;
+  --surface-elevated: #131318;
+  --surface-hover: rgba(255, 255, 255, 0.06);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+
+  /* Text */
+  --text: #f3f3f6;
+  --text-muted: #9a9aa6;
+  --text-faint: #66666f;
+
+  /* Signature accent — violet to amber, the Nashemann gradient */
+  --accent-violet: #8b6bff;
+  --accent-violet-deep: #6d4dfa;
+  --accent-amber: #ffb020;
+  --accent-gradient: linear-gradient(135deg, var(--accent-violet) 0%, #b478ff 45%, var(--accent-amber) 100%);
+  --accent-gradient-soft: linear-gradient(135deg, rgba(139, 107, 255, 0.16), rgba(255, 176, 32, 0.12));
+
+  /* Status */
+  --success: #34d399;
+  --success-bg: rgba(52, 211, 153, 0.12);
+  --warning: #fbbf24;
+  --warning-bg: rgba(251, 191, 36, 0.12);
+  --danger: #fb7185;
+  --danger-bg: rgba(251, 113, 133, 0.12);
+  --info: #60a5fa;
+  --info-bg: rgba(96, 165, 250, 0.12);
+
+  --radius-lg: 1rem;
+  --radius-md: 0.75rem;
+  --radius-sm: 0.5rem;
+
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px -12px rgba(0, 0, 0, 0.6);
+  --shadow-glow-violet: 0 0 0 1px rgba(139, 107, 255, 0.25), 0 8px 30px -8px rgba(139, 107, 255, 0.35);
+}
+
+/* Light theme override — accent colors (violet/amber gradient, status colors)
+   stay identical across both themes; only surfaces/text/shadows flip. */
+:root[data-theme="light"] {
+  --bg: #f7f7fa;
+  --bg-radial: radial-gradient(1200px circle at 15% -10%, rgba(124, 92, 252, 0.08), transparent 55%),
+    radial-gradient(1000px circle at 100% 0%, rgba(255, 176, 32, 0.06), transparent 50%);
+  --surface: rgba(20, 20, 30, 0.03);
+  --surface-solid: #ffffff;
+  --surface-elevated: #ffffff;
+  --surface-hover: rgba(20, 20, 30, 0.045);
+  --border: rgba(20, 20, 30, 0.09);
+  --border-strong: rgba(20, 20, 30, 0.16);
+
+  --text: #16161d;
+  --text-muted: #5c5c68;
+  --text-faint: #8a8a94;
+
+  --shadow-soft: 0 1px 2px rgba(20, 20, 30, 0.06), 0 12px 32px -12px rgba(20, 20, 30, 0.16);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-solid: var(--surface-solid);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-surface-hover: var(--surface-hover);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-faint: var(--text-faint);
+  --color-accent-violet: var(--accent-violet);
+  --color-accent-amber: var(--accent-amber);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-space-grotesk);
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  color-scheme: dark;
+  overflow-x: hidden;
+}
+html[data-theme="light"] {
+  color-scheme: light;
+}
+
+body {
+  background: var(--bg);
+  background-image: var(--bg-radial);
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: rgba(139, 107, 255, 0.35);
+  color: #fff;
+}
+
+/* Thin, unobtrusive scrollbar matching the dark surface */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+  background-clip: padding-box;
+}
+:root[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(20, 20, 30, 0.14);
+  background-clip: padding-box;
+}
+:root[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(20, 20, 30, 0.22);
+  background-clip: padding-box;
+}
+
+.glass-panel {
+  background: var(--surface);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+}
+
+.accent-text {
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.accent-ring:focus-visible {
+  outline: 2px solid var(--accent-violet);
+  outline-offset: 2px;
+}
