@@ -15,12 +15,16 @@ import {
   Sparkles,
   Layers,
   AlertCircle,
+  HeartPulse,
+  ChevronDown,
+  TrendingDown,
 } from "lucide-react";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { VendorStatusBadge, Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { createClient } from "@/lib/supabase/client";
 import { formatPKR, formatDate } from "@/lib/utils";
+import type { VendorHealth, ChurnRisk } from "@/lib/vendor-signals";
 
 const TABS = ["Overview", "Branding & Theme", "Admins & Access", "Billing", "Danger Zone"] as const;
 type Tab = (typeof TABS)[number];
@@ -68,14 +72,74 @@ export type CategorySchemaRow = {
 const inputClass =
   "w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-3.5 py-2.5 text-sm text-[var(--text)] outline-none transition-colors placeholder:text-[var(--text-faint)] focus:border-[var(--accent-violet)] accent-ring";
 
+function HealthScoreCard({ health }: { health: VendorHealth }) {
+  const [expanded, setExpanded] = useState(false);
+  const tone = health.score === null ? "neutral" : health.score >= 75 ? "success" : health.score >= 50 ? "warning" : "danger";
+  const ringColor =
+    tone === "success" ? "var(--success)" : tone === "warning" ? "var(--warning)" : tone === "danger" ? "var(--danger)" : "var(--text-faint)";
+
+  return (
+    <Card className="lg:col-span-3">
+      <button type="button" onClick={() => setExpanded((v) => !v)} className="flex w-full items-center justify-between gap-4 text-left">
+        <div className="flex items-center gap-3">
+          <div
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold"
+            style={{ border: `3px solid ${ringColor}`, color: "var(--text)" }}
+          >
+            {health.score ?? "—"}
+          </div>
+          <div>
+            <p className="flex items-center gap-1.5 text-sm font-semibold text-[var(--text)]">
+              <HeartPulse size={14} className="text-[var(--accent-violet)]" /> Vendor health score
+            </p>
+            <p className="mt-0.5 text-xs text-[var(--text-faint)]">
+              {health.score === null ? "Not enough data yet to score this vendor." : "Composite of payment, reviews, reliability & stability."}
+            </p>
+          </div>
+        </div>
+        <ChevronDown size={16} className={`shrink-0 text-[var(--text-faint)] transition-transform ${expanded ? "rotate-180" : ""}`} />
+      </button>
+
+      {expanded && (
+        <div className="mt-4 space-y-3 border-t border-[var(--border)] pt-4">
+          {health.components.map((c) => (
+            <div key={c.key}>
+              <div className="mb-1 flex items-center justify-between text-xs">
+                <span className="font-medium text-[var(--text)]">
+                  {c.label} <span className="text-[var(--text-faint)]">({Math.round(c.weight * 100)}% weight)</span>
+                </span>
+                <span className="font-semibold text-[var(--text)]">{c.score === null ? "N/A" : `${c.score}/100`}</span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--surface-hover)]">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${c.score ?? 0}%`,
+                    background: c.score === null ? "transparent" : "var(--accent-gradient)",
+                  }}
+                />
+              </div>
+              <p className="mt-1 text-[0.7rem] text-[var(--text-faint)]">{c.detail}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export function VendorDetailClient({
   vendor: initialVendor,
   initialAdmins,
   categorySchema,
+  health,
+  churnRisk,
 }: {
   vendor: VendorRow;
   initialAdmins: VendorAdminRow[];
   categorySchema: CategorySchemaRow;
+  health: VendorHealth;
+  churnRisk: ChurnRisk;
 }) {
   const [vendor, setVendor] = useState(initialVendor);
   const [tab, setTab] = useState<Tab>("Overview");
@@ -216,6 +280,13 @@ export function VendorDetailClient({
             <div className="flex items-center gap-2.5">
               <h1 className="font-display text-2xl font-semibold text-[var(--text)]">{vendor.name}</h1>
               <VendorStatusBadge status={status} />
+              {churnRisk.atRisk && (
+                <span title={churnRisk.reasons.join(" · ")}>
+                  <Badge tone="danger" className="cursor-help">
+                    <TrendingDown size={11} /> Churn risk
+                  </Badge>
+                </span>
+              )}
             </div>
             <a
               href="#"
@@ -275,6 +346,8 @@ export function VendorDetailClient({
             <p className="text-xs font-medium text-[var(--text-muted)]">Onboarded</p>
             <p className="font-display mt-2 text-2xl font-semibold text-[var(--text)]">{formatDate(vendor.joined_at)}</p>
           </Card>
+
+          <HealthScoreCard health={health} />
 
           <Card className="lg:col-span-3">
             <CardHeader title="Store details" />
