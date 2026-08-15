@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { ChevronDown, ShieldCheck } from "lucide-react";
 import { Logo } from "./Logo";
 import { NAV_SECTIONS } from "./nav-items";
@@ -15,6 +15,7 @@ function sectionContainsActive(section: (typeof NAV_SECTIONS)[number], pathname:
 
 export function Sidebar({ mobile = false, onNavigate }: { mobile?: boolean; onNavigate?: () => void }) {
   const pathname = usePathname();
+  const prefersReducedMotion = useReducedMotion();
   const stats = getPlatformStats();
   const badgeValues: Record<string, number> = {
     pendingApplications: stats.pendingApplications,
@@ -75,7 +76,8 @@ export function Sidebar({ mobile = false, onNavigate }: { mobile?: boolean; onNa
               <button
                 type="button"
                 onClick={() => toggleSection(si)}
-                className="flex w-full items-center justify-between rounded-[var(--radius-sm)] px-3 py-2 text-[0.7rem] font-semibold uppercase tracking-wider text-[var(--text-faint)] transition-colors hover:text-[var(--text-muted)]"
+                className="accent-ring flex w-full items-center justify-between rounded-[var(--radius-sm)] px-3 py-2 text-[0.7rem] font-semibold uppercase tracking-wider text-[var(--text-faint)] transition-colors hover:text-[var(--text-muted)]"
+                aria-expanded={open}
               >
                 {section.label}
                 <ChevronDown size={13} className={`transition-transform ${open ? "rotate-180" : ""}`} />
@@ -83,10 +85,10 @@ export function Sidebar({ mobile = false, onNavigate }: { mobile?: boolean; onNa
               <AnimatePresence initial={false}>
                 {open && (
                   <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.22, ease: "easeInOut" }}
+                    initial={prefersReducedMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+                    animate={prefersReducedMotion ? { opacity: 1 } : { height: "auto", opacity: 1 }}
+                    exit={prefersReducedMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+                    transition={{ duration: prefersReducedMotion ? 0 : 0.22, ease: "easeInOut" }}
                     className="overflow-hidden"
                   >
                     <div className="space-y-1 pt-1">
@@ -141,11 +143,12 @@ function NavLink({
   const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
   const badge = item.badgeKey ? badgeValues[item.badgeKey] : 0;
   const Icon = item.icon;
+  const prefersReducedMotion = useReducedMotion();
   return (
     <Link
       href={item.href}
       onClick={onNavigate}
-      className={`group relative flex items-center gap-3 rounded-[var(--radius-sm)] px-3 py-2.5 text-sm font-medium transition-colors ${
+      className={`accent-ring group relative flex items-center gap-3 rounded-[var(--radius-sm)] px-3 py-2.5 text-sm font-medium transition-colors ${
         isActive ? "text-[var(--text)]" : "text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
       }`}
     >
@@ -154,7 +157,7 @@ function NavLink({
           layoutId={mobile ? "nav-active-pill-mobile" : "nav-active-pill"}
           className="absolute inset-0 rounded-[var(--radius-sm)]"
           style={{ background: "var(--accent-gradient-soft)", border: "1px solid rgba(139,107,255,0.3)" }}
-          transition={{ type: "spring", stiffness: 400, damping: 32 }}
+          transition={prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 400, damping: 32 }}
         />
       )}
       <Icon size={17} strokeWidth={2} className={`relative z-10 shrink-0 ${isActive ? "text-[var(--accent-violet)]" : ""}`} />

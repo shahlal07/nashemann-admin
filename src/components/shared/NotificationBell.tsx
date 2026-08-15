@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Bell } from "lucide-react";
 
 const NOTIFICATIONS = [
@@ -12,14 +12,34 @@ const NOTIFICATIONS = [
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [open]);
 
   return (
     <div className="relative">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="relative flex h-9 w-9 items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+        className="accent-ring relative flex h-9 w-9 items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
         aria-label="Notifications"
+        aria-haspopup="true"
+        aria-expanded={open}
       >
         <Bell size={17} />
         <span className="absolute right-2 top-2 h-2 w-2 rounded-full" style={{ background: "var(--accent-amber)" }} />
@@ -28,14 +48,22 @@ export function NotificationBell() {
       <AnimatePresence>
         {open && (
           <>
-            <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => {
+                setOpen(false);
+                triggerRef.current?.focus();
+              }}
+            />
             <motion.div
-              initial={{ opacity: 0, y: -8, scale: 0.97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -8, scale: 0.97 }}
-              transition={{ duration: 0.18 }}
+              initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.97 }}
+              animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
+              exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.97 }}
+              transition={{ duration: prefersReducedMotion ? 0 : 0.18 }}
               className="glass-panel absolute right-0 top-11 z-50 w-72 overflow-hidden rounded-[var(--radius-lg)]"
               style={{ background: "var(--surface-solid)", boxShadow: "var(--shadow-soft)" }}
+              role="region"
+              aria-label="Notifications"
             >
               <p className="border-b border-[var(--border)] px-4 py-3 text-xs font-semibold text-[var(--text-faint)]">
                 Announcements

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, type CSSProperties } from "react";
-import { motion, useMotionTemplate, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { motion, useMotionTemplate, useMotionValue, useReducedMotion, useSpring, useTransform } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 export function TiltCard({
@@ -19,6 +19,7 @@ export function TiltCard({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [hovering, setHovering] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
   const x = useMotionValue(0.5);
   const y = useMotionValue(0.5);
 
@@ -48,7 +49,13 @@ export function TiltCard({
       onMouseMove={handleMouseMove}
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={handleMouseLeave}
-      style={{ rotateX, rotateY, transformStyle: "preserve-3d", transformPerspective: 800, ...style }}
+      style={{
+        rotateX: prefersReducedMotion ? 0 : rotateX,
+        rotateY: prefersReducedMotion ? 0 : rotateY,
+        transformStyle: "preserve-3d",
+        transformPerspective: 800,
+        ...style,
+      }}
       className={cn("glass-panel relative overflow-hidden rounded-[var(--radius-lg)]", className)}
     >
       {glare && (

@@ -27,7 +27,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50",
+        "accent-ring inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50",
         VARIANT_STYLES[variant],
         SIZE_STYLES[size],
         className

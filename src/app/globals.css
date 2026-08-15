@@ -20,11 +20,17 @@
   /* Text */
   --text: #f3f3f6;
   --text-muted: #9a9aa6;
-  --text-faint: #66666f;
+  /* Lightened from #66666f (3.3:1) so small-print text (timestamps, hints)
+     clears WCAG AA's 4.5:1 normal-text threshold against every surface. */
+  --text-faint: #7e7e88;
 
   /* Signature accent — violet to amber, the Nashemann gradient */
   --accent-violet: #8b6bff;
-  --accent-violet-deep: #6d4dfa;
+  /* Accessible-contrast alternate for accent-violet used AS TEXT (e.g. the
+     Badge "violet" tone) — kept separate from --accent-violet itself
+     because that variable also feeds --accent-gradient, whose brightness
+     the primary Button relies on for its black-text contrast. */
+  --accent-violet-deep: #987cff;
   --accent-amber: #ffb020;
   --accent-gradient: linear-gradient(135deg, var(--accent-violet) 0%, #b478ff 45%, var(--accent-amber) 100%);
   --accent-gradient-soft: linear-gradient(135deg, rgba(139, 107, 255, 0.16), rgba(255, 176, 32, 0.12));
@@ -62,7 +68,22 @@
 
   --text: #16161d;
   --text-muted: #5c5c68;
-  --text-faint: #8a8a94;
+  --text-faint: #6f6f7a;
+
+  /* Status/accent colors were tuned for the dark surface and fall well
+     under WCAG AA (some as low as 1.6:1) once used as text or icon fills
+     on the light theme's near-white surfaces. Darkened for light mode only —
+     dark theme already passes and is left untouched above. --accent-violet
+     itself is intentionally NOT overridden here: it also composes
+     --accent-gradient, and darkening it would drop the primary Button's
+     black-on-gradient text below 4.5:1. Its text-safe counterpart is
+     --accent-violet-deep. */
+  --accent-violet-deep: #6439ff;
+  --accent-amber: #ba7800;
+  --success: #1a7655;
+  --warning: #866202;
+  --danger: #d10623;
+  --info: #0763d6;
 
   --shadow-soft: 0 1px 2px rgba(20, 20, 30, 0.06), 0 12px 32px -12px rgba(20, 20, 30, 0.16);
 }
@@ -158,4 +179,20 @@ body {
 .accent-ring:focus-visible {
   outline: 2px solid var(--accent-violet);
   outline-offset: 2px;
+}
+
+/* CSS-driven safety net for prefers-reduced-motion: covers ordinary
+   transition/animation-based motion (hover states, the sidebar chevron,
+   etc). framer-motion drives transforms via JS/WAAPI rather than these
+   properties, so animated components also check useReducedMotion()
+   directly — see MOTION_TRANSITION usages across src/components. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

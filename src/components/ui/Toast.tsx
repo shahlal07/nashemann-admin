@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { CheckCircle2, XCircle, Info, X } from "lucide-react";
 
 type ToastTone = "success" | "error" | "info";
@@ -31,6 +31,7 @@ const TONE_COLOR: Record<ToastTone, string> = {
 };
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
+  const prefersReducedMotion = useReducedMotion();
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const dismiss = useCallback((id: string) => {
@@ -56,10 +57,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             return (
               <motion.div
                 key={t.id}
-                initial={{ opacity: 0, y: 12, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                role="status"
+                initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 12, scale: 0.96 }}
+                animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
+                exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.96 }}
+                transition={prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 400, damping: 32 }}
                 className="glass-panel pointer-events-auto flex items-start gap-2.5 rounded-[var(--radius-md)] px-4 py-3"
                 style={{ boxShadow: "var(--shadow-soft)" }}
               >
@@ -68,7 +70,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 <button
                   type="button"
                   onClick={() => dismiss(t.id)}
-                  className="shrink-0 rounded p-0.5 text-[var(--text-faint)] hover:text-[var(--text)]"
+                  className="accent-ring shrink-0 rounded p-0.5 text-[var(--text-faint)] hover:text-[var(--text)]"
                   aria-label="Dismiss"
                 >
                   <X size={14} />

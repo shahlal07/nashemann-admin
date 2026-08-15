@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { motion, useInView, useMotionValue, useSpring } from "framer-motion";
+import { motion, useInView, useMotionValue, useReducedMotion, useSpring } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 import { Card } from "./Card";
 import { cn } from "@/lib/utils";
@@ -10,12 +10,15 @@ import { cn } from "@/lib/utils";
 function CountUp({ value, prefix = "", suffix = "" }: { value: number; prefix?: string; suffix?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true, margin: "-40px" });
+  const prefersReducedMotion = useReducedMotion();
   const motionValue = useMotionValue(0);
   const spring = useSpring(motionValue, { damping: 24, stiffness: 90 });
 
   useEffect(() => {
-    if (inView) motionValue.set(value);
-  }, [inView, value, motionValue]);
+    if (!inView) return;
+    motionValue.set(value);
+    if (prefersReducedMotion) spring.jump(value);
+  }, [inView, value, motionValue, spring, prefersReducedMotion]);
 
   useEffect(() => {
     const unsub = spring.on("change", (v) => {
@@ -46,6 +49,7 @@ export function StatCard({
   accent?: "violet" | "amber";
   href?: string;
 }) {
+  const prefersReducedMotion = useReducedMotion();
   const body = (
     <Card className={cn("relative overflow-hidden", href && "transition-colors hover:bg-[var(--surface-hover)]")}>
       <div
@@ -65,9 +69,9 @@ export function StatCard({
           )}
         </div>
         <motion.div
-          initial={{ scale: 0.6, opacity: 0 }}
+          initial={prefersReducedMotion ? { opacity: 0 } : { scale: 0.6, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: "spring", stiffness: 260, damping: 20 }}
+          transition={prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 20 }}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
           style={{
             background: accent === "violet" ? "rgba(139,107,255,0.14)" : "rgba(255,176,32,0.14)",
@@ -82,7 +86,7 @@ export function StatCard({
 
   if (href) {
     return (
-      <Link href={href} className="block">
+      <Link href={href} className="accent-ring block rounded-[var(--radius-lg)]">
         {body}
       </Link>
     );

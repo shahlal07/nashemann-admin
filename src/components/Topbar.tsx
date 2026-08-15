@@ -30,7 +30,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
       <button
         type="button"
         onClick={onMenuClick}
-        className="rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] lg:hidden"
+        className="accent-ring rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] lg:hidden"
         aria-label="Toggle menu"
       >
         <Menu size={20} />

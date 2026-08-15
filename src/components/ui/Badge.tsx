@@ -8,7 +8,7 @@ const TONE_STYLES: Record<Tone, string> = {
   danger: "bg-[var(--danger-bg)] text-[var(--danger)]",
   info: "bg-[var(--info-bg)] text-[var(--info)]",
   neutral: "bg-white/[0.06] text-[var(--text-muted)]",
-  violet: "bg-[rgba(139,107,255,0.14)] text-[var(--accent-violet)]",
+  violet: "bg-[rgba(139,107,255,0.14)] text-[var(--accent-violet-deep)]",
 };
 
 export function Badge({

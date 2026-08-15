@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Upload, X, ImageIcon } from "lucide-react";
 
 export function ImageUpload({
@@ -18,6 +18,7 @@ export function ImageUpload({
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
 
   function handleFile(file: File | null) {
     if (!file) {
@@ -45,7 +46,16 @@ export function ImageUpload({
           handleFile(e.dataTransfer.files[0] ?? null);
         }}
         onClick={() => inputRef.current?.click()}
-        className={`relative flex cursor-pointer flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border-2 border-dashed p-5 text-center transition-colors ${
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
+        role="button"
+        tabIndex={0}
+        aria-label={label}
+        className={`accent-ring relative flex cursor-pointer flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border-2 border-dashed p-5 text-center transition-colors ${
           dragging ? "border-[var(--accent-violet)] bg-[var(--accent-gradient-soft)]" : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)]"
         } ${aspect === "wide" ? "aspect-[16/9]" : "aspect-square max-w-[10rem]"}`}
       >
@@ -64,12 +74,13 @@ export function ImageUpload({
               type="button"
               initial={{ opacity: 0 }}
               whileHover={{ opacity: 1 }}
+              transition={{ duration: prefersReducedMotion ? 0 : 0.15 }}
               onClick={(e) => {
                 e.stopPropagation();
                 handleFile(null);
                 if (inputRef.current) inputRef.current.value = "";
               }}
-              className="absolute right-1.5 top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity hover:opacity-100"
+              className="accent-ring absolute right-1.5 top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity hover:opacity-100"
               style={{ opacity: 1 }}
               aria-label="Remove image"
             >
