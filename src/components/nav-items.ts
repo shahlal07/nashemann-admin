@@ -22,6 +22,7 @@ import {
   Gift,
   Headset,
   UserCircle,
+  Wallet,
 } from "lucide-react";
 
 export type NavItem = {
@@ -74,6 +75,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     label: "Finance",
     items: [
+      { label: "Platform Fees", href: "/platform-fees", icon: Wallet },
       { label: "Settlements", href: "/settlements", icon: Receipt },
       { label: "Pricing Plans", href: "/pricing", icon: Tags },
       {

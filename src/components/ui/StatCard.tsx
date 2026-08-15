@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Link from "next/link";
 import { motion, useInView, useMotionValue, useSpring } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 import { Card } from "./Card";
+import { cn } from "@/lib/utils";
 
 function CountUp({ value, prefix = "", suffix = "" }: { value: number; prefix?: string; suffix?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
@@ -33,6 +35,7 @@ export function StatCard({
   icon: Icon,
   trend,
   accent = "violet",
+  href,
 }: {
   label: string;
   value: number;
@@ -41,9 +44,10 @@ export function StatCard({
   icon: LucideIcon;
   trend?: { value: number; positive: boolean };
   accent?: "violet" | "amber";
+  href?: string;
 }) {
-  return (
-    <Card className="relative overflow-hidden">
+  const body = (
+    <Card className={cn("relative overflow-hidden", href && "transition-colors hover:bg-[var(--surface-hover)]")}>
       <div
         className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full opacity-[0.15] blur-2xl"
         style={{ background: accent === "violet" ? "var(--accent-violet)" : "var(--accent-amber)" }}
@@ -75,4 +79,14 @@ export function StatCard({
       </div>
     </Card>
   );
+
+  if (href) {
+    return (
+      <Link href={href} className="block">
+        {body}
+      </Link>
+    );
+  }
+
+  return body;
 }
