@@ -9,7 +9,7 @@ import { getAssistantReply } from "./actions";
 
 const AI_ASSISTANT_SUGGESTIONS = [
   "Which vendors need attention today?",
-  "Summarize platform revenue this month",
+  "Summarize this month's settlements",
   "Which vendors are close to their break-even order volume?",
   "How many applications are pending review?",
 ];

@@ -1,17 +1,11 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { requireStaff as requireStaffCtx } from "@/lib/authz";
 import { groqComplete } from "@/lib/groq";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 async function requireStaff() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
-  const { data: isStaff } = await supabase.rpc("is_staff");
-  if (!isStaff) throw new Error("Not authorized");
+  const { supabase } = await requireStaffCtx();
   return supabase;
 }
 
@@ -24,7 +18,7 @@ const ASSISTANT_SYSTEM_PROMPT = `You are Nashemann's internal admin AI assistant
 Rules:
 - Answer ONLY using the "Real data" block you're given for this question -- never invent numbers, vendor names, or statuses.
 - If the real data block says no data was found for the topic, say so plainly and don't guess.
-- If the real data block says the question is outside what you can look up, say you can currently only answer about platform revenue, vendor health, break-even/plan comparisons, and pending vendor applications.
+- If the real data block says the question is outside what you can look up, say you can currently only answer about platform revenue, monthly settlement summaries, vendor health, break-even/plan comparisons, and pending vendor applications.
 - Be concise and direct -- a sentence or two, phrased naturally, not a template.
 - You cannot take any action or change any data -- you only answer questions.`;
 
@@ -39,8 +33,53 @@ async function phraseReply(question: string, facts: string): Promise<string> {
   }
 }
 
+async function monthlySettlementSummary(supabase: SupabaseClient): Promise<string> {
+  const { data: latestMonthRow } = await supabase
+    .from("settlements")
+    .select("month")
+    .order("month", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!latestMonthRow) return "There's no settlement data recorded yet, so I can't summarize this month's settlements.";
+
+  const { data: rows } = await supabase
+    .from("settlements")
+    .select("orders_count, gross_revenue, platform_fee, amount_paid, status, due_date, vendors(name)")
+    .eq("month", latestMonthRow.month);
+
+  const all = rows ?? [];
+  const totalFees = all.reduce((sum, r) => sum + Number(r.platform_fee), 0);
+  const totalOrders = all.reduce((sum, r) => sum + Number(r.orders_count ?? 0), 0);
+  const totalGross = all.reduce((sum, r) => sum + Number(r.gross_revenue ?? 0), 0);
+
+  const overdue = all.filter((r) => {
+    if (r.status !== "pending" && r.status !== "partially_paid") return false;
+    if (!r.due_date) return false;
+    return new Date(r.due_date) < new Date(new Date().toDateString());
+  });
+
+  const topVendors = [...all]
+    .sort((a, b) => Number(b.platform_fee) - Number(a.platform_fee))
+    .slice(0, 3)
+    .map((r) => `${(r.vendors as unknown as { name: string } | null)?.name ?? "Unknown"} (${formatPKRLike(Number(r.platform_fee))})`);
+
+  const monthLabel = new Date(latestMonthRow.month).toLocaleDateString("en-PK", { month: "long", year: "numeric" });
+
+  return [
+    `Month: ${monthLabel}.`,
+    `${all.length} settlement(s) covering ${totalOrders} orders and ${formatPKRLike(totalGross)} gross revenue.`,
+    `Total platform fees: ${formatPKRLike(totalFees)}.`,
+    topVendors.length > 0 ? `Top vendors by fee: ${topVendors.join(", ")}.` : "No vendor fee data this month.",
+    `${overdue.length} settlement(s) currently overdue.`,
+  ].join(" ");
+}
+
 async function getGroundedFacts(question: string, supabase: SupabaseClient): Promise<string> {
   const q = question.toLowerCase();
+
+  if (/summar(y|ize).*settlement|settlement.*summar(y|ize)|monthly settlement/.test(q)) {
+    return monthlySettlementSummary(supabase);
+  }
 
   if (/revenue|earn|fee/.test(q)) {
     const { data: latestMonthRow } = await supabase
