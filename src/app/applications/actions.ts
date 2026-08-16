@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireMutatingStaff } from "@/lib/authz";
+import { sendApplicationStatusEmail } from "@/lib/email";
 
 export async function decideVendorApplicationAction(input: {
   applicationId: string;
@@ -61,11 +62,22 @@ export async function decideVendorApplicationAction(input: {
     });
   }
 
-  const { error: updateError } = await supabase
+  const { data: updated, error: updateError } = await supabase
     .from("vendor_applications")
     .update({ status: input.status, reviewed_at: new Date().toISOString() })
-    .eq("id", input.applicationId);
+    .eq("id", input.applicationId)
+    .select("reference_id")
+    .single();
   if (updateError) throw new Error(`Couldn't update the application status: ${updateError.message}`);
+
+  await sendApplicationStatusEmail({
+    to: input.ownerEmail,
+    ownerName: input.ownerName,
+    businessName: input.businessName,
+    referenceId: updated?.reference_id ?? input.applicationId,
+    status: input.status,
+    subdomain: input.status === "approved" ? input.subdomainPreference : undefined,
+  });
 
   revalidatePath("/applications");
   revalidatePath("/vendors");

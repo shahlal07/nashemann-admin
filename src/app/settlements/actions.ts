@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireFinanceStaff as requireStaff } from "@/lib/authz";
+import { sendSettlementPaidEmail } from "@/lib/email";
 
 function monthLabel(month: string) {
   return new Date(month).toLocaleDateString("en-PK", { month: "long", year: "numeric" });
@@ -38,6 +39,34 @@ export async function recordPaymentAction(input: {
       input.reference ? ` (ref: ${input.reference})` : ""
     }`,
   });
+
+  // The RI trigger that syncs settlements.status/amount_paid off
+  // settlement_payments already ran as part of the insert above (same
+  // statement/transaction) -- re-reading the settlement here sees the
+  // post-trigger state, so this only fires once the balance actually hits zero.
+  const { data: settlement } = await supabase
+    .from("settlements")
+    .select("status, vendor_id, gross_revenue, platform_fee, amount_paid")
+    .eq("id", input.settlementId)
+    .maybeSingle();
+
+  if (settlement?.status === "paid" && settlement.vendor_id) {
+    const [{ data: vendor }, { data: owner }] = await Promise.all([
+      supabase.from("vendors").select("contact_email").eq("id", settlement.vendor_id).maybeSingle(),
+      supabase.from("vendor_admins").select("email").eq("vendor_id", settlement.vendor_id).eq("role", "owner").limit(1).maybeSingle(),
+    ]);
+    const to = vendor?.contact_email || owner?.email;
+    if (to) {
+      await sendSettlementPaidEmail({
+        to,
+        vendorName: input.vendorName,
+        monthLabel: monthLabel(input.month),
+        amountPaid: settlement.amount_paid,
+        grossRevenue: settlement.gross_revenue,
+        platformFee: settlement.platform_fee,
+      });
+    }
+  }
 
   revalidatePath("/settlements");
   revalidatePath("/platform-fees");
