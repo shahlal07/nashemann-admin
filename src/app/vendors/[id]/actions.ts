@@ -105,6 +105,42 @@ export async function changeVendorCurrencyAction(vendorId: string, vendorName: s
   revalidatePath("/audit-log");
 }
 
+const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+export async function updateVendorSlugAction(vendorId: string, vendorName: string, nextSlug: string) {
+  const { supabase, actor } = await requireMutatingStaff();
+
+  const slug = nextSlug.trim().toLowerCase();
+  if (!SLUG_PATTERN.test(slug)) {
+    throw new Error("Slug must be lowercase letters, numbers, and single hyphens only (e.g. mina-cafe).");
+  }
+
+  const { data: conflict } = await supabase
+    .from("vendors")
+    .select("id")
+    .eq("subdomain", slug)
+    .neq("id", vendorId)
+    .maybeSingle();
+  if (conflict) throw new Error(`"${slug}" is already taken by another store.`);
+
+  const { error } = await supabase.from("vendors").update({ subdomain: slug }).eq("id", vendorId);
+  if (error) {
+    throw new Error(error.code === "23505" ? `"${slug}" is already taken by another store.` : error.message);
+  }
+
+  await supabase.from("audit_log").insert({
+    action: "vendor_slug_changed",
+    actor,
+    entity: vendorName,
+    detail: `Store slug changed to "${slug}" (storefront: ${slug}.nashemann.store, admin: admin.${slug}.nashemann.store)`,
+  });
+
+  revalidatePath(`/vendors/${vendorId}`);
+  revalidatePath("/vendors");
+  revalidatePath("/audit-log");
+  return slug;
+}
+
 export async function addVendorAdminAction(vendorId: string, vendorName: string, name: string, email: string) {
   const { supabase, actor } = await requireMutatingStaff();
 

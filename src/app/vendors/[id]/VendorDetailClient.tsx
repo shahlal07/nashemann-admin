@@ -32,9 +32,11 @@ import {
   changeVendorCurrencyAction,
   addVendorAdminAction,
   removeVendorAdminAction,
+  updateVendorSlugAction,
 } from "./actions";
 
 const CURRENCY_OPTIONS = ["PKR", "USD", "AED", "SAR"] as const;
+const ROOT_DOMAIN = "nashemann.store";
 
 const TABS = ["Overview", "Branding & Theme", "Admins & Access", "Billing", "Danger Zone"] as const;
 type Tab = (typeof TABS)[number];
@@ -175,6 +177,32 @@ export function VendorDetailClient({
   const [newAdminEmail, setNewAdminEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [editingSlug, setEditingSlug] = useState(false);
+  const [slugInput, setSlugInput] = useState(vendor.subdomain);
+  const [slugBusy, setSlugBusy] = useState(false);
+
+  const storefrontDomain = `${vendor.subdomain}.${ROOT_DOMAIN}`;
+  const adminDomain = `admin.${vendor.subdomain}.${ROOT_DOMAIN}`;
+
+  async function saveSlug() {
+    if (!slugInput.trim() || slugInput.trim().toLowerCase() === vendor.subdomain) {
+      setEditingSlug(false);
+      setSlugInput(vendor.subdomain);
+      return;
+    }
+    setSlugBusy(true);
+    setError(null);
+    try {
+      const nextSlug = await updateVendorSlugAction(vendor.id, vendor.name, slugInput);
+      setVendor((v) => ({ ...v, subdomain: nextSlug }));
+      setSlugInput(nextSlug);
+      setEditingSlug(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't update slug");
+    } finally {
+      setSlugBusy(false);
+    }
+  }
 
   async function saveTheme() {
     setSavingTheme(true);
@@ -320,16 +348,17 @@ export function VendorDetailClient({
               )}
             </div>
             <a
-              href="#"
-              onClick={(e) => e.preventDefault()}
+              href={`https://${storefrontDomain}`}
+              target="_blank"
+              rel="noreferrer"
               className="mt-1 flex items-center gap-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--accent-violet)]"
             >
-              <Globe size={13} /> {vendor.subdomain}.nashemann.com <ExternalLink size={12} />
+              <Globe size={13} /> {storefrontDomain} <ExternalLink size={12} />
             </a>
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" size="sm">
+          <Button variant="secondary" size="sm" onClick={() => window.open(`https://${storefrontDomain}`, "_blank")}>
             View storefront
           </Button>
           <Button variant="secondary" size="sm">
@@ -392,14 +421,87 @@ export function VendorDetailClient({
                 <dd className="mt-0.5 text-[var(--text)]">{vendor.city}</dd>
               </div>
               <div>
-                <dt className="text-[var(--text-faint)]">Subdomain</dt>
-                <dd className="mt-0.5 text-[var(--text)]">{vendor.subdomain}.nashemann.com</dd>
-              </div>
-              <div>
                 <dt className="text-[var(--text-faint)]">Custom domain</dt>
                 <dd className="mt-0.5 text-[var(--text)]">{vendor.custom_domain ?? "Not configured"}</dd>
               </div>
             </dl>
+          </Card>
+
+          <Card className="lg:col-span-3">
+            <CardHeader title="Store" description="Hostname routing for this vendor's storefront and admin login." />
+            <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
+              <div>
+                <dt className="text-[var(--text-faint)]">Store slug</dt>
+                {editingSlug ? (
+                  <div className="mt-1 flex items-center gap-2">
+                    <input
+                      value={slugInput}
+                      onChange={(e) => setSlugInput(e.target.value.toLowerCase())}
+                      className={inputClass}
+                      disabled={slugBusy}
+                      autoFocus
+                    />
+                    <Button variant="primary" size="sm" onClick={saveSlug} disabled={slugBusy}>
+                      {slugBusy ? "Saving…" : "Save"}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        setEditingSlug(false);
+                        setSlugInput(vendor.subdomain);
+                      }}
+                      disabled={slugBusy}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <dd className="mt-0.5 flex items-center gap-2 text-[var(--text)]">
+                    {vendor.subdomain}
+                    <button
+                      type="button"
+                      onClick={() => setEditingSlug(true)}
+                      className="text-xs font-medium text-[var(--accent-violet)] hover:underline"
+                    >
+                      Edit
+                    </button>
+                  </dd>
+                )}
+              </div>
+              <div>
+                <dt className="text-[var(--text-faint)]">Status</dt>
+                <dd className="mt-0.5">
+                  <VendorStatusBadge status={status} />
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[var(--text-faint)]">Storefront domain</dt>
+                <dd className="mt-0.5 flex items-center gap-1.5 text-[var(--text)]">
+                  {storefrontDomain}
+                  <a href={`https://${storefrontDomain}`} target="_blank" rel="noreferrer" className="text-[var(--accent-violet)]">
+                    <ExternalLink size={12} />
+                  </a>
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[var(--text-faint)]">Admin domain</dt>
+                <dd className="mt-0.5 flex items-center gap-1.5 text-[var(--text)]">
+                  {adminDomain}
+                  <a href={`https://${adminDomain}`} target="_blank" rel="noreferrer" className="text-[var(--accent-violet)]">
+                    <ExternalLink size={12} />
+                  </a>
+                </dd>
+              </div>
+            </div>
+            <div className="mt-4 flex gap-2 border-t border-[var(--border)] pt-4">
+              <Button variant="secondary" size="sm" onClick={() => window.open(`https://${storefrontDomain}`, "_blank")}>
+                <Globe size={13} /> View storefront
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => window.open(`https://${adminDomain}`, "_blank")}>
+                <Globe size={13} /> View vendor admin
+              </Button>
+            </div>
           </Card>
 
           <Card>
