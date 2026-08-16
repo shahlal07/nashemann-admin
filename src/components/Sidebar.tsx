@@ -9,7 +9,7 @@ import { Logo } from "./Logo";
 import { NAV_SECTIONS } from "./nav-items";
 import { getPlatformStats, MOCK_INFLUENCER_APPLICATIONS, MOCK_BUG_REPORTS } from "@/lib/mock-data";
 import { createClient } from "@/lib/supabase/client";
-import { ROLE_LABELS, type StaffRole } from "@/lib/authz";
+import { ROLE_LABELS, type StaffRole } from "@/lib/roles";
 
 function sectionContainsActive(section: (typeof NAV_SECTIONS)[number], pathname: string) {
   return section.items.some((item) => (item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)));

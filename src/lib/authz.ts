@@ -1,15 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
+import { ROLE_LABELS, type StaffRole } from "@/lib/roles";
 
-export type StaffRole = "super_admin" | "admin" | "finance" | "support" | "read_only" | "platform_staff";
-
-export const ROLE_LABELS: Record<StaffRole, string> = {
-  super_admin: "Super Admin",
-  admin: "Admin",
-  finance: "Finance",
-  support: "Support",
-  read_only: "Read-Only",
-  platform_staff: "Admin", // legacy value, migrated on sight in the DB; kept here only so old rows still render.
-};
+// Re-exported for existing server-side call sites (Server Components / server
+// actions) that imported these from here -- @/lib/roles is the client-safe
+// source of truth now, see that file for why the split exists.
+export { ROLE_LABELS, type StaffRole };
 
 /**
  * Any signed-in staff member, for read-only server actions (e.g. the AI

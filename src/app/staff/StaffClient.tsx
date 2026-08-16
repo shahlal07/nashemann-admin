@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { timeAgo, formatDate } from "@/lib/utils";
 import { UserPlus, Trash2 } from "lucide-react";
 import { inviteStaffAction, removeStaffAction, updateStaffRoleAction } from "./actions";
-import { ROLE_LABELS, type StaffRole } from "@/lib/authz";
+import { ROLE_LABELS, type StaffRole } from "@/lib/roles";
 
 const inputClass =
   "w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-3.5 py-2.5 text-sm text-[var(--text)] outline-none transition-colors focus:border-[var(--accent-violet)] accent-ring";
