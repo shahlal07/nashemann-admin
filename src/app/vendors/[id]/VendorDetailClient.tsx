@@ -34,6 +34,7 @@ import {
   changeVendorCurrencyAction,
   addVendorAdminAction,
   updateVendorAdminAction,
+  sendVendorAdminResetLinkAction,
   removeVendorAdminAction,
   revokeVendorAdminSessionsAction,
   updateVendorSlugAction,
@@ -384,6 +385,20 @@ export function VendorDetailClient({
       setEditAdminPassword("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't update admin credentials");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sendAdminReset(admin: VendorAdminRow) {
+    setBusy(true);
+    setError(null);
+    try {
+      await sendVendorAdminResetLinkAction(vendor.id, vendor.name, admin.id, admin.email, admin.name, vendor.subdomain);
+      setError(null);
+      window.alert("Password reset email sent successfully.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't send password reset email");
     } finally {
       setBusy(false);
     }
@@ -835,6 +850,15 @@ export function VendorDetailClient({
                     title="Revoke all active sessions"
                   >
                     <HeartPulse size={15} />
+                  </button>
+                  <button
+                    onClick={() => sendAdminReset(admin)}
+                    disabled={busy}
+                    className="text-[var(--text-faint)] hover:text-[var(--text)]"
+                    aria-label="Send password reset"
+                    title="Send password reset email"
+                  >
+                    Reset
                   </button>
                   <button
                     onClick={() => { setEditingAdminId(admin.id); setEditAdminName(admin.name); setEditAdminEmail(admin.email); setEditAdminPassword(""); }}

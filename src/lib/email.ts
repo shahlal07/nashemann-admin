@@ -201,6 +201,24 @@ export async function sendVendorAdminCredentialsChangedEmail(params: {
   await sendMail({ to: params.to, subject: `${params.storeName} admin credentials updated`, html, from: FROM_SECURITY });
 }
 
+export async function sendVendorAdminPasswordResetEmail(params: {
+  to: string;
+  name: string;
+  storeName: string;
+  resetUrl: string;
+  adminUrl: string;
+}): Promise<void> {
+  const html = wrapEmail(`
+    <h2 style="margin-top:0;">Reset your ${params.storeName} admin password</h2>
+    <p>Hi ${params.name.split(" ")[0]},</p>
+    <p>The Nashemann Super Admin requested a password reset for your vendor admin account.</p>
+    ${button(params.resetUrl, "Reset password", "#111827")}
+    <p style="margin-top:18px;"><strong>Admin panel:</strong> ${params.adminUrl}</p>
+    <p style="margin-top:18px;color:#6b7280;font-size:13px;">This link is single-use and expires according to your Supabase Auth recovery settings. If you did not request this, contact the Nashemann platform team.</p>
+  `);
+  await sendMail({ to: params.to, subject: `${params.storeName} admin password reset`, html, from: FROM_SECURITY });
+}
+
 export async function sendVendorAdminStoreNoticeEmail(params: {
   to: string;
   name: string;

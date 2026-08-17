@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { sendAccountEmailChangedNotice, sendVendorAdminCredentialsChangedEmail, sendVendorAdminStoreNoticeEmail } from "@/lib/email";
+import { sendAccountEmailChangedNotice, sendVendorAdminCredentialsChangedEmail, sendVendorAdminPasswordResetEmail, sendVendorAdminStoreNoticeEmail } from "@/lib/email";
 import { requireFinanceStaff, requireMutatingStaff, requireSuperAdmin } from "@/lib/authz";
 import { syncVendorStatus } from "@/lib/vendor-provisioning";
 
@@ -278,7 +278,7 @@ export async function updateVendorAdminAction(
   const response = await fetch(vendorPlatformUrl('/api/platform/admins'), {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-nashemann-provisioning-secret': vendorPlatformSecret() },
-    body: JSON.stringify({ action: 'update', vendorId, userId: adminId, name: input.name.trim(), email: input.email.trim(), password: input.password?.trim() || undefined }),
+    body: JSON.stringify({ action: 'update', vendorId, userId: adminId, name: input.name.trim(), email: input.email.trim(), previousEmail: input.previousEmail?.trim(), password: input.password?.trim() || undefined }),
     cache: 'no-store',
   });
   const payload = (await response.json().catch(() => ({}))) as { admin?: VendorAdminRow; passwordChanged?: boolean; error?: string };
@@ -304,6 +304,37 @@ export async function updateVendorAdminAction(
   revalidatePath(`/vendors/${vendorId}`);
   revalidatePath('/audit-log');
   return payload.admin;
+}
+
+
+export async function sendVendorAdminResetLinkAction(
+  vendorId: string,
+  vendorName: string,
+  adminId: string,
+  adminEmail: string,
+  adminName: string,
+  vendorSubdomain: string,
+) {
+  const { supabase, actor } = await requireSuperAdmin();
+  const resetUrl = `https://admin.${vendorSubdomain}.nashemann.store/reset-password`;
+  const response = await fetch(vendorPlatformUrl('/api/platform/admins'), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-nashemann-provisioning-secret': vendorPlatformSecret() },
+    body: JSON.stringify({ action: 'send_reset', vendorId, userId: adminId, redirectTo: resetUrl }),
+    cache: 'no-store',
+  });
+  const payload = await response.json().catch(() => ({})) as { resetUrl?: string; admin?: { email?: string; name?: string }; error?: string };
+  if (!response.ok || !payload.resetUrl) throw new Error(payload.error ?? 'Could not generate the vendor admin reset link.');
+  await sendVendorAdminPasswordResetEmail({
+    to: payload.admin?.email ?? adminEmail,
+    name: payload.admin?.name ?? adminName,
+    storeName: vendorName,
+    resetUrl: payload.resetUrl,
+    adminUrl: `https://admin.${vendorSubdomain}.nashemann.store`,
+  });
+  await supabase.from('audit_log').insert({ action: 'vendor_admin_password_reset_requested', actor, entity: vendorName, detail: `Password reset link sent to ${payload.admin?.email ?? adminEmail}` });
+  revalidatePath(`/vendors/${vendorId}`);
+  revalidatePath('/audit-log');
 }
 
 
