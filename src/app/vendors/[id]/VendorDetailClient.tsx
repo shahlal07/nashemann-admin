@@ -85,7 +85,7 @@ export type VendorAdminRow = {
   id: string;
   name: string;
   email: string;
-  role: "admin" | "staff";
+  role: "owner" | "admin" | "staff";
   added_at: string;
 };
 
@@ -105,18 +105,6 @@ function HealthScoreCard({ health }: { health: VendorHealth }) {
   const tone = health.score === null ? "neutral" : health.score >= 75 ? "success" : health.score >= 50 ? "warning" : "danger";
   const ringColor =
     tone === "success" ? "var(--success)" : tone === "warning" ? "var(--warning)" : tone === "danger" ? "var(--danger)" : "var(--text-faint)";
-
-  async function revokeSessions(admin: VendorAdminRow) {
-    setBusy(true);
-    setError(null);
-    try {
-      await revokeVendorAdminSessionsAction(vendor.id, vendor.name, admin.id, admin.name, admin.email);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't revoke sessions");
-    } finally {
-      setBusy(false);
-    }
-  }
 
   return (
     <Card className="lg:col-span-3">
