@@ -18,8 +18,15 @@ export type PricingValue = {
   customDomainFee: number;
 };
 
-export function PricingForm({ initialPricing }: { initialPricing: PricingValue }) {
+export type FeeModeValue = {
+  feeType: "percent" | "fixed";
+  feePercent: number;
+  feeFixedAmount: number;
+};
+
+export function PricingForm({ initialPricing, initialFeeMode }: { initialPricing: PricingValue; initialFeeMode: FeeModeValue }) {
   const [pricing, setPricing] = useState(initialPricing);
+  const [feeMode, setFeeMode] = useState(initialFeeMode);
   const [perOrderEnabled, setPerOrderEnabled] = useState(true);
   const [monthlyEnabled, setMonthlyEnabled] = useState(true);
   const [saved, setSaved] = useState(false);
@@ -29,7 +36,7 @@ export function PricingForm({ initialPricing }: { initialPricing: PricingValue }
 
   function save() {
     startTransition(async () => {
-      await savePricingAction(pricing);
+      await savePricingAction({ ...pricing, feeType: feeMode.feeType, feePercent: feeMode.feePercent, feeFixedAmount: feeMode.feeFixedAmount });
       setSaved(true);
       setTimeout(() => setSaved(false), 1800);
     });
@@ -128,6 +135,33 @@ export function PricingForm({ initialPricing }: { initialPricing: PricingValue }
               <Check size={14} className="text-[var(--success)]" /> No per-order fee shown to their customers
             </li>
           </ul>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader title="Checkout platform fee" description="The fee charged to the customer per order. This is independent of the per-order/monthly plan and is always applied." />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label className="block">
+              <span className={labelClass}>Fee type</span>
+              <select className={inputClass} value={feeMode.feeType} onChange={(e) => setFeeMode({ ...feeMode, feeType: e.target.value as "percent" | "fixed" })}>
+                <option value="percent">Percentage of order subtotal</option>
+                <option value="fixed">Fixed amount per order</option>
+              </select>
+            </label>
+            {feeMode.feeType === "percent" ? (
+              <label className="block">
+                <span className={labelClass}>Default fee (%)</span>
+                <input type="number" min="0" max="100" step="0.01" value={feeMode.feePercent} onChange={(e) => setFeeMode({ ...feeMode, feePercent: Number(e.target.value) })} className={inputClass} />
+              </label>
+            ) : (
+              <label className="block">
+                <span className={labelClass}>Default fee per order (Rs)</span>
+                <input type="number" min="0" step="1" value={feeMode.feeFixedAmount} onChange={(e) => setFeeMode({ ...feeMode, feeFixedAmount: Number(e.target.value) })} className={inputClass} />
+              </label>
+            )}
+          </div>
+          <div className="mt-3 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-hover)] p-3 text-xs text-[var(--text-faint)]">
+            Per-vendor overrides can be set on each vendor&apos;s detail page. Vendor coupons/promo codes cannot reduce the platform fee.
+          </div>
         </Card>
 
         <Card className="lg:col-span-2">

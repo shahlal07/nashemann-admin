@@ -73,7 +73,9 @@ export type VendorRow = {
   theme_font: string;
   white_label_enabled: boolean;
   currency: string;
+  fee_type: "percent" | "fixed";
   fee_override_percent: number | null;
+  fee_override_fixed_amount: number | null;
   description: string | null;
   contact_email: string | null;
   contact_phone: string | null;
@@ -204,7 +206,16 @@ export function VendorDetailClient({
   const [customDomainInput, setCustomDomainInput] = useState(vendor.custom_domain?.endsWith(".nashemann.store") ? "" : (vendor.custom_domain ?? ""));
   const [customDomainBusy, setCustomDomainBusy] = useState(false);
   const [savingControl, setSavingControl] = useState(false);
-  const [control, setControl] = useState({ description: vendor.description ?? "", contactEmail: vendor.contact_email ?? "", contactPhone: vendor.contact_phone ?? "", instagramUrl: vendor.instagram_url ?? "", youtubeUrl: vendor.youtube_url ?? "", feeOverridePercent: vendor.fee_override_percent == null ? "" : String(vendor.fee_override_percent) });
+  const [control, setControl] = useState({
+    description: vendor.description ?? "",
+    contactEmail: vendor.contact_email ?? "",
+    contactPhone: vendor.contact_phone ?? "",
+    instagramUrl: vendor.instagram_url ?? "",
+    youtubeUrl: vendor.youtube_url ?? "",
+    feeType: (vendor.fee_type ?? "percent") as "percent" | "fixed",
+    feeOverridePercent: vendor.fee_override_percent == null ? "" : String(vendor.fee_override_percent),
+    feeOverrideFixedAmount: vendor.fee_override_fixed_amount == null ? "" : String(vendor.fee_override_fixed_amount),
+  });
 
   const storefrontDomain = `${vendor.subdomain}.${ROOT_DOMAIN}`;
   const adminDomain = `admin.${vendor.subdomain}.${ROOT_DOMAIN}`;
@@ -223,15 +234,28 @@ export function VendorDetailClient({
     setError(null);
     try {
       const rawFee = control.feeOverridePercent.trim();
+      const rawFixed = control.feeOverrideFixedAmount.trim();
       await updateVendorControlProfileAction(vendor.id, vendor.name, {
         description: control.description,
         contactEmail: control.contactEmail,
         contactPhone: control.contactPhone,
         instagramUrl: control.instagramUrl,
         youtubeUrl: control.youtubeUrl,
+        feeType: control.feeType,
         feeOverridePercent: rawFee === "" ? null : Number(rawFee),
+        feeOverrideFixedAmount: rawFixed === "" ? null : Number(rawFixed),
       });
-      setVendor((v) => ({ ...v, description: control.description, contact_email: control.contactEmail || null, contact_phone: control.contactPhone || null, instagram_url: control.instagramUrl || null, youtube_url: control.youtubeUrl || null, fee_override_percent: rawFee === "" ? null : Number(rawFee) }));
+      setVendor((v) => ({
+        ...v,
+        description: control.description,
+        contact_email: control.contactEmail || null,
+        contact_phone: control.contactPhone || null,
+        instagram_url: control.instagramUrl || null,
+        youtube_url: control.youtubeUrl || null,
+        fee_type: control.feeType,
+        fee_override_percent: rawFee === "" ? null : Number(rawFee),
+        fee_override_fixed_amount: rawFixed === "" ? null : Number(rawFixed),
+      }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't save platform controls");
     } finally {
@@ -564,7 +588,17 @@ export function VendorDetailClient({
               <label className="block"><span className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Contact phone</span><input value={control.contactPhone} onChange={(e) => setControl({ ...control, contactPhone: e.target.value })} className={inputClass} /></label>
               <label className="block"><span className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Instagram URL</span><input value={control.instagramUrl} onChange={(e) => setControl({ ...control, instagramUrl: e.target.value })} className={inputClass} placeholder="https://instagram.com/..." /></label>
               <label className="block"><span className="mb-1 block text-xs font-medium text-[var(--text-muted)]">YouTube URL</span><input value={control.youtubeUrl} onChange={(e) => setControl({ ...control, youtubeUrl: e.target.value })} className={inputClass} placeholder="https://youtube.com/..." /></label>
-              <label className="block"><span className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Platform fee override (%)</span><input type="number" min="0" max="100" step="0.01" value={control.feeOverridePercent} onChange={(e) => setControl({ ...control, feeOverridePercent: e.target.value })} className={inputClass} placeholder="Blank = standard plan" /></label>
+              <label className="block"><span className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Fee type</span>
+                <select className={inputClass} value={control.feeType} onChange={(e) => setControl({ ...control, feeType: e.target.value as "percent" | "fixed" })}>
+                  <option value="percent">Percentage of order</option>
+                  <option value="fixed">Fixed amount per order</option>
+                </select>
+              </label>
+              {control.feeType === "percent" ? (
+                <label className="block"><span className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Platform fee (%)</span><input type="number" min="0" max="100" step="0.01" value={control.feeOverridePercent} onChange={(e) => setControl({ ...control, feeOverridePercent: e.target.value })} className={inputClass} placeholder="Blank = standard plan" /></label>
+              ) : (
+                <label className="block"><span className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Fixed fee per order (Rs)</span><input type="number" min="0" step="1" value={control.feeOverrideFixedAmount} onChange={(e) => setControl({ ...control, feeOverrideFixedAmount: e.target.value })} className={inputClass} placeholder="Blank = standard plan" /></label>
+              )}
               <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-hover)] p-3 text-xs text-[var(--text-faint)] md:col-span-2">Super Admin can override the platform fee for strategic/partner vendors. Blank means the normal plan pricing applies.</div>
             </div>
           </Card>

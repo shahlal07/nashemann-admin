@@ -11,7 +11,7 @@ export default async function VendorDetailPage({ params }: { params: Promise<{ i
   const { data: vendor } = await supabase
     .from("vendors")
     .select(
-      "id, name, subdomain, custom_domain, category, city, status, plan, orders_last_30d, revenue_last_30d, joined_at, theme_accent_from, theme_accent_to, theme_logo_emoji, theme_logo_url, theme_font, white_label_enabled, currency, fee_override_percent, description, contact_email, contact_phone, instagram_url, youtube_url"
+      "id, name, subdomain, custom_domain, category, city, status, plan, orders_last_30d, revenue_last_30d, joined_at, theme_accent_from, theme_accent_to, theme_logo_emoji, theme_logo_url, theme_font, white_label_enabled, currency, fee_type, fee_override_percent, fee_override_fixed_amount, description, contact_email, contact_phone, instagram_url, youtube_url"
     )
     .eq("id", id)
     .maybeSingle();

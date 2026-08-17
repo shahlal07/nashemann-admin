@@ -341,22 +341,64 @@ export async function sendVendorAdminResetLinkAction(
 export async function updateVendorControlProfileAction(
   vendorId: string,
   vendorName: string,
-  input: { description: string; contactEmail: string; contactPhone: string; instagramUrl: string; youtubeUrl: string; feeOverridePercent: number | null },
+  input: {
+    description: string;
+    contactEmail: string;
+    contactPhone: string;
+    instagramUrl: string;
+    youtubeUrl: string;
+    feeType: "percent" | "fixed";
+    feeOverridePercent: number | null;
+    feeOverrideFixedAmount: number | null;
+  },
 ) {
   const { supabase, actor } = await requireSuperAdmin();
-  if (input.feeOverridePercent !== null && (!Number.isFinite(input.feeOverridePercent) || input.feeOverridePercent < 0 || input.feeOverridePercent > 100)) {
+
+  const isPercent = input.feeType === "percent";
+  if (isPercent && input.feeOverridePercent !== null && (!Number.isFinite(input.feeOverridePercent) || input.feeOverridePercent < 0 || input.feeOverridePercent > 100)) {
     throw new Error("Fee override must be between 0 and 100 percent.");
   }
+  if (!isPercent && input.feeOverrideFixedAmount !== null && (!Number.isFinite(input.feeOverrideFixedAmount) || input.feeOverrideFixedAmount < 0)) {
+    throw new Error("Fixed fee amount must be zero or a positive number.");
+  }
+
   const { error } = await supabase.from("vendors").update({
     description: input.description.trim(),
     contact_email: input.contactEmail.trim() || null,
     contact_phone: input.contactPhone.trim() || null,
     instagram_url: input.instagramUrl.trim() || null,
     youtube_url: input.youtubeUrl.trim() || null,
-    fee_override_percent: input.feeOverridePercent,
+    fee_type: input.feeType,
+    fee_override_percent: isPercent ? input.feeOverridePercent : null,
+    fee_override_fixed_amount: !isPercent ? input.feeOverrideFixedAmount : null,
   }).eq("id", vendorId);
   if (error) throw new Error(error.message);
-  await supabase.from("audit_log").insert({ action: "vendor_control_profile_updated", actor, entity: vendorName, detail: `Updated contact, social, description and fee override (${input.feeOverridePercent === null ? "standard" : `${input.feeOverridePercent}%`})` });
+
+  // Sync fee settings to the storefront database
+  const feePayload: Record<string, unknown> = { vendorId, feeType: input.feeType };
+  if (isPercent) {
+    feePayload.feePercent = input.feeOverridePercent ?? 0;
+  } else {
+    feePayload.feeFixedAmount = input.feeOverrideFixedAmount ?? 0;
+  }
+  await fetch(vendorPlatformUrl("/api/platform/fees"), {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-nashemann-provisioning-secret": vendorPlatformSecret() },
+    body: JSON.stringify(feePayload),
+    cache: "no-store",
+  }).then(async (r) => {
+    if (!r.ok) {
+      const body = await r.json().catch(() => ({})) as { error?: string };
+      throw new Error(body.error ?? "Couldn't sync fee to storefront.");
+    }
+  });
+
+  const feeLabel = input.feeOverridePercent === null && input.feeOverrideFixedAmount === null
+    ? "standard"
+    : isPercent
+      ? `${input.feeOverridePercent ?? 0}%`
+      : `Rs ${input.feeOverrideFixedAmount ?? 0}/order`;
+  await supabase.from("audit_log").insert({ action: "vendor_control_profile_updated", actor, entity: vendorName, detail: `Updated contact, social, description and fee override (${feeLabel})` });
   revalidatePath(`/vendors/${vendorId}`);
   revalidatePath("/audit-log");
 }
