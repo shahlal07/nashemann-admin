@@ -359,7 +359,7 @@ export const MOCK_TENANT_HEALTH: TenantHealthRow[] = [
 
 export const MOCK_STAFF: PlatformStaffMember[] = [
   { id: "s1", name: "Shahzaib Lal", email: "shahlalfinance@gmail.com", role: "super_admin", addedAt: "2026-06-01", lastActiveAt: "2026-08-14T22:10:00Z" },
-  { id: "s2", name: "Amna Siddiqui", email: "amna@nashemann.com", role: "platform_staff", addedAt: "2026-07-15", lastActiveAt: "2026-08-14T17:30:00Z" },
+  { id: "s2", name: "Amna Siddiqui", email: "amna@nashemann.store", role: "platform_staff", addedAt: "2026-07-15", lastActiveAt: "2026-08-14T17:30:00Z" },
 ];
 
 export const MOCK_AUDIT_LOG: AuditLogEntry[] = [

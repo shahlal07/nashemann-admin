@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { computeVendorHealth, computeChurnRisk } from "@/lib/vendor-signals";
 import { VendorDetailClient } from "./VendorDetailClient";
+import { getVendorAdminsAction } from "./actions";
 
 export default async function VendorDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -10,7 +11,7 @@ export default async function VendorDetailPage({ params }: { params: Promise<{ i
   const { data: vendor } = await supabase
     .from("vendors")
     .select(
-      "id, name, subdomain, custom_domain, category, city, status, plan, orders_last_30d, revenue_last_30d, joined_at, theme_accent_from, theme_accent_to, theme_logo_emoji, theme_font, white_label_enabled, currency"
+      "id, name, subdomain, custom_domain, category, city, status, plan, orders_last_30d, revenue_last_30d, joined_at, theme_accent_from, theme_accent_to, theme_logo_emoji, theme_logo_url, theme_font, white_label_enabled, currency, fee_override_percent, description, contact_email, contact_phone, instagram_url, youtube_url"
     )
     .eq("id", id)
     .maybeSingle();
@@ -25,9 +26,9 @@ export default async function VendorDetailPage({ params }: { params: Promise<{ i
     : { data: null };
   const isFinanceStaff = ["super_admin", "admin", "finance"].includes(currentStaff?.role ?? "");
 
-  const [{ data: admins }, { data: categorySchema }, { data: settlements }, { data: reviews }, { data: tenantHealth }] =
+  const [admins, { data: categorySchema }, { data: settlements }, { data: reviews }, { data: tenantHealth }] =
     await Promise.all([
-      supabase.from("vendor_admins").select("id, name, email, role, added_at").eq("vendor_id", id).order("added_at", { ascending: true }),
+      getVendorAdminsAction(id),
       vendor.category
         ? supabase
             .from("category_product_schemas")

@@ -60,7 +60,7 @@ export function SupportClient({
 
     const owner = vendor.vendor_admins[0];
     const name = owner?.name ?? vendor.name;
-    const email = owner?.email ?? `${vendor.subdomain}@nashemann.com`;
+    const email = owner?.email ?? `${vendor.subdomain}@nashemann.store`;
     const existing = conversations.find((c) => c.email.toLowerCase() === email.toLowerCase());
 
     try {

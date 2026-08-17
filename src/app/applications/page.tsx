@@ -128,7 +128,7 @@ function ApplicationCard({
             <MapPin size={14} className="text-[var(--text-faint)]" /> {app.city}
           </p>
           <p className="flex items-center gap-2">
-            <Globe size={14} className="text-[var(--text-faint)]" /> {app.subdomain_preference}.nashemann.com
+            <Globe size={14} className="text-[var(--text-faint)]" /> {app.subdomain_preference}.nashemann.store
           </p>
         </div>
 

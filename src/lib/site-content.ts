@@ -121,7 +121,7 @@ export const REWARDS_CONTENT = {
 export const CONTACT_CONTENT = {
   whatsappNumber: "923001234567",
   whatsappDisplay: "+92 300 1234567",
-  supportEmail: "hello@nashemann.com",
+  supportEmail: "hello@nashemann.store",
   phoneDisplay: "+92 42 1234 5678",
   phoneHref: "tel:+924212345678",
   address: "Gulberg III, Lahore, Pakistan",

@@ -4,7 +4,7 @@
  * Frontend-only persistence for the demo: a "Nashemann platform account" is
  * completely separate from a vendor's own store admin login (theaamghar-
  * admin-style) -- this is the identity used for tracking an application,
- * the support chat, and submitting/viewing bug reports on nashemann.com
+ * the support chat, and submitting/viewing bug reports on nashemann.store
  * itself. Mirrors theaamghar-web's real customer account system, minus a
  * real backend.
  */

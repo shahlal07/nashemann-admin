@@ -118,7 +118,7 @@ export function WebsiteContentClient({
         <div>
           <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--text)]">Website content</h1>
           <p className="mt-1.5 max-w-2xl text-sm text-[var(--text-muted)]">
-            Everything on nashemann.com&apos;s public site — nothing is hardcoded, it all comes from here.
+            Everything on nashemann.store&apos;s public site — nothing is hardcoded, it all comes from here.
           </p>
         </div>
         <Button variant="primary" onClick={save} disabled={pending}>

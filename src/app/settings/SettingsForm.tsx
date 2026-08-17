@@ -31,7 +31,7 @@ export function SettingsForm() {
             </label>
             <label className="block">
               <span className={labelClass}>Support email</span>
-              <input defaultValue="hello@nashemann.com" type="email" className={inputClass} />
+              <input defaultValue="hello@nashemann.store" type="email" className={inputClass} />
             </label>
             <label className="block sm:col-span-2">
               <span className={labelClass}>Tagline</span>

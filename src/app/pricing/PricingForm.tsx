@@ -145,7 +145,7 @@ export function PricingForm({ initialPricing }: { initialPricing: PricingValue }
               />
             </label>
             <div className="pt-5">
-              <Badge tone="violet">e.g. sabzbasket.pk instead of sabz-basket.nashemann.com</Badge>
+              <Badge tone="violet">e.g. sabzbasket.pk instead of sabz-basket.nashemann.store</Badge>
             </div>
           </div>
         </Card>

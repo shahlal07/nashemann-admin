@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -10,6 +11,7 @@ import {
   Wallet,
   UserPlus,
   Trash2,
+  Pencil,
   AlertTriangle,
   ExternalLink,
   Sparkles,
@@ -31,8 +33,12 @@ import {
   changeVendorPlanAction,
   changeVendorCurrencyAction,
   addVendorAdminAction,
+  updateVendorAdminAction,
   removeVendorAdminAction,
+  revokeVendorAdminSessionsAction,
   updateVendorSlugAction,
+  updateVendorControlProfileAction,
+  updateVendorCustomDomainAction,
 } from "./actions";
 
 const CURRENCY_OPTIONS = ["PKR", "USD", "AED", "SAR"] as const;
@@ -62,16 +68,23 @@ export type VendorRow = {
   theme_accent_from: string;
   theme_accent_to: string;
   theme_logo_emoji: string;
+  theme_logo_url: string | null;
   theme_font: string;
   white_label_enabled: boolean;
   currency: string;
+  fee_override_percent: number | null;
+  description: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  instagram_url: string | null;
+  youtube_url: string | null;
 };
 
 export type VendorAdminRow = {
   id: string;
   name: string;
   email: string;
-  role: "owner" | "staff";
+  role: "admin" | "staff";
   added_at: string;
 };
 
@@ -91,6 +104,18 @@ function HealthScoreCard({ health }: { health: VendorHealth }) {
   const tone = health.score === null ? "neutral" : health.score >= 75 ? "success" : health.score >= 50 ? "warning" : "danger";
   const ringColor =
     tone === "success" ? "var(--success)" : tone === "warning" ? "var(--warning)" : tone === "danger" ? "var(--danger)" : "var(--text-faint)";
+
+  async function revokeSessions(admin: VendorAdminRow) {
+    setBusy(true);
+    setError(null);
+    try {
+      await revokeVendorAdminSessionsAction(vendor.id, vendor.name, admin.id, admin.name, admin.email);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't revoke sessions");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <Card className="lg:col-span-3">
@@ -164,25 +189,66 @@ export function VendorDetailClient({
     accentFrom: vendor.theme_accent_from,
     accentTo: vendor.theme_accent_to,
     logoEmoji: vendor.theme_logo_emoji,
+    logoUrl: vendor.theme_logo_url,
     font: vendor.theme_font,
   });
   const [status, setStatus] = useState(vendor.status);
   const [plan, setPlan] = useState(vendor.plan);
   const [currencyBusy, setCurrencyBusy] = useState(false);
   const [savingTheme, setSavingTheme] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [saved, setSaved] = useState(false);
   const [admins, setAdmins] = useState(initialAdmins);
   const [addingAdmin, setAddingAdmin] = useState(false);
+  const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
   const [newAdminName, setNewAdminName] = useState("");
   const [newAdminEmail, setNewAdminEmail] = useState("");
+  const [editingAdminId, setEditingAdminId] = useState<string | null>(null);
+  const [editAdminName, setEditAdminName] = useState("");
+  const [editAdminEmail, setEditAdminEmail] = useState("");
+  const [editAdminPassword, setEditAdminPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [editingSlug, setEditingSlug] = useState(false);
   const [slugInput, setSlugInput] = useState(vendor.subdomain);
   const [slugBusy, setSlugBusy] = useState(false);
+  const [customDomainInput, setCustomDomainInput] = useState(vendor.custom_domain?.endsWith(".nashemann.store") ? "" : (vendor.custom_domain ?? ""));
+  const [customDomainBusy, setCustomDomainBusy] = useState(false);
+  const [savingControl, setSavingControl] = useState(false);
+  const [control, setControl] = useState({ description: vendor.description ?? "", contactEmail: vendor.contact_email ?? "", contactPhone: vendor.contact_phone ?? "", instagramUrl: vendor.instagram_url ?? "", youtubeUrl: vendor.youtube_url ?? "", feeOverridePercent: vendor.fee_override_percent == null ? "" : String(vendor.fee_override_percent) });
 
   const storefrontDomain = `${vendor.subdomain}.${ROOT_DOMAIN}`;
   const adminDomain = `admin.${vendor.subdomain}.${ROOT_DOMAIN}`;
+
+  async function saveCustomDomain() {
+    setCustomDomainBusy(true); setError(null);
+    try {
+      const next = await updateVendorCustomDomainAction(vendor.id, vendor.name, vendor.subdomain, customDomainInput);
+      setVendor((v) => ({ ...v, custom_domain: next }));
+      setCustomDomainInput(next.endsWith(".nashemann.store") ? "" : next);
+    } catch (err) { setError(err instanceof Error ? err.message : "Couldn't update custom domain"); } finally { setCustomDomainBusy(false); }
+  }
+
+  async function saveControlProfile() {
+    setSavingControl(true);
+    setError(null);
+    try {
+      const rawFee = control.feeOverridePercent.trim();
+      await updateVendorControlProfileAction(vendor.id, vendor.name, {
+        description: control.description,
+        contactEmail: control.contactEmail,
+        contactPhone: control.contactPhone,
+        instagramUrl: control.instagramUrl,
+        youtubeUrl: control.youtubeUrl,
+        feeOverridePercent: rawFee === "" ? null : Number(rawFee),
+      });
+      setVendor((v) => ({ ...v, description: control.description, contact_email: control.contactEmail || null, contact_phone: control.contactPhone || null, instagram_url: control.instagramUrl || null, youtube_url: control.youtubeUrl || null, fee_override_percent: rawFee === "" ? null : Number(rawFee) }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't save platform controls");
+    } finally {
+      setSavingControl(false);
+    }
+  }
 
   async function saveSlug() {
     if (!slugInput.trim() || slugInput.trim().toLowerCase() === vendor.subdomain) {
@@ -193,7 +259,7 @@ export function VendorDetailClient({
     setSlugBusy(true);
     setError(null);
     try {
-      const nextSlug = await updateVendorSlugAction(vendor.id, vendor.name, slugInput);
+      const nextSlug = await updateVendorSlugAction(vendor.id, vendor.name, vendor.subdomain, slugInput);
       setVendor((v) => ({ ...v, subdomain: nextSlug }));
       setSlugInput(nextSlug);
       setEditingSlug(false);
@@ -202,6 +268,25 @@ export function VendorDetailClient({
     } finally {
       setSlugBusy(false);
     }
+  }
+
+  async function uploadLogo(file: File | undefined) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { setError("Please choose an image file."); return; }
+    if (file.size > 5 * 1024 * 1024) { setError("Logo images must be 5 MB or smaller."); return; }
+    setUploadingLogo(true);
+    setError(null);
+    try {
+      const supabase = createClient();
+      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+      const path = `vendors/${vendor.id}/logo-${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("vendor-logos").upload(path, file, { upsert: true, contentType: file.type, cacheControl: "31536000" });
+      if (uploadError) throw uploadError;
+      const { data } = supabase.storage.from("vendor-logos").getPublicUrl(path);
+      setTheme((t) => ({ ...t, logoUrl: data.publicUrl }));
+    } catch (err) {
+      setError(err instanceof Error ? `Couldn't upload logo: ${err.message}` : "Couldn't upload logo");
+    } finally { setUploadingLogo(false); }
   }
 
   async function saveTheme() {
@@ -214,6 +299,7 @@ export function VendorDetailClient({
         theme_accent_from: theme.accentFrom,
         theme_accent_to: theme.accentTo,
         theme_logo_emoji: theme.logoEmoji,
+        theme_logo_url: theme.logoUrl,
         theme_font: theme.font,
       }));
       setSaved(true);
@@ -280,14 +366,38 @@ export function VendorDetailClient({
     }
   }
 
+  async function saveAdminCredentials(e: React.FormEvent) {
+    e.preventDefault();
+    const current = admins.find((a) => a.id === editingAdminId);
+    if (!current || !editAdminName.trim() || !editAdminEmail.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const updated = await updateVendorAdminAction(vendor.id, vendor.name, current.id, {
+        name: editAdminName,
+        email: editAdminEmail,
+        password: editAdminPassword || undefined,
+        previousEmail: current.email,
+      }, vendor.subdomain);
+      setAdmins((prev) => prev.map((a) => (a.id === current.id ? { ...a, ...updated } : a)));
+      setEditingAdminId(null);
+      setEditAdminPassword("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't update admin credentials");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function addAdmin(e: React.FormEvent) {
     e.preventDefault();
     if (!newAdminName.trim() || !newAdminEmail.trim()) return;
     setBusy(true);
     setError(null);
     try {
-      const data = await addVendorAdminAction(vendor.id, vendor.name, newAdminName, newAdminEmail);
+      const data = await addVendorAdminAction(vendor.id, vendor.name, newAdminName, newAdminEmail, "staff", vendor.subdomain);
       setAdmins((prev) => [...prev, data as VendorAdminRow]);
+      setTemporaryPassword(data.temporaryPassword ?? null);
       setNewAdminName("");
       setNewAdminEmail("");
       setAddingAdmin(false);
@@ -303,10 +413,22 @@ export function VendorDetailClient({
     setBusy(true);
     setError(null);
     try {
-      await removeVendorAdminAction(vendor.id, vendor.name, id, target ? `${target.name} (${target.email})` : id);
+      await removeVendorAdminAction(vendor.id, vendor.name, id, target ? `${target.name} (${target.email})` : id, target?.email);
       setAdmins((prev) => prev.filter((a) => a.id !== id));
     } catch (err) {
       setError(err instanceof Error ? `Couldn't remove admin: ${err.message}` : "Couldn't remove admin");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function revokeSessions(admin: VendorAdminRow) {
+    setBusy(true);
+    setError(null);
+    try {
+      await revokeVendorAdminSessionsAction(vendor.id, vendor.name, admin.id, admin.name, admin.email);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't revoke sessions");
     } finally {
       setBusy(false);
     }
@@ -420,11 +542,28 @@ export function VendorDetailClient({
                 <dt className="text-[var(--text-faint)]">City</dt>
                 <dd className="mt-0.5 text-[var(--text)]">{vendor.city}</dd>
               </div>
-              <div>
+              <div className="sm:col-span-2">
                 <dt className="text-[var(--text-faint)]">Custom domain</dt>
-                <dd className="mt-0.5 text-[var(--text)]">{vendor.custom_domain ?? "Not configured"}</dd>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <input value={customDomainInput} onChange={(e) => setCustomDomainInput(e.target.value.toLowerCase())} className={inputClass + " max-w-xl"} placeholder="shop.example.com" />
+                  <Button variant="secondary" size="sm" onClick={saveCustomDomain} disabled={customDomainBusy}>{customDomainBusy ? "Saving…" : "Save domain"}</Button>
+                </div>
+                <p className="mt-1 text-[11px] text-[var(--text-faint)]">DNS and Vercel verification are still required. Clearing this restores the Nashemann subdomain as the active custom_domain value.</p>
               </div>
             </dl>
+          </Card>
+
+          <Card className="lg:col-span-3">
+            <CardHeader title="Super Admin control center" description="Platform-level fields are authoritative. Changes are audited and never rely on the vendor admin panel." action={<Button variant="primary" size="sm" onClick={saveControlProfile} disabled={savingControl}>{savingControl ? "Saving…" : "Save controls"}</Button>} />
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="block md:col-span-2"><span className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Store description</span><textarea value={control.description} onChange={(e) => setControl({ ...control, description: e.target.value })} className={inputClass + " min-h-24 resize-y"} placeholder="Short vendor description" /></label>
+              <label className="block"><span className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Contact email</span><input type="email" value={control.contactEmail} onChange={(e) => setControl({ ...control, contactEmail: e.target.value })} className={inputClass} /></label>
+              <label className="block"><span className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Contact phone</span><input value={control.contactPhone} onChange={(e) => setControl({ ...control, contactPhone: e.target.value })} className={inputClass} /></label>
+              <label className="block"><span className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Instagram URL</span><input value={control.instagramUrl} onChange={(e) => setControl({ ...control, instagramUrl: e.target.value })} className={inputClass} placeholder="https://instagram.com/..." /></label>
+              <label className="block"><span className="mb-1 block text-xs font-medium text-[var(--text-muted)]">YouTube URL</span><input value={control.youtubeUrl} onChange={(e) => setControl({ ...control, youtubeUrl: e.target.value })} className={inputClass} placeholder="https://youtube.com/..." /></label>
+              <label className="block"><span className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Platform fee override (%)</span><input type="number" min="0" max="100" step="0.01" value={control.feeOverridePercent} onChange={(e) => setControl({ ...control, feeOverridePercent: e.target.value })} className={inputClass} placeholder="Blank = standard plan" /></label>
+              <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-hover)] p-3 text-xs text-[var(--text-faint)] md:col-span-2">Super Admin can override the platform fee for strategic/partner vendors. Blank means the normal plan pricing applies.</div>
+            </div>
           </Card>
 
           <Card className="lg:col-span-3">
@@ -577,8 +716,22 @@ export function VendorDetailClient({
                 </label>
               </div>
 
+              <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-medium text-[var(--text-muted)]">Store logo / 3D mark</p>
+                    <p className="mt-1 text-[11px] text-[var(--text-faint)]">Upload the vendor's real logo. It is stored in Supabase Storage and used by the shared storefront.</p>
+                  </div>
+                  <label className="cursor-pointer rounded-[var(--radius-sm)] border border-[var(--border)] px-3 py-2 text-xs font-semibold text-[var(--text)] hover:bg-[var(--surface-hover)]">
+                    {uploadingLogo ? "Uploading…" : theme.logoUrl ? "Replace" : "Upload"}
+                    <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden" onChange={(e) => uploadLogo(e.target.files?.[0])} disabled={uploadingLogo} />
+                  </label>
+                </div>
+                {theme.logoUrl && <img src={theme.logoUrl} alt={`${vendor.name} logo`} className="mt-3 h-16 w-16 rounded-2xl border border-[var(--border)] bg-white object-contain p-2 shadow-sm" />}
+              </div>
+
               <label className="block">
-                <span className="mb-1.5 block text-xs font-medium text-[var(--text-muted)]">Logo emoji (placeholder mark)</span>
+                <span className="mb-1.5 block text-xs font-medium text-[var(--text-muted)]">Logo emoji (fallback mark)</span>
                 <input
                   value={theme.logoEmoji}
                   onChange={(e) => setTheme({ ...theme, logoEmoji: e.target.value })}
@@ -615,7 +768,7 @@ export function VendorDetailClient({
                   className="flex h-24 items-center justify-center text-3xl"
                   style={{ background: `linear-gradient(135deg, ${theme.accentFrom}, ${theme.accentTo})` }}
                 >
-                  {theme.logoEmoji}
+                  {theme.logoUrl ? <img src={theme.logoUrl} alt="Store logo" className="h-16 w-16 rounded-2xl bg-white/90 object-contain p-2 shadow-lg" /> : theme.logoEmoji}
                 </div>
                 <div className="space-y-2 bg-[var(--surface-solid)] p-4">
                   <p className="text-sm font-semibold text-[var(--text)]">{vendor.name}</p>
@@ -674,6 +827,24 @@ export function VendorDetailClient({
                 </div>
                 <div className="flex items-center gap-3">
                   <Badge tone={admin.role === "owner" ? "violet" : "neutral"}>{admin.role}</Badge>
+                  <button
+                    onClick={() => revokeSessions(admin)}
+                    disabled={busy}
+                    className="text-[var(--text-faint)] hover:text-[var(--warning)]"
+                    aria-label="Revoke admin sessions"
+                    title="Revoke all active sessions"
+                  >
+                    <HeartPulse size={15} />
+                  </button>
+                  <button
+                    onClick={() => { setEditingAdminId(admin.id); setEditAdminName(admin.name); setEditAdminEmail(admin.email); setEditAdminPassword(""); }}
+                    disabled={busy}
+                    className="text-[var(--text-faint)] hover:text-[var(--accent-violet)]"
+                    aria-label="Edit admin credentials"
+                    title="Edit login credentials"
+                  >
+                    <Pencil size={15} />
+                  </button>
                   {admin.role !== "owner" && (
                     <button
                       onClick={() => removeAdmin(admin.id)}
@@ -689,6 +860,22 @@ export function VendorDetailClient({
             ))}
             {admins.length === 0 && <p className="py-6 text-center text-sm text-[var(--text-faint)]">No admins yet.</p>}
           </div>
+
+          {editingAdminId && (
+            <form onSubmit={saveAdminCredentials} className="mt-4 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-hover)] p-4">
+              <p className="mb-3 text-sm font-semibold text-[var(--text)]">Change admin login credentials</p>
+              <div className="grid gap-3 md:grid-cols-3">
+                <input required value={editAdminName} onChange={(e) => setEditAdminName(e.target.value)} className={inputClass} placeholder="Name" />
+                <input required type="email" value={editAdminEmail} onChange={(e) => setEditAdminEmail(e.target.value)} className={inputClass} placeholder="Login email" />
+                <input minLength={10} type="password" value={editAdminPassword} onChange={(e) => setEditAdminPassword(e.target.value)} className={inputClass} placeholder="New password (optional)" />
+              </div>
+              <p className="mt-2 text-xs text-[var(--text-faint)]">Leave password blank to keep it unchanged. A new password replaces the current login password immediately.</p>
+              <div className="mt-3 flex gap-2">
+                <Button type="submit" variant="primary" size="sm" disabled={busy}>Save credentials</Button>
+                <Button type="button" variant="secondary" size="sm" onClick={() => setEditingAdminId(null)}>Cancel</Button>
+              </div>
+            </form>
+          )}
         </Card>
       )}
 

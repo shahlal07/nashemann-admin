@@ -89,6 +89,7 @@ export default function CreateStorePage() {
         themeLogoUrl: logoUrl,
         ownerName,
         ownerEmail,
+        ownerPassword: tempPassword,
       });
       setCreatedVendorId(vendorId);
       setDone(true);
@@ -195,7 +196,7 @@ export default function CreateStorePage() {
                     placeholder="sabz-basket"
                     className="w-full bg-transparent px-3.5 py-2.5 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-faint)]"
                   />
-                  <span className="shrink-0 pr-3.5 text-sm text-[var(--text-faint)]">.nashemann.com</span>
+                  <span className="shrink-0 pr-3.5 text-sm text-[var(--text-faint)]">.nashemann.store</span>
                 </div>
               </label>
             </div>

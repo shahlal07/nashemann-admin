@@ -176,3 +176,46 @@ export async function sendAccountEmailChangedNotice(params: { to: string; newEma
     from: FROM_SECURITY,
   });
 }
+
+export async function sendVendorAdminCredentialsChangedEmail(params: {
+  to: string;
+  name: string;
+  storeName: string;
+  storeUrl: string;
+  adminUrl: string;
+  passwordChanged: boolean;
+  temporaryPassword?: string;
+}): Promise<void> {
+  const passwordBlock = params.temporaryPassword
+    ? `<div style="margin:18px 0;padding:14px 16px;background:#f3f4f6;border-radius:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;"><strong>Temporary password:</strong><br/>${params.temporaryPassword}</div>`
+    : "";
+  const html = wrapEmail(`
+    <h2 style="margin-top:0;">Your ${params.storeName} admin access was updated</h2>
+    <p>Hi ${params.name.split(" ")[0]}, a Nashemann super admin updated the credentials for your vendor admin account.</p>
+    <p><strong>Store:</strong> ${params.storeUrl}<br/><strong>Admin panel:</strong> ${params.adminUrl}</p>
+    ${passwordBlock}
+    ${params.passwordChanged && !params.temporaryPassword ? "<p>Your password was changed. Use the new password provided to you by the platform administrator.</p>" : ""}
+    ${button(params.adminUrl, "Open vendor admin")}
+    <p style="margin-top:18px;color:#6b7280;font-size:13px;">If you did not expect this change, contact the Nashemann platform team.</p>
+  `);
+  await sendMail({ to: params.to, subject: `${params.storeName} admin credentials updated`, html, from: FROM_SECURITY });
+}
+
+export async function sendVendorAdminStoreNoticeEmail(params: {
+  to: string;
+  name: string;
+  storeName: string;
+  subject: string;
+  message: string;
+  storeUrl: string;
+  adminUrl: string;
+}): Promise<void> {
+  const html = wrapEmail(`
+    <h2 style="margin-top:0;">${params.storeName} — platform update</h2>
+    <p>Hi ${params.name.split(" ")[0]},</p>
+    <p>${params.message}</p>
+    <p><strong>Store:</strong> ${params.storeUrl}<br/><strong>Admin panel:</strong> ${params.adminUrl}</p>
+    ${button(params.adminUrl, "Open vendor admin")}
+  `);
+  await sendMail({ to: params.to, subject: params.subject, html, from: FROM_NOTIFICATIONS });
+}

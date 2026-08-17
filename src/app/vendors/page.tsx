@@ -219,7 +219,7 @@ export default function VendorsPage() {
 
               <Link href={`/vendors/${v.id}`} className="block">
                 <p className="mt-4 flex items-center gap-1.5 text-xs text-[var(--text-faint)]">
-                  <Globe size={12} /> {v.subdomain}.nashemann.com
+                  <Globe size={12} /> {v.subdomain}.nashemann.store
                 </p>
 
                 <div className="mt-4 grid grid-cols-2 gap-3 border-t border-[var(--border)] pt-4">
