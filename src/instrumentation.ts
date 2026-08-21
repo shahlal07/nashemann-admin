@@ -1,4 +1,8 @@
-import { createHash } from "node:crypto";
+async function sha256(value: string) {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
 
 export async function register() {
   if (!process.env.VENDOR_PROVISION_URL) {
@@ -9,7 +13,7 @@ export async function register() {
   if (!process.env.VENDOR_PROVISION_SECRET) {
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SECRET_KEY;
     if (serviceRoleKey) {
-      process.env.VENDOR_PROVISION_SECRET = createHash("sha256").update(serviceRoleKey).digest("hex");
+      process.env.VENDOR_PROVISION_SECRET = await sha256(serviceRoleKey);
     }
   }
 }
