@@ -25,7 +25,7 @@ export default async function VendorDetailPage({ params }: { params: Promise<{ i
     : { data: null };
   const isFinanceStaff = ["super_admin", "admin", "finance"].includes(currentStaff?.role ?? "");
 
-  const [adminsResult, { data: categorySchema }, { data: settlements }, { data: reviews }, { data: tenantHealth }] =
+  const [{ data: admins }, { data: categorySchema }, { data: settlements }, { data: reviews }, { data: tenantHealth }] =
     await Promise.all([
       supabase
         .from("vendor_admins")
@@ -68,7 +68,7 @@ export default async function VendorDetailPage({ params }: { params: Promise<{ i
   return (
     <VendorDetailClient
       vendor={vendor}
-      initialAdmins={adminsResult ?? []}
+      initialAdmins={admins ?? []}
       categorySchema={categorySchema}
       health={health}
       churnRisk={churnRisk}
