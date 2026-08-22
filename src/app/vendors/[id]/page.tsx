@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { computeVendorHealth, computeChurnRisk } from "@/lib/vendor-signals";
 import { VendorDetailClient } from "./VendorDetailClient";
-import { getVendorAdminsAction } from "./actions";
 
 export default async function VendorDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -26,9 +25,16 @@ export default async function VendorDetailPage({ params }: { params: Promise<{ i
     : { data: null };
   const isFinanceStaff = ["super_admin", "admin", "finance"].includes(currentStaff?.role ?? "");
 
+  // Read vendor admins directly during Server Component rendering. Do not
+  // call a "use server" action from render; that can surface React #441
+  // (Server Components render failure) in production.
   const [adminsResult, { data: categorySchema }, { data: settlements }, { data: reviews }, { data: tenantHealth }] =
     await Promise.all([
-      getVendorAdminsAction(id).catch(() => []),
+      supabase
+        .from("vendor_admins")
+        .select("id,name,email,role,added_at")
+        .eq("vendor_id", id)
+        .order("added_at", { ascending: true }),
       vendor.category
         ? supabase
             .from("category_product_schemas")
@@ -65,7 +71,7 @@ export default async function VendorDetailPage({ params }: { params: Promise<{ i
   return (
     <VendorDetailClient
       vendor={vendor}
-      initialAdmins={adminsResult ?? []}
+      initialAdmins={(adminsResult ?? []) as Array<{ id: string; name: string; email: string; role: "owner" | "admin" | "staff"; added_at: string }>}
       categorySchema={categorySchema}
       health={health}
       churnRisk={churnRisk}
