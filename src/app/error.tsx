@@ -1,30 +1,52 @@
 "use client";
 
 import { useEffect } from "react";
-import { AlertTriangle, RotateCw } from "lucide-react";
-import { Button } from "@/components/ui/Button";
 
-/**
- * Route-segment error boundary. Catches any render/data-fetch throw below
- * the root layout (so the sidebar/topbar chrome still renders around this)
- * and gives staff a real recovery action instead of a blank crash screen.
- */
-export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function ErrorBoundary({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
   useEffect(() => {
-    console.error(error);
+    console.error("[Super Admin Error Boundary]", error);
   }, [error]);
 
+  const isAuthError = error.message?.toLowerCase().includes("unauthorized") ||
+    error.message?.toLowerCase().includes("platform request");
+  const isSupabaseError = error.message?.toLowerCase().includes("supabase") ||
+    error.message?.toLowerCase().includes("service-role");
+
   return (
-    <div className="flex min-h-[50vh] flex-col items-center justify-center px-5 py-16 text-center">
-      <AlertTriangle size={26} className="text-[var(--danger)]" />
-      <h1 className="font-display mt-4 text-lg font-semibold text-[var(--text)]">Something went wrong</h1>
-      <p className="mt-2 max-w-sm text-sm text-[var(--text-muted)]">
-        This page hit an unexpected error loading its data. You can retry, and if it keeps happening, check the audit
-        log or Supabase status.
-      </p>
-      <Button variant="primary" size="sm" className="mt-5" onClick={() => reset()}>
-        <RotateCw size={13} /> Try again
-      </Button>
+    <div className="min-h-screen flex items-center justify-center bg-neutral-950 text-neutral-100 p-6">
+      <div className="max-w-xl w-full bg-neutral-900 border border-neutral-800 rounded-xl p-8 shadow-2xl">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center text-red-400 text-lg">⚠</div>
+          <h2 className="text-xl font-semibold">Something went wrong</h2>
+        </div>
+        <p className="text-neutral-400 mb-4">An error occurred while rendering this page. This usually means a server-side request failed.</p>
+        <div className="bg-neutral-950 border border-neutral-800 rounded-lg p-4 mb-6 font-mono text-sm overflow-auto">
+          <p className="text-red-400 mb-2">Error: {error.message || "Unknown error"}</p>
+          {error.digest && <p className="text-neutral-500">Digest: {error.digest}</p>}
+        </div>
+        {isAuthError && (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 mb-6">
+            <p className="text-amber-400 font-medium mb-1">Authentication Issue Detected</p>
+            <p className="text-neutral-400 text-sm">The platform internal secret may be missing or mismatched. Check <code className="bg-neutral-800 px-1.5 py-0.5 rounded text-neutral-300">VENDOR_PROVISION_SECRET</code> in Vercel.</p>
+          </div>
+        )}
+        {isSupabaseError && (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 mb-6">
+            <p className="text-amber-400 font-medium mb-1">Supabase Configuration Issue</p>
+            <p className="text-neutral-400 text-sm">The service role key may be missing. Check <code className="bg-neutral-800 px-1.5 py-0.5 rounded text-neutral-300">SUPABASE_SERVICE_ROLE_KEY</code> in Vercel.</p>
+          </div>
+        )}
+        <div className="flex gap-3">
+          <button onClick={reset} className="px-4 py-2 bg-neutral-100 text-neutral-950 rounded-lg font-medium hover:bg-neutral-200 transition-colors">Try Again</button>
+          <button onClick={() => window.location.reload()} className="px-4 py-2 bg-neutral-800 text-neutral-100 rounded-lg font-medium hover:bg-neutral-700 transition-colors">Reload Page</button>
+        </div>
+      </div>
     </div>
   );
 }
