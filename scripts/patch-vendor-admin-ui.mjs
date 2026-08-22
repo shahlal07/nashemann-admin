@@ -41,8 +41,9 @@ const buttonOld = `                    aria-label="Send password reset"\n       
 const buttonNew = `                    aria-label="Generate temporary password"\n                    title="Generate a new temporary password"\n                  >\n                    Temp pass`;
 if (s.includes(buttonOld)) s = s.replace(buttonOld, buttonNew);
 
-const resolverOld = 'async function resolveVendorAdmin(admin: ReturnType<typeof createAdminClient>, vendorId: string, vendorAdminId: string) {\n  const { data: row, error } = await admin.from("vendor_admins").select("id,name,email,role,added_at").eq("vendor_id", vendorId).eq("id", vendorAdminId).maybeSingle();\n  if (error) throw new Error(error.message);\n  if (!row) throw new Error("Vendor admin record not found.");\n  const user = await findAuthUserByEmail(admin, row.email);\n  if (!user) throw new Error("No Supabase Auth account exists for " + row.email + ". Use Edit Credentials to recreate/sync this vendor admin.");\n  return { row: row as VendorAdminRow, user };\n}';
-const resolverNew = `async function resolveVendorAdmin(admin: ReturnType<typeof createAdminClient>, vendorId: string, vendorAdminId: string, fallbackEmail?: string) {
+// Replace the whole resolver by function boundaries so this remains robust
+// against harmless formatting/template-literal changes in actions.ts.
+const resolverReplacement = `async function resolveVendorAdmin(admin: ReturnType<typeof createAdminClient>, vendorId: string, vendorAdminId: string, fallbackEmail?: string) {
   let row: VendorAdminRow | null = null;
   const { data: byId, error: byIdError } = await admin
     .from("vendor_admins")
@@ -67,19 +68,21 @@ const resolverNew = `async function resolveVendorAdmin(admin: ReturnType<typeof 
   if (!user) throw new Error("No Supabase Auth account exists for " + row.email + ". Use Edit Credentials to recreate/sync this vendor admin.");
   return { row, user };
 }`;
-if (actions.includes(resolverOld)) actions = actions.replace(resolverOld, resolverNew);
+actions = actions.replace(
+  /async function resolveVendorAdmin\([\s\S]*?\n}\n\n(?=async function syncVendorAdminProfile)/,
+  () => resolverReplacement + "\n\n"
+);
 
-const updateCallOld = `const { row: currentRow, user: target } = await resolveVendorAdmin(admin, vendorId, adminId);`;
-const updateCallNew = `const { row: currentRow, user: target } = await resolveVendorAdmin(admin, vendorId, adminId, input.previousEmail);`;
-if (actions.includes(updateCallOld)) actions = actions.replace(updateCallOld, updateCallNew);
-
-const resetCallOld = `const { row, user } = await resolveVendorAdmin(admin, vendorId, adminId);`;
-const resetCallNew = `const { row, user } = await resolveVendorAdmin(admin, vendorId, adminId, adminEmail);`;
-if (actions.includes(resetCallOld)) actions = actions.replace(resetCallOld, resetCallNew);
-
-const revokeCallOld = `const { user } = await resolveVendorAdmin(admin, vendorId, adminId);`;
-const revokeCallNew = `const { user } = await resolveVendorAdmin(admin, vendorId, adminId, adminEmail);`;
-if (actions.includes(revokeCallOld)) actions = actions.replace(revokeCallOld, revokeCallNew);
+// Older client state can carry a stale row id; every mutating admin action
+// already receives the row email, so use it as a deterministic fallback.
+actions = actions.replace(
+  /resolveVendorAdmin\(admin, vendorId, adminId\)/g,
+  "resolveVendorAdmin(admin, vendorId, adminId, adminEmail)"
+);
+actions = actions.replace(
+  "resolveVendorAdmin(admin, vendorId, adminId, adminEmail)\";\n  const cleanName",
+  "resolveVendorAdmin(admin, vendorId, adminId, input.previousEmail);\n  const cleanName"
+);
 
 writeFileSync(path, s);
 writeFileSync(actionsPath, actions);
