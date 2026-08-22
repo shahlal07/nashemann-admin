@@ -69,3 +69,33 @@ export function platformUrl(path: string): string {
   url.search = "";
   return url.toString();
 }
+
+export type EnvDiagnostic = {
+  ok: boolean;
+  missing: string[];
+  supabaseUrl: string | null;
+  hasServiceKey: boolean;
+  hasProvisionSecret: boolean;
+};
+
+export function diagnosePlatformEnv(): EnvDiagnostic {
+  const missing: string[] = [];
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? null;
+  if (!supabaseUrl) missing.push("NEXT_PUBLIC_SUPABASE_URL");
+
+  const hasServiceKey = Boolean(serviceRoleKey());
+  if (!hasServiceKey) missing.push("SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_SECRET_KEY)");
+
+  const hasProvisionSecret = Boolean(
+    process.env.VENDOR_PROVISION_SECRET ?? process.env.INTERNAL_PLATFORM_SECRET
+  );
+  if (!hasProvisionSecret) missing.push("VENDOR_PROVISION_SECRET (or INTERNAL_PLATFORM_SECRET)");
+
+  return {
+    ok: missing.length === 0,
+    missing,
+    supabaseUrl,
+    hasServiceKey,
+    hasProvisionSecret,
+  };
+}
