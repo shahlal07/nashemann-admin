@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
-let adminClient: ReturnType<typeof createClient> | null = null;
+let adminClient: ReturnType<typeof createClient<any>> | null = null;
 
 export function createAdminClient() {
   if (adminClient) return adminClient;
@@ -12,7 +12,7 @@ export function createAdminClient() {
     throw new Error("SUPABASE_SERVICE_ROLE_KEY is required for privileged vendor administration.");
   }
 
-  adminClient = createClient(url, serviceRoleKey, {
+  adminClient = createClient<any>(url, serviceRoleKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
