@@ -41,6 +41,8 @@ const buttonOld = `                    aria-label="Send password reset"\n       
 const buttonNew = `                    aria-label="Generate temporary password"\n                    title="Generate a new temporary password"\n                  >\n                    Temp pass`;
 if (s.includes(buttonOld)) s = s.replace(buttonOld, buttonNew);
 
+// Replace the resolver by function boundaries so formatting/template changes
+// in the original file cannot leave the generated action on the old row-id-only path.
 const resolverReplacement = `async function resolveVendorAdmin(admin: ReturnType<typeof createAdminClient>, vendorId: string, vendorAdminId: string, fallbackEmail?: string) {
   let row: VendorAdminRow | null = null;
   const { data: byId, error: byIdError } = await admin
@@ -71,22 +73,18 @@ actions = actions.replace(
   () => resolverReplacement + "\n\n"
 );
 
-// Reset/revoke/remove already receive the admin email from the UI.
+// Route the existing action calls to the proper fallback identifier.
 actions = actions.replace(
-  /resolveVendorAdmin\(admin, vendorId, adminId\)/g,
-  "resolveVendorAdmin(admin, vendorId, adminId, adminEmail)"
+  "const { row: currentRow, user: target } = await resolveVendorAdmin(admin, vendorId, adminId);",
+  "const { row: currentRow, user: target } = await resolveVendorAdmin(admin, vendorId, adminId, input.previousEmail);"
 );
-
-// Edit credentials receives previousEmail instead of adminEmail.
 actions = actions.replace(
-  /(export async function updateVendorAdminAction[\s\S]*?const \{ row: currentRow, user: target \} = )resolveVendorAdmin\(admin, vendorId, adminId, adminEmail\)/,
-  "$1resolveVendorAdmin(admin, vendorId, adminId, input.previousEmail)"
+  "const { row, user } = await resolveVendorAdmin(admin, vendorId, adminId);",
+  "const { row, user } = await resolveVendorAdmin(admin, vendorId, adminId, adminEmail);"
 );
-
-// The remove action also has the email available, but older source may omit it.
 actions = actions.replace(
-  /(export async function removeVendorAdminAction[\s\S]*?const \{ row, user \} = )resolveVendorAdmin\(admin, vendorId, adminId\)/,
-  "$1resolveVendorAdmin(admin, vendorId, adminId, adminEmail)"
+  "const { user } = await resolveVendorAdmin(admin, vendorId, adminId);",
+  "const { user } = await resolveVendorAdmin(admin, vendorId, adminId, adminEmail);"
 );
 
 writeFileSync(path, s);
