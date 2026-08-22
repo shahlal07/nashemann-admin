@@ -41,8 +41,6 @@ const buttonOld = `                    aria-label="Send password reset"\n       
 const buttonNew = `                    aria-label="Generate temporary password"\n                    title="Generate a new temporary password"\n                  >\n                    Temp pass`;
 if (s.includes(buttonOld)) s = s.replace(buttonOld, buttonNew);
 
-// Replace the whole resolver by function boundaries so this remains robust
-// against harmless formatting/template-literal changes in actions.ts.
 const resolverReplacement = `async function resolveVendorAdmin(admin: ReturnType<typeof createAdminClient>, vendorId: string, vendorAdminId: string, fallbackEmail?: string) {
   let row: VendorAdminRow | null = null;
   const { data: byId, error: byIdError } = await admin
@@ -73,15 +71,22 @@ actions = actions.replace(
   () => resolverReplacement + "\n\n"
 );
 
-// Older client state can carry a stale row id; every mutating admin action
-// already receives the row email, so use it as a deterministic fallback.
+// Reset/revoke/remove already receive the admin email from the UI.
 actions = actions.replace(
   /resolveVendorAdmin\(admin, vendorId, adminId\)/g,
   "resolveVendorAdmin(admin, vendorId, adminId, adminEmail)"
 );
+
+// Edit credentials receives previousEmail instead of adminEmail.
 actions = actions.replace(
-  "resolveVendorAdmin(admin, vendorId, adminId, adminEmail)\";\n  const cleanName",
-  "resolveVendorAdmin(admin, vendorId, adminId, input.previousEmail);\n  const cleanName"
+  /(export async function updateVendorAdminAction[\s\S]*?const \{ row: currentRow, user: target \} = )resolveVendorAdmin\(admin, vendorId, adminId, adminEmail\)/,
+  "$1resolveVendorAdmin(admin, vendorId, adminId, input.previousEmail)"
+);
+
+// The remove action also has the email available, but older source may omit it.
+actions = actions.replace(
+  /(export async function removeVendorAdminAction[\s\S]*?const \{ row, user \} = )resolveVendorAdmin\(admin, vendorId, adminId\)/,
+  "$1resolveVendorAdmin(admin, vendorId, adminId, adminEmail)"
 );
 
 writeFileSync(path, s);
