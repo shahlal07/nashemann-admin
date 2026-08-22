@@ -60,35 +60,19 @@ export async function createVendorStoreAction(input: { businessName: string; sub
     await supabase.from("vendors").delete().eq("id", vendor.id);
   };
 
-  const { error: platformError } = await admin.from("platform_accounts").upsert({
-    id: userId,
-    name: input.ownerName.trim(),
-    email,
-    provider: "email",
-  });
+  const { error: platformError } = await admin.from("platform_accounts").upsert({ id: userId, name: input.ownerName.trim(), email, provider: "email" });
   if (platformError) {
     await cleanup();
     throw new Error(platformError.message);
   }
 
-  const { error: profileError } = await admin.from("profiles").upsert({
-    id: userId,
-    role: "admin",
-    name: input.ownerName.trim(),
-    email,
-    vendor_id: vendor.id,
-  });
+  const { error: profileError } = await admin.from("profiles").upsert({ id: userId, role: "admin", name: input.ownerName.trim(), email, vendor_id: vendor.id });
   if (profileError) {
     await cleanup();
     throw new Error(profileError.message);
   }
 
-  const { error: vendorAdminError } = await admin.from("vendor_admins").insert({
-    vendor_id: vendor.id,
-    name: input.ownerName.trim(),
-    email,
-    role: "owner",
-  });
+  const { error: vendorAdminError } = await admin.from("vendor_admins").insert({ vendor_id: vendor.id, name: input.ownerName.trim(), email, role: "owner" });
   if (vendorAdminError) {
     await cleanup();
     throw new Error(vendorAdminError.message);
@@ -97,7 +81,7 @@ export async function createVendorStoreAction(input: { businessName: string; sub
   await supabase.from("audit_log").insert({ action: "vendor_created", actor, entity: input.businessName, detail: `Store provisioned through the Super Admin panel (subdomain: ${input.subdomain}, plan: ${input.plan}, owner: ${input.ownerName})` });
   revalidatePath("/vendors");
   revalidatePath("/audit-log");
-  return { vendorId: vendor.id as string, temporaryPassword: input.ownerPassword.trim() ? undefined : password };
+  return vendor.id as string;
 }
 
 export async function bulkSetVendorStatusAction(vendorIds: string[], vendorNames: string[], status: "active" | "suspended") {
