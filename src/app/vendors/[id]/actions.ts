@@ -1,7 +1,9 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { sendAccountEmailChangedNotice, sendVendorAdminCredentialsChangedEmail, sendVendorAdminStoreNoticeEmail } from "@/lib/email";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { requireFinanceStaff, requireMutatingStaff, requireSuperAdmin } from "@/lib/authz";
 
 export async function setVendorWhiteLabelAction(vendorId: string, vendorName: string, enabled: boolean) {
@@ -85,48 +87,108 @@ export async function updateVendorSlugAction(vendorId: string, vendorName: strin
 
 export type VendorAdminRow = { id: string; name: string; email: string; role: "owner" | "admin" | "staff"; added_at: string };
 
-async function vendorAdminRpc(supabase: Awaited<ReturnType<typeof import("@/lib/supabase/server").createClient>>, body: Record<string, unknown>) {
-  const { data, error } = await supabase.functions.invoke("platform-vendor-admin", { body });
-  if (error) throw new Error(error.message || "Vendor admin service failed.");
-  if (!data || data.error) throw new Error(data?.error ?? "Vendor admin operation failed.");
-  return data as any;
+function generateTemporaryPassword() {
+  return `Ns${randomBytes(9).toString("base64url")}!`;
+}
+
+async function syncVendorAdminProfile(admin: ReturnType<typeof createAdminClient>, userId: string, vendorId: string, name: string, email: string) {
+  const [{ error: accountError }, { error: profileError }] = await Promise.all([
+    admin.from("platform_accounts").upsert({ id: userId, name, email, provider: "email" }),
+    admin.from("profiles").upsert({ id: userId, role: "admin", name, email, vendor_id: vendorId }),
+  ]);
+  if (accountError) throw new Error(accountError.message);
+  if (profileError) throw new Error(profileError.message);
 }
 
 export async function getVendorAdminsAction(vendorId: string): Promise<VendorAdminRow[]> {
   const { supabase } = await requireMutatingStaff();
-  const data = await vendorAdminRpc(supabase, { action: "list", vendorId });
-  return data.admins ?? [];
+  const { data, error } = await supabase.from("vendor_admins").select("id,name,email,role,added_at").eq("vendor_id", vendorId).order("added_at", { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as VendorAdminRow[];
 }
 
 export async function addVendorAdminAction(vendorId: string, vendorName: string, name: string, email: string, role: "admin" | "staff" = "staff", vendorSubdomain?: string) {
   const { supabase, actor } = await requireSuperAdmin();
-  const data = await vendorAdminRpc(supabase, { action: "add", vendorId, name: name.trim(), email: email.trim(), role });
-  await supabase.from("audit_log").insert({ action: "vendor_admin_added", actor, entity: vendorName, detail: `Added ${name.trim()} (${email.trim()}) as ${role === "admin" ? "admin" : "staff"} in the live vendor admin system` });
-  await sendVendorAdminCredentialsChangedEmail({ to: data.admin.email, name: data.admin.name, storeName: vendorName, storeUrl: `https://${vendorSubdomain ?? "store"}.nashemann.store`, adminUrl: `https://admin.${vendorSubdomain ?? "store"}.nashemann.store`, passwordChanged: true, temporaryPassword: data.temporaryPassword });
-  revalidatePath(`/vendors/${vendorId}`); revalidatePath("/audit-log");
-  return { ...data.admin, temporaryPassword: data.temporaryPassword };
+  const admin = createAdminClient();
+  const cleanName = name.trim();
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanName || !cleanEmail) throw new Error("Name and email are required.");
+
+  const { data: existingAdmins, error: existingAdminError } = await supabase.from("vendor_admins").select("id").eq("vendor_id", vendorId).ilike("email", cleanEmail);
+  if (existingAdminError) throw new Error(existingAdminError.message);
+  if (existingAdmins?.length) throw new Error(`${cleanEmail} is already assigned to this vendor.`);
+
+  const password = generateTemporaryPassword();
+  const { data: created, error: createError } = await admin.auth.admin.createUser({ email: cleanEmail, password, email_confirm: true, user_metadata: { name: cleanName, vendor_id: vendorId } });
+  if (createError || !created.user) throw new Error(createError?.message || "Couldn't create the vendor admin Auth account.");
+
+  try {
+    await syncVendorAdminProfile(admin, created.user.id, vendorId, cleanName, cleanEmail);
+    const { data: row, error: rowError } = await admin.from("vendor_admins").insert({ vendor_id: vendorId, name: cleanName, email: cleanEmail, role }).select("id,name,email,role,added_at").single();
+    if (rowError || !row) throw new Error(rowError?.message || "Couldn't save the vendor admin record.");
+
+    await supabase.from("audit_log").insert({ action: "vendor_admin_added", actor, entity: vendorName, detail: `Added ${cleanName} (${cleanEmail}) as ${role} in the live vendor admin system` });
+    await sendVendorAdminCredentialsChangedEmail({ to: row.email, name: row.name, storeName: vendorName, storeUrl: `https://${vendorSubdomain ?? "store"}.nashemann.store`, adminUrl: `https://admin.${vendorSubdomain ?? "store"}.nashemann.store`, passwordChanged: true, temporaryPassword: password });
+    revalidatePath(`/vendors/${vendorId}`); revalidatePath("/audit-log");
+    return { ...row, temporaryPassword: password };
+  } catch (error) {
+    await admin.auth.admin.deleteUser(created.user.id);
+    throw error;
+  }
 }
 
 export async function updateVendorAdminAction(vendorId: string, vendorName: string, adminId: string, input: { name: string; email: string; password?: string; previousEmail?: string }, vendorSubdomain?: string) {
   const { supabase, actor } = await requireSuperAdmin();
-  const data = await vendorAdminRpc(supabase, { action: "update", vendorId, userId: adminId, name: input.name.trim(), email: input.email.trim(), previousEmail: input.previousEmail?.trim(), password: input.password?.trim() || undefined });
-  await supabase.from("vendor_admins").update({ name: data.admin.name, email: data.admin.email }).eq("vendor_id", vendorId).eq("email", input.previousEmail?.trim() || input.email.trim());
-  await supabase.from("audit_log").insert({ action: "vendor_admin_credentials_updated", actor, entity: vendorName, detail: `Updated ${data.admin.name} (${data.admin.email})${data.passwordChanged ? " and password" : ""}` });
-  await sendVendorAdminCredentialsChangedEmail({ to: data.admin.email, name: data.admin.name, storeName: vendorName, storeUrl: `https://${vendorSubdomain ?? "store"}.nashemann.store`, adminUrl: `https://admin.${vendorSubdomain ?? "store"}.nashemann.store`, passwordChanged: Boolean(data.passwordChanged) });
-  if (input.previousEmail && input.previousEmail.trim().toLowerCase() !== data.admin.email.trim().toLowerCase()) {
-    await sendAccountEmailChangedNotice({ to: input.previousEmail.trim(), newEmail: data.admin.email, isOldAddress: true });
-    await sendAccountEmailChangedNotice({ to: data.admin.email, newEmail: data.admin.email, isOldAddress: false });
+  const admin = createAdminClient();
+  const cleanName = input.name.trim();
+  const cleanEmail = input.email.trim().toLowerCase();
+  const previousEmail = input.previousEmail?.trim().toLowerCase();
+  const password = input.password?.trim();
+  if (!cleanName || !cleanEmail) throw new Error("Name and email are required.");
+
+  const { data: target } = await admin.auth.admin.getUserById(adminId);
+  if (!target.user) throw new Error("Vendor admin Auth account not found.");
+
+  const authUpdate: { email?: string; password?: string; user_metadata?: Record<string, unknown>; email_confirm?: boolean } = {
+    user_metadata: { ...(target.user.user_metadata ?? {}), name: cleanName, vendor_id: vendorId },
+  };
+  if (cleanEmail !== (target.user.email ?? "").toLowerCase()) {
+    authUpdate.email = cleanEmail;
+    authUpdate.email_confirm = true;
+  }
+  if (password) authUpdate.password = password;
+
+  const { data: updated, error: updateError } = await admin.auth.admin.updateUserById(adminId, authUpdate);
+  if (updateError || !updated.user) throw new Error(updateError?.message || "Couldn't update the vendor admin Auth account.");
+
+  await syncVendorAdminProfile(admin, adminId, vendorId, cleanName, cleanEmail);
+  const { data: row, error: rowError } = await admin.from("vendor_admins").update({ name: cleanName, email: cleanEmail }).eq("vendor_id", vendorId).eq("id", adminId).select("id,name,email,role,added_at").maybeSingle();
+  if (rowError) throw new Error(rowError.message);
+  if (!row) {
+    const { data: byEmail, error: emailRowError } = await admin.from("vendor_admins").update({ name: cleanName, email: cleanEmail }).eq("vendor_id", vendorId).ilike("email", previousEmail ?? target.user.email ?? "").select("id,name,email,role,added_at").maybeSingle();
+    if (emailRowError || !byEmail) throw new Error(emailRowError?.message || "Vendor admin record not found.");
+  }
+
+  await supabase.from("audit_log").insert({ action: "vendor_admin_credentials_updated", actor, entity: vendorName, detail: `Updated ${cleanName} (${cleanEmail})${password ? " and password" : ""}` });
+  await sendVendorAdminCredentialsChangedEmail({ to: cleanEmail, name: cleanName, storeName: vendorName, storeUrl: `https://${vendorSubdomain ?? "store"}.nashemann.store`, adminUrl: `https://admin.${vendorSubdomain ?? "store"}.nashemann.store`, passwordChanged: Boolean(password) });
+  if (previousEmail && previousEmail !== cleanEmail) {
+    await sendAccountEmailChangedNotice({ to: previousEmail, newEmail: cleanEmail, isOldAddress: true });
+    await sendAccountEmailChangedNotice({ to: cleanEmail, newEmail: cleanEmail, isOldAddress: false });
   }
   revalidatePath(`/vendors/${vendorId}`); revalidatePath("/audit-log");
-  return data.admin;
+  return { id: adminId, name: cleanName, email: cleanEmail };
 }
 
 export async function sendVendorAdminResetLinkAction(vendorId: string, vendorName: string, adminId: string, adminEmail: string, adminName: string, vendorSubdomain: string) {
   const { supabase, actor } = await requireSuperAdmin();
-  const data = await vendorAdminRpc(supabase, { action: "temporary_password", vendorId, userId: adminId });
-  await supabase.from("audit_log").insert({ action: "vendor_admin_temporary_password_generated", actor, entity: vendorName, detail: `Generated a new temporary password for ${data.admin?.name ?? adminName} (${data.admin?.email ?? adminEmail})` });
+  const admin = createAdminClient();
+  const password = generateTemporaryPassword();
+  const { data, error } = await admin.auth.admin.updateUserById(adminId, { password, email_confirm: true });
+  if (error || !data.user) throw new Error(error?.message || "Couldn't generate a temporary password.");
+
+  await supabase.from("audit_log").insert({ action: "vendor_admin_temporary_password_generated", actor, entity: vendorName, detail: `Generated a new temporary password for ${data.user.email ?? adminEmail} (${adminName})` });
   revalidatePath(`/vendors/${vendorId}`); revalidatePath("/audit-log");
-  return { temporaryPassword: data.temporaryPassword, email: data.admin?.email ?? adminEmail, name: data.admin?.name ?? adminName };
+  return { temporaryPassword: password, email: data.user.email ?? adminEmail, name: adminName };
 }
 
 export async function updateVendorControlProfileAction(vendorId: string, vendorName: string, input: { description: string; contactEmail: string; contactPhone: string; instagramUrl: string; youtubeUrl: string; feeType: "percent" | "fixed"; feeOverridePercent: number | null; feeOverrideFixedAmount: number | null }) {
@@ -143,14 +205,25 @@ export async function updateVendorControlProfileAction(vendorId: string, vendorN
 
 export async function revokeVendorAdminSessionsAction(vendorId: string, vendorName: string, adminId: string, adminLabel: string, adminEmail: string) {
   const { supabase, actor } = await requireSuperAdmin();
-  await vendorAdminRpc(supabase, { action: "revoke_sessions", vendorId, userId: adminId });
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.signOut(adminId, "global");
+  if (error) throw new Error(error.message);
   await supabase.from("audit_log").insert({ action: "vendor_admin_sessions_revoked", actor, entity: vendorName, detail: `Revoked all active sessions for ${adminLabel}` });
   revalidatePath(`/vendors/${vendorId}`); revalidatePath("/audit-log");
 }
 
 export async function removeVendorAdminAction(vendorId: string, vendorName: string, adminId: string, adminLabel: string, adminEmail?: string) {
   const { supabase, actor } = await requireSuperAdmin();
-  await vendorAdminRpc(supabase, { action: "remove", vendorId, userId: adminId });
+  const admin = createAdminClient();
+  const { error: signOutError } = await admin.auth.admin.signOut(adminId, "global");
+  if (signOutError) throw new Error(signOutError.message);
+  const { error: deleteError } = await admin.from("vendor_admins").delete().eq("vendor_id", vendorId).or(`id.eq.${adminId},email.eq.${adminEmail ?? ""}`);
+  if (deleteError) throw new Error(deleteError.message);
+  await Promise.all([
+    admin.from("profiles").delete().eq("id", adminId),
+    admin.from("platform_accounts").delete().eq("id", adminId),
+    admin.auth.admin.deleteUser(adminId),
+  ]);
   await supabase.from("audit_log").insert({ action: "vendor_admin_removed", actor, entity: vendorName, detail: `Removed ${adminLabel} from the live vendor admin system` });
   revalidatePath(`/vendors/${vendorId}`); revalidatePath("/audit-log");
 }
