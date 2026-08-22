@@ -41,14 +41,7 @@ const buttonOld = `                    aria-label="Send password reset"\n       
 const buttonNew = `                    aria-label="Generate temporary password"\n                    title="Generate a new temporary password"\n                  >\n                    Temp pass`;
 if (s.includes(buttonOld)) s = s.replace(buttonOld, buttonNew);
 
-const resolverOld = `async function resolveVendorAdmin(admin: ReturnType<typeof createAdminClient>, vendorId: string, vendorAdminId: string) {
-  const { data: row, error } = await admin.from("vendor_admins").select("id,name,email,role,added_at").eq("vendor_id", vendorId).eq("id", vendorAdminId).maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!row) throw new Error("Vendor admin record not found.");
-  const user = await findAuthUserByEmail(admin, row.email);
-  if (!user) throw new Error(`No Supabase Auth account exists for ${row.email}. Use Edit Credentials to recreate/sync this vendor admin.`);
-  return { row: row as VendorAdminRow, user };
-}`;
+const resolverOld = 'async function resolveVendorAdmin(admin: ReturnType<typeof createAdminClient>, vendorId: string, vendorAdminId: string) {\n  const { data: row, error } = await admin.from("vendor_admins").select("id,name,email,role,added_at").eq("vendor_id", vendorId).eq("id", vendorAdminId).maybeSingle();\n  if (error) throw new Error(error.message);\n  if (!row) throw new Error("Vendor admin record not found.");\n  const user = await findAuthUserByEmail(admin, row.email);\n  if (!user) throw new Error("No Supabase Auth account exists for " + row.email + ". Use Edit Credentials to recreate/sync this vendor admin.");\n  return { row: row as VendorAdminRow, user };\n}';
 const resolverNew = `async function resolveVendorAdmin(admin: ReturnType<typeof createAdminClient>, vendorId: string, vendorAdminId: string, fallbackEmail?: string) {
   let row: VendorAdminRow | null = null;
   const { data: byId, error: byIdError } = await admin
