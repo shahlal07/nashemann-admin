@@ -15,7 +15,8 @@ export async function createVendorStoreAction(input: { businessName: string; sub
 
   const email = input.ownerEmail.trim().toLowerCase();
   const password = input.ownerPassword.trim() || generateTemporaryPassword();
-  const { data: existingUserData } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  const { data: existingUserData, error: listUsersError } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  if (listUsersError) throw new Error(listUsersError.message);
   if (existingUserData.users.some((u) => u.email?.toLowerCase() === email)) {
     throw new Error(`An Auth account already exists for ${email}. Use the vendor's admin controls to update that account instead.`);
   }
@@ -50,14 +51,17 @@ export async function createVendorStoreAction(input: { businessName: string; sub
   });
 
   if (authError || !createdAuth.user) {
-    await supabase.from("vendors").delete().eq("id", vendor.id);
+    await admin.from("vendors").delete().eq("id", vendor.id);
     throw new Error(authError?.message || "Couldn't create the vendor admin account.");
   }
 
   const userId = createdAuth.user.id;
   const cleanup = async () => {
     await admin.auth.admin.deleteUser(userId);
-    await supabase.from("vendors").delete().eq("id", vendor.id);
+    await admin.from("profiles").delete().eq("id", userId);
+    await admin.from("platform_accounts").delete().eq("id", userId);
+    await admin.from("vendor_admins").delete().eq("vendor_id", vendor.id);
+    await admin.from("vendors").delete().eq("id", vendor.id);
   };
 
   const { error: platformError } = await admin.from("platform_accounts").upsert({ id: userId, name: input.ownerName.trim(), email, provider: "email" });
