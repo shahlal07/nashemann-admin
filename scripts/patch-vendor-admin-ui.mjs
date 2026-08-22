@@ -1,7 +1,9 @@
 import { readFileSync, writeFileSync } from "node:fs";
 
 const path = "src/app/vendors/[id]/VendorDetailClient.tsx";
+const actionsPath = "src/app/vendors/[id]/actions.ts";
 let s = readFileSync(path, "utf8");
+let actions = readFileSync(actionsPath, "utf8");
 
 const resetOld = `  async function sendAdminReset(admin: VendorAdminRow) {
     setBusy(true);
@@ -39,4 +41,59 @@ const buttonOld = `                    aria-label="Send password reset"\n       
 const buttonNew = `                    aria-label="Generate temporary password"\n                    title="Generate a new temporary password"\n                  >\n                    Temp pass`;
 if (s.includes(buttonOld)) s = s.replace(buttonOld, buttonNew);
 
+// Credential actions historically assumed the UI-provided id was always the
+// vendor_admins row id. Older/stale UI state can instead provide an Auth user
+// id, so resolve by row id first and fall back to the supplied email.
+const resolverOld = `async function resolveVendorAdmin(admin: ReturnType<typeof createAdminClient>, vendorId: string, vendorAdminId: string) {
+  const { data: row, error } = await admin.from("vendor_admins").select("id,name,email,role,added_at").eq("vendor_id", vendorId).eq("id", vendorAdminId).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!row) throw new Error("Vendor admin record not found.");
+  const user = await findAuthUserByEmail(admin, row.email);
+  if (!user) throw new Error(`No Supabase Auth account exists for ${row.email}. Use Edit Credentials to recreate/sync this vendor admin.`);
+  return { row: row as VendorAdminRow, user };
+}`;
+const resolverNew = `async function resolveVendorAdmin(admin: ReturnType<typeof createAdminClient>, vendorId: string, vendorAdminId: string, fallbackEmail?: string) {
+  let row: VendorAdminRow | null = null;
+  const { data: byId, error: byIdError } = await admin
+    .from("vendor_admins")
+    .select("id,name,email,role,added_at")
+    .eq("vendor_id", vendorId)
+    .eq("id", vendorAdminId)
+    .maybeSingle();
+  if (byIdError) throw new Error(byIdError.message);
+  row = (byId as VendorAdminRow | null) ?? null;
+  if (!row && fallbackEmail?.trim()) {
+    const { data: byEmail, error: byEmailError } = await admin
+      .from("vendor_admins")
+      .select("id,name,email,role,added_at")
+      .eq("vendor_id", vendorId)
+      .ilike("email", fallbackEmail.trim())
+      .maybeSingle();
+    if (byEmailError) throw new Error(byEmailError.message);
+    row = (byEmail as VendorAdminRow | null) ?? null;
+  }
+  if (!row) throw new Error("Vendor admin record not found.");
+  const user = await findAuthUserByEmail(admin, row.email);
+  if (!user) throw new Error(`No Supabase Auth account exists for ${row.email}. Use Edit Credentials to recreate/sync this vendor admin.`);
+  return { row, user };
+}`;
+if (actions.includes(resolverOld)) actions = actions.replace(resolverOld, resolverNew);
+
+const updateCallOld = `const { row: currentRow, user: target } = await resolveVendorAdmin(admin, vendorId, adminId);`;
+const updateCallNew = `const { row: currentRow, user: target } = await resolveVendorAdmin(admin, vendorId, adminId, input.previousEmail);`;
+if (actions.includes(updateCallOld)) actions = actions.replace(updateCallOld, updateCallNew);
+
+const resetCallOld = `const { row, user } = await resolveVendorAdmin(admin, vendorId, adminId);`;
+const resetCallNew = `const { row, user } = await resolveVendorAdmin(admin, vendorId, adminId, adminEmail);`;
+if (actions.includes(resetCallOld)) actions = actions.replace(resetCallOld, resetCallNew);
+
+const revokeCallOld = `const { user } = await resolveVendorAdmin(admin, vendorId, adminId);`;
+const revokeCallNew = `const { user } = await resolveVendorAdmin(admin, vendorId, adminId, adminEmail);`;
+if (actions.includes(revokeCallOld)) actions = actions.replace(revokeCallOld, revokeCallNew);
+
+const removeCallOld = `const { row, user } = await resolveVendorAdmin(admin, vendorId, adminId);`;
+const removeCallNew = `const { row, user } = await resolveVendorAdmin(admin, vendorId, adminId, adminEmail);`;
+if (actions.includes(removeCallOld)) actions = actions.replace(removeCallOld, removeCallNew);
+
 writeFileSync(path, s);
+writeFileSync(actionsPath, actions);
