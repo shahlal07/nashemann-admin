@@ -41,9 +41,6 @@ const buttonOld = `                    aria-label="Send password reset"\n       
 const buttonNew = `                    aria-label="Generate temporary password"\n                    title="Generate a new temporary password"\n                  >\n                    Temp pass`;
 if (s.includes(buttonOld)) s = s.replace(buttonOld, buttonNew);
 
-// Credential actions historically assumed the UI-provided id was always the
-// vendor_admins row id. Older/stale UI state can instead provide an Auth user
-// id, so resolve by row id first and fall back to the supplied email.
 const resolverOld = `async function resolveVendorAdmin(admin: ReturnType<typeof createAdminClient>, vendorId: string, vendorAdminId: string) {
   const { data: row, error } = await admin.from("vendor_admins").select("id,name,email,role,added_at").eq("vendor_id", vendorId).eq("id", vendorAdminId).maybeSingle();
   if (error) throw new Error(error.message);
@@ -74,7 +71,7 @@ const resolverNew = `async function resolveVendorAdmin(admin: ReturnType<typeof 
   }
   if (!row) throw new Error("Vendor admin record not found.");
   const user = await findAuthUserByEmail(admin, row.email);
-  if (!user) throw new Error(`No Supabase Auth account exists for ${row.email}. Use Edit Credentials to recreate/sync this vendor admin.`);
+  if (!user) throw new Error("No Supabase Auth account exists for " + row.email + ". Use Edit Credentials to recreate/sync this vendor admin.");
   return { row, user };
 }`;
 if (actions.includes(resolverOld)) actions = actions.replace(resolverOld, resolverNew);
@@ -90,10 +87,6 @@ if (actions.includes(resetCallOld)) actions = actions.replace(resetCallOld, rese
 const revokeCallOld = `const { user } = await resolveVendorAdmin(admin, vendorId, adminId);`;
 const revokeCallNew = `const { user } = await resolveVendorAdmin(admin, vendorId, adminId, adminEmail);`;
 if (actions.includes(revokeCallOld)) actions = actions.replace(revokeCallOld, revokeCallNew);
-
-const removeCallOld = `const { row, user } = await resolveVendorAdmin(admin, vendorId, adminId);`;
-const removeCallNew = `const { row, user } = await resolveVendorAdmin(admin, vendorId, adminId, adminEmail);`;
-if (actions.includes(removeCallOld)) actions = actions.replace(removeCallOld, removeCallNew);
 
 writeFileSync(path, s);
 writeFileSync(actionsPath, actions);
