@@ -1,6 +1,6 @@
 /**
  * Frontend-only placeholder data, shaped exactly like the real queries this
- * will eventually call (mirrors theaamghar-admin's src/lib/queries/platform.ts
+ * will eventually call (mirrors vendor-admins's src/lib/queries/platform.ts
  * conventions) so wiring up Supabase later is a data-source swap, not a
  * component rewrite.
  */
@@ -12,11 +12,11 @@ export type PricingPlan = "per_order" | "monthly";
 export type StaffRole = "super_admin" | "platform_staff";
 
 // ── Category-aware product settings ─────────────────────────────────────────
-// Mirrors theaamghar-admin's real product_type distinction: perishables
+// Mirrors vendor-admins's real product_type distinction: perishables
 // (fruit/veg/dairy/meat/bakery) sell by weight/box-size and need
 // origin/variety/shelf-life fields, while goods like clothing sell by
 // fixed-attribute variants (size/color) instead -- the two categories in
-// theaamghar-admin's own products.product_type column that actually differ
+// vendor-admins's own products.product_type column that actually differ
 // today. Choosing a category at signup determines which product form and
 // variant structure that vendor's admin panel is seeded with.
 
@@ -535,7 +535,7 @@ export function getInfluencerById(id: string) {
 }
 
 // ── Coupons ──────────────────────────────────────────────────────────────────
-// theaamghar-admin's real coupons are always vendor_id-scoped. Nashemann adds
+// vendor-admins's real coupons are always vendor_id-scoped. Nashemann adds
 // one genuinely new capability on top: a super admin can create a coupon with
 // vendorId = null, meaning "universal" -- valid at checkout on every vendor
 // storefront, not just one. Vendor-scoped coupons still exist for parity

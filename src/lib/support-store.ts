@@ -4,7 +4,7 @@
  * Frontend-only persistence for the demo: support conversations live in
  * localStorage so the public /chat page's "talk to a human" messages
  * actually show up in the super-admin Support inbox in the same browser
- * session. Stands in for theaamghar-admin's real support_conversations +
+ * session. Stands in for vendor-admins's real support_conversations +
  * support_messages tables + Realtime subscription.
  */
 

@@ -61,7 +61,7 @@ export function findApplication(query: string): StoredApplication | null {
 
 /**
  * A vendor filling out /apply without a Nashemann platform account gets sent
- * to sign up first (checkout.js-style gate from theaamghar-web) -- their
+ * to sign up first (checkout.js-style gate from vendor-storefronts) -- their
  * in-progress form is stashed here so /apply can restore it and let them
  * finish with a single click once they're signed in.
  */

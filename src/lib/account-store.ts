@@ -5,7 +5,7 @@
  * completely separate from a vendor's own store admin login (theaamghar-
  * admin-style) -- this is the identity used for tracking an application,
  * the support chat, and submitting/viewing bug reports on nashemann.store
- * itself. Mirrors theaamghar-web's real customer account system, minus a
+ * itself. Mirrors vendor-storefronts's real customer account system, minus a
  * real backend.
  */
 

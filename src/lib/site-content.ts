@@ -1,7 +1,7 @@
 /**
  * Every string/number on the public marketing site lives here, not inline
  * in JSX — this is the frontend-only stand-in for a real `site_content`
- * table (same convention as theaamghar-web's getSiteContent()). The
+ * table (same convention as vendor-storefronts's getSiteContent()). The
  * super-admin "Website Content" page edits this exact shape; once a
  * backend exists, this becomes a fetch instead of a static import.
  */
