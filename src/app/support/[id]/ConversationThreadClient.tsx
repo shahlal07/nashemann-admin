@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Send, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Send, CheckCircle2, Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { createClient } from "@/lib/supabase/client";
 import { formatDateTime } from "@/lib/utils";
 import type { ConversationRow, SupportMessageRow } from "../SupportClient";
-import { sendSupportReplyAction, closeSupportConversationAction } from "../actions";
+import { sendSupportReplyAction, closeSupportConversationAction, generateSupportReplyDraftAction } from "../actions";
+import { useToast } from "@/components/ui/Toast";
 
 export function ConversationThreadClient({
   conversationId,
@@ -21,6 +22,8 @@ export function ConversationThreadClient({
   const [conversation, setConversation] = useState<ConversationRow | null>(initialConversation);
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
+  const { showToast } = useToast();
 
   useEffect(() => {
     const channel = supabase
@@ -71,9 +74,25 @@ export function ConversationThreadClient({
           : prev
       );
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Couldn't send the reply.");
+      showToast(err instanceof Error ? err.message : "Couldn't send the reply.", "error");
     } finally {
       setSending(false);
+    }
+  }
+
+  async function suggestReply() {
+    if (!conversation) return;
+    setAiBusy(true);
+    try {
+      const draft = await generateSupportReplyDraftAction({
+        recipientName: conversation.name,
+        messages: conversation.support_messages.map((m) => ({ senderType: m.sender_type, body: m.body })),
+      });
+      setReply(draft);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "AI reply drafting is unavailable right now.", "error");
+    } finally {
+      setAiBusy(false);
     }
   }
 
@@ -83,7 +102,7 @@ export function ConversationThreadClient({
     try {
       await closeSupportConversationAction(conversationId, conversation.name);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Couldn't close the conversation.");
+      showToast(err instanceof Error ? err.message : "Couldn't close the conversation.", "error");
     }
   }
 
@@ -127,6 +146,14 @@ export function ConversationThreadClient({
         </div>
 
         <form onSubmit={handleReply} className="flex items-center gap-2 border-t border-[var(--border)] p-4">
+          <button
+            type="button"
+            onClick={suggestReply}
+            disabled={aiBusy}
+            className="flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-[var(--border-strong)] px-3.5 text-xs font-semibold text-[var(--text)] hover:bg-[var(--surface-hover)] disabled:opacity-50"
+          >
+            <Sparkles size={13} /> {aiBusy ? "Drafting…" : "Suggest reply"}
+          </button>
           <input
             value={reply}
             onChange={(e) => setReply(e.target.value)}

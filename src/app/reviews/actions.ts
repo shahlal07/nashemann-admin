@@ -1,7 +1,32 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireMutatingStaff } from "@/lib/authz";
+import { requireMutatingStaff, requireStaff } from "@/lib/authz";
+import { groqComplete } from "@/lib/groq";
+
+export async function generateReviewReplyDraftAction(input: {
+  vendorName: string;
+  productName: string;
+  rating: number;
+  title: string | null;
+  body: string;
+}) {
+  // Read-only (drafting text, not posting it), so any signed-in staff member can use it.
+  await requireStaff();
+
+  const draft = await groqComplete([
+    {
+      role: "system",
+      content: `You are writing a short, warm, professional public reply as the platform superadmin to a customer review on vendor ${input.vendorName}. Keep it 2-3 sentences. Don't invent specifics you weren't given. Reply with only the reply text, no quotes, no preamble.`,
+    },
+    {
+      role: "user",
+      content: `Product: ${input.productName}\nRating: ${input.rating}/5${input.title ? `\nTitle: ${input.title}` : ""}\nReview: ${input.body}`,
+    },
+  ]);
+
+  return draft;
+}
 
 export async function postReviewReplyAction(reviewId: string, entity: string, reply: string) {
   const { supabase, actor } = await requireMutatingStaff();

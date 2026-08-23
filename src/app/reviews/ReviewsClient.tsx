@@ -6,8 +6,9 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { postReviewReplyAction, removeReviewReplyAction, deleteReviewAction } from "./actions";
+import { postReviewReplyAction, removeReviewReplyAction, deleteReviewAction, generateReviewReplyDraftAction } from "./actions";
 import { formatDate } from "@/lib/utils";
+import { useToast } from "@/components/ui/Toast";
 
 export type ReviewRow = {
   id: string;
@@ -34,18 +35,14 @@ function Stars({ rating }: { rating: number }) {
   );
 }
 
-const AI_DRAFTS = [
-  "Thanks so much for the kind words! We'll pass this along to the team.",
-  "We appreciate you taking the time to share this — really sorry it wasn't a great experience, we're looking into it.",
-  "Thank you for the honest feedback — this helps us improve.",
-];
-
 export function ReviewsClient({ initialReviews }: { initialReviews: ReviewRow[] }) {
   const [reviews, setReviews] = useState<ReviewRow[]>(initialReviews);
   const [replyingId, setReplyingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [ratingFilter, setRatingFilter] = useState<number | "all">("all");
   const [unrepliedOnly, setUnrepliedOnly] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
+  const { showToast } = useToast();
 
   const filtered = reviews.filter((r) => {
     if (ratingFilter !== "all" && r.rating !== ratingFilter) return false;
@@ -58,8 +55,22 @@ export function ReviewsClient({ initialReviews }: { initialReviews: ReviewRow[] 
     setDraft(r.admin_reply_body ?? "");
   }
 
-  function aiSuggest() {
-    setDraft(AI_DRAFTS[Math.floor(Math.random() * AI_DRAFTS.length)]);
+  async function aiSuggest(r: ReviewRow) {
+    setAiBusy(true);
+    try {
+      const suggestion = await generateReviewReplyDraftAction({
+        vendorName: r.vendor?.name ?? "this vendor",
+        productName: r.product_name,
+        rating: r.rating,
+        title: r.title,
+        body: r.body,
+      });
+      setDraft(suggestion);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "AI reply drafting is unavailable right now.", "error");
+    } finally {
+      setAiBusy(false);
+    }
   }
 
   async function postReply(id: string) {
@@ -182,8 +193,8 @@ export function ReviewsClient({ initialReviews }: { initialReviews: ReviewRow[] 
                     className="w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-3.5 py-2.5 text-sm text-[var(--text)] outline-none focus:border-[var(--accent-violet)]"
                   />
                   <div className="flex gap-2">
-                    <Button size="sm" variant="secondary" type="button" onClick={aiSuggest}>
-                      <Sparkles size={13} /> AI Suggest Reply
+                    <Button size="sm" variant="secondary" type="button" onClick={() => aiSuggest(r)} disabled={aiBusy}>
+                      <Sparkles size={13} /> {aiBusy ? "Drafting…" : "Generate AI Reply"}
                     </Button>
                     <Button size="sm" variant="primary" onClick={() => postReply(r.id)} disabled={!draft.trim()}>
                       Post Reply
