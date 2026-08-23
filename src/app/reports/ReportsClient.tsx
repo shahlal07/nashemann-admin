@@ -1,37 +1,55 @@
 "use client";
 
 import { useState } from "react";
-import { FileDown, FileSpreadsheet, FileText } from "lucide-react";
+import { FileDown } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
+import { useToast } from "@/components/ui/Toast";
 
 const RANGES = ["Last 7 days", "Last 30 days", "Last year", "All time"] as const;
 
-function DownloadButtons({ label }: { label: string }) {
-  function download(format: string) {
-    alert(`Frontend demo — would download ${label} as ${format.toUpperCase()}. No backend wired up yet.`);
+type ReportKind = "vendors" | "applications" | "settlements";
+
+function DownloadButton({ label, kind, query }: { label: string; kind: ReportKind; query?: string }) {
+  const [busy, setBusy] = useState(false);
+  const { showToast } = useToast();
+
+  async function download() {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/reports/${kind}${query ?? ""}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error ?? `Couldn't export ${label}.`);
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") ?? "";
+      const match = disposition.match(/filename="([^"]+)"/);
+      const filename = match?.[1] ?? `${kind}.csv`;
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : `Couldn't export ${label}.`, "error");
+    } finally {
+      setBusy(false);
+    }
   }
+
   return (
-    <div className="flex gap-2">
-      <button
-        onClick={() => download("csv")}
-        className="flex items-center gap-1.5 rounded-full border border-[var(--border-strong)] px-3 py-1.5 text-xs font-semibold text-[var(--text)] hover:bg-[var(--surface-hover)]"
-      >
-        <FileDown size={12} /> CSV
-      </button>
-      <button
-        onClick={() => download("xlsx")}
-        className="flex items-center gap-1.5 rounded-full border border-[var(--border-strong)] px-3 py-1.5 text-xs font-semibold text-[var(--text)] hover:bg-[var(--surface-hover)]"
-      >
-        <FileSpreadsheet size={12} /> Excel
-      </button>
-      <button
-        onClick={() => download("pdf")}
-        className="flex items-center gap-1.5 rounded-full border border-[var(--border-strong)] px-3 py-1.5 text-xs font-semibold text-[var(--text)] hover:bg-[var(--surface-hover)]"
-      >
-        <FileText size={12} /> PDF
-      </button>
-    </div>
+    <button
+      onClick={download}
+      disabled={busy}
+      className="flex items-center gap-1.5 rounded-full border border-[var(--border-strong)] px-3 py-1.5 text-xs font-semibold text-[var(--text)] hover:bg-[var(--surface-hover)] disabled:opacity-60"
+    >
+      <FileDown size={12} /> {busy ? "Exporting…" : "CSV"}
+    </button>
   );
 }
 
@@ -48,9 +66,27 @@ export function ReportsClient({
   const [from, setFrom] = useState("");
   const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
 
+  function selectRange(r: (typeof RANGES)[number]) {
+    setRange(r);
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
+    if (r === "All time") {
+      setFrom("");
+      setTo(todayStr);
+      return;
+    }
+    const days = r === "Last 7 days" ? 7 : r === "Last 30 days" ? 30 : 365;
+    const start = new Date(today);
+    start.setDate(start.getDate() - days);
+    setFrom(start.toISOString().slice(0, 10));
+    setTo(todayStr);
+  }
+
+  const vendorsQuery = from || to ? `?${new URLSearchParams({ ...(from ? { from } : {}), ...(to ? { to } : {}) }).toString()}` : "";
+
   return (
     <div>
-      <PageHeader title="Reports" description="Export platform data as CSV, Excel, or PDF." />
+      <PageHeader title="Reports" description="Export platform data as CSV." />
 
       <div className="space-y-4">
         <Card>
@@ -62,7 +98,7 @@ export function ReportsClient({
             {RANGES.map((r) => (
               <button
                 key={r}
-                onClick={() => setRange(r)}
+                onClick={() => selectRange(r)}
                 className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                   range === r ? "text-black" : "border border-[var(--border)] text-[var(--text-muted)]"
                 }`}
@@ -71,11 +107,21 @@ export function ReportsClient({
                 {r}
               </button>
             ))}
-            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-xs text-[var(--text)]" />
+            <input
+              type="date"
+              value={from}
+              onChange={(e) => { setFrom(e.target.value); setRange("All time"); }}
+              className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-xs text-[var(--text)]"
+            />
             <span className="text-xs text-[var(--text-faint)]">to</span>
-            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-xs text-[var(--text)]" />
+            <input
+              type="date"
+              value={to}
+              onChange={(e) => { setTo(e.target.value); setRange("All time"); }}
+              className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-xs text-[var(--text)]"
+            />
           </div>
-          <DownloadButtons label="Vendors report" />
+          <DownloadButton label="Vendors report" kind="vendors" query={vendorsQuery} />
         </Card>
 
         <Card>
@@ -83,7 +129,7 @@ export function ReportsClient({
             title="Applications report"
             description={`Every vendor application with status and decision date. ${applicationCount} application(s) available.`}
           />
-          <DownloadButtons label="Applications report" />
+          <DownloadButton label="Applications report" kind="applications" />
         </Card>
 
         <Card>
@@ -91,7 +137,7 @@ export function ReportsClient({
             title="Settlements report"
             description={`Monthly platform-fee reconciliation across every vendor. ${settlementCount} settlement record(s) available.`}
           />
-          <DownloadButtons label="Settlements report" />
+          <DownloadButton label="Settlements report" kind="settlements" />
         </Card>
       </div>
     </div>
