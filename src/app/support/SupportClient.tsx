@@ -75,6 +75,7 @@ export function SupportClient({
         recipientName: owner.adminName,
         body,
       });
+      if ("error" in result) throw new Error(result.error);
       if (existing) {
         setConversations((prev) =>
           prev.map((c) =>

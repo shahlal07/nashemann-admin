@@ -65,12 +65,13 @@ export function ConversationThreadClient({
     const body = reply;
     setReply("");
     try {
-      const message = await sendSupportReplyAction(conversationId, conversation.name, body);
+      const result = await sendSupportReplyAction(conversationId, conversation.name, body);
+      if ("error" in result) throw new Error(result.error);
       setConversation((prev) =>
         prev
-          ? prev.support_messages.some((m) => m.id === message.id)
+          ? prev.support_messages.some((m) => m.id === result.id)
             ? prev
-            : { ...prev, support_messages: [...prev.support_messages, message as SupportMessageRow] }
+            : { ...prev, support_messages: [...prev.support_messages, result as SupportMessageRow] }
           : prev
       );
     } catch (err) {
