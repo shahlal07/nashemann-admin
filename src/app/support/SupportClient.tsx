@@ -20,20 +20,27 @@ export type SupportMessageRow = {
 
 export type ConversationRow = {
   id: string;
-  account_id: string | null;
+  customer_id: string;
+  vendor_id: string;
   name: string;
   email: string;
+  vendorName: string;
   status: "open" | "closed";
   admin_unread: boolean;
   created_at: string;
   support_messages: SupportMessageRow[];
 };
 
-export type VendorWithAdmins = {
-  id: string;
-  name: string;
-  subdomain: string;
-  vendor_admins: { name: string; email: string }[];
+// Who a new "Message a vendor" conversation can be addressed to -- one row
+// per vendor admin (support_conversations.customer_id references profiles,
+// and profiles.vendor_id is how an admin's own profile ties back to their
+// store), not the vendor itself.
+export type VendorOwner = {
+  profileId: string;
+  vendorId: string;
+  vendorName: string;
+  adminName: string;
+  adminEmail: string;
 };
 
 const inputClass =
@@ -41,10 +48,10 @@ const inputClass =
 
 export function SupportClient({
   initialConversations,
-  vendors,
+  vendorOwners,
 }: {
   initialConversations: ConversationRow[];
-  vendors: VendorWithAdmins[];
+  vendorOwners: VendorOwner[];
 }) {
   const [conversations, setConversations] = useState<ConversationRow[]>(initialConversations);
   const [composing, setComposing] = useState(false);
@@ -54,28 +61,42 @@ export function SupportClient({
 
   async function handleCompose(e: React.FormEvent) {
     e.preventDefault();
-    const vendor = vendors.find((v) => v.id === recipient);
-    if (!vendor || !body.trim() || sending) return;
+    const owner = vendorOwners.find((o) => o.profileId === recipient);
+    if (!owner || !body.trim() || sending) return;
     setSending(true);
 
-    const owner = vendor.vendor_admins[0];
-    const name = owner?.name ?? vendor.name;
-    const email = owner?.email ?? `${vendor.subdomain}@nashemann.store`;
-    const existing = conversations.find((c) => c.email.toLowerCase() === email.toLowerCase());
+    const existing = conversations.find((c) => c.customer_id === owner.profileId);
 
     try {
-      const result = await composeSupportMessageAction({ vendorName: vendor.name, recipientName: name, recipientEmail: email, body });
+      const result = await composeSupportMessageAction({
+        customerId: owner.profileId,
+        vendorId: owner.vendorId,
+        vendorName: owner.vendorName,
+        recipientName: owner.adminName,
+        body,
+      });
       if (existing) {
         setConversations((prev) =>
           prev.map((c) =>
             c.id === existing.id
-              ? { ...c, status: "open", admin_unread: true, support_messages: [...c.support_messages, result.message as SupportMessageRow] }
+              ? { ...c, status: "open", admin_unread: false, support_messages: [...c.support_messages, result.message as SupportMessageRow] }
               : c
           )
         );
       } else {
         setConversations((prev) => [
-          { ...(result.conversation as ConversationRow), support_messages: [result.message as SupportMessageRow] },
+          {
+            id: result.conversationId,
+            customer_id: owner.profileId,
+            vendor_id: owner.vendorId,
+            name: owner.adminName,
+            email: owner.adminEmail,
+            vendorName: owner.vendorName,
+            status: "open",
+            admin_unread: false,
+            created_at: new Date().toISOString(),
+            support_messages: [result.message as SupportMessageRow],
+          },
           ...prev,
         ]);
       }
@@ -99,7 +120,7 @@ export function SupportClient({
     <div>
       <PageHeader
         title="Support"
-        description="Conversations handed off from AI chat to a human — reply here."
+        description="Conversations with vendor admins and customer chat handoffs — reply here."
         action={
           <Button variant="primary" onClick={() => setComposing((v) => !v)}>
             <Plus size={16} /> Message a vendor
@@ -117,9 +138,9 @@ export function SupportClient({
                   <option value="" disabled>
                     Choose a vendor
                   </option>
-                  {vendors.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.name}
+                  {vendorOwners.map((o) => (
+                    <option key={o.profileId} value={o.profileId}>
+                      {o.vendorName} ({o.adminName})
                     </option>
                   ))}
                 </select>
@@ -151,11 +172,12 @@ export function SupportClient({
             >
               <div className="flex min-w-0 items-center gap-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text)]">
-                  {c.name.split(" ").map((p) => p[0]).join("").slice(0, 2)}
+                  {(c.name || "?").split(" ").map((p) => p[0]).join("").slice(0, 2)}
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="truncate text-sm font-medium text-[var(--text)]">{c.name}</p>
+                    <span className="shrink-0 text-xs text-[var(--text-faint)]">· {c.vendorName}</span>
                     {c.admin_unread && <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--accent-amber)" }} />}
                     {c.status === "closed" && <Badge tone="neutral">Closed</Badge>}
                   </div>

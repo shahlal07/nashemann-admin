@@ -25,13 +25,23 @@ async function findAuthUserByEmail(admin: ReturnType<typeof createAdminClient>, 
   return null;
 }
 
-async function resolveVendorAdmin(admin: ReturnType<typeof createAdminClient>, vendorId: string, vendorAdminId: string) {
+// Next.js redacts thrown Server Action errors to a generic
+// "Server Components render" message + digest in production (by design, so
+// server internals never leak to the client) -- a plain `throw` here would
+// mean the caller's try/catch always sees that generic message, never the
+// real "not found"/"no auth account" text a superadmin actually needs to
+// act on. Returning a discriminated result instead of throwing is how this
+// stays informative in production, not just in dev.
+type Resolved = { ok: true; row: VendorAdminRow; user: Awaited<ReturnType<typeof findAuthUserByEmail>> & object };
+type ResolveFailure = { ok: false; error: string };
+
+async function resolveVendorAdmin(admin: ReturnType<typeof createAdminClient>, vendorId: string, vendorAdminId: string): Promise<Resolved | ResolveFailure> {
   const { data: row, error } = await admin.from("vendor_admins").select("id,name,email,role,added_at").eq("vendor_id", vendorId).eq("id", vendorAdminId).maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!row) throw new Error("Vendor admin record not found.");
+  if (error) return { ok: false, error: error.message };
+  if (!row) return { ok: false, error: "Vendor admin record not found. Refresh the page and try again." };
   const user = await findAuthUserByEmail(admin, row.email);
-  if (!user) throw new Error(`No Supabase Auth account exists for ${row.email}. Use Edit Credentials to recreate/sync this vendor admin.`);
-  return { row: row as VendorAdminRow, user };
+  if (!user) return { ok: false, error: `No Supabase Auth account exists for ${row.email}. Use Edit Credentials to recreate/sync this vendor admin.` };
+  return { ok: true, row: row as VendorAdminRow, user };
 }
 
 async function syncVendorAdminProfile(admin: ReturnType<typeof createAdminClient>, userId: string, vendorId: string, name: string, email: string) {
@@ -122,20 +132,22 @@ export async function getVendorAdminsAction(vendorId: string): Promise<VendorAdm
   return (data ?? []) as VendorAdminRow[];
 }
 
-export async function addVendorAdminAction(vendorId: string, vendorName: string, name: string, email: string, role: "admin" | "staff" = "staff", vendorSubdomain?: string) {
+type ActionError = { error: string };
+
+export async function addVendorAdminAction(vendorId: string, vendorName: string, name: string, email: string, role: "admin" | "staff" = "staff", vendorSubdomain?: string): Promise<(VendorAdminRow & { temporaryPassword: string }) | ActionError> {
   const { supabase, actor } = await requireSuperAdmin();
   const admin = createAdminClient();
   const cleanName = name.trim();
   const cleanEmail = email.trim().toLowerCase();
-  if (!cleanName || !cleanEmail) throw new Error("Name and email are required.");
+  if (!cleanName || !cleanEmail) return { error: "Name and email are required." };
   const { data: existingAdmins, error: existingAdminError } = await supabase.from("vendor_admins").select("id").eq("vendor_id", vendorId).ilike("email", cleanEmail);
-  if (existingAdminError) throw new Error(existingAdminError.message);
-  if (existingAdmins?.length) throw new Error(`${cleanEmail} is already assigned to this vendor.`);
+  if (existingAdminError) return { error: existingAdminError.message };
+  if (existingAdmins?.length) return { error: `${cleanEmail} is already assigned to this vendor.` };
   const existingAuth = await findAuthUserByEmail(admin, cleanEmail);
-  if (existingAuth) throw new Error(`An Auth account already exists for ${cleanEmail}. Edit that account from this vendor's admin controls.`);
+  if (existingAuth) return { error: `An Auth account already exists for ${cleanEmail}. Edit that account from this vendor's admin controls.` };
   const password = generateTemporaryPassword();
   const { data: created, error: createError } = await admin.auth.admin.createUser({ email: cleanEmail, password, email_confirm: true, user_metadata: { name: cleanName, vendor_id: vendorId } });
-  if (createError || !created.user) throw new Error(createError?.message || "Couldn't create the vendor admin Auth account.");
+  if (createError || !created.user) return { error: createError?.message || "Couldn't create the vendor admin Auth account." };
   try {
     await syncVendorAdminProfile(admin, created.user.id, vendorId, cleanName, cleanEmail);
     const { data: row, error: rowError } = await admin.from("vendor_admins").insert({ vendor_id: vendorId, name: cleanName, email: cleanEmail, role }).select("id,name,email,role,added_at").single();
@@ -143,33 +155,35 @@ export async function addVendorAdminAction(vendorId: string, vendorName: string,
     await supabase.from("audit_log").insert({ action: "vendor_admin_added", actor, entity: vendorName, detail: `${cleanName} (${cleanEmail}) as ${role}` });
     await sendVendorAdminCredentialsChangedEmail({ to: row.email, name: row.name, storeName: vendorName, storeUrl: `https://${vendorSubdomain ?? "store"}.nashemann.store`, adminUrl: `https://admin.${vendorSubdomain ?? "store"}.nashemann.store`, passwordChanged: true, temporaryPassword: password });
     revalidatePath(`/vendors/${vendorId}`); revalidatePath("/audit-log");
-    return { ...row, temporaryPassword: password };
+    return { ...(row as VendorAdminRow), temporaryPassword: password };
   } catch (error) {
     await admin.auth.admin.deleteUser(created.user.id);
     await admin.from("profiles").delete().eq("id", created.user.id);
     await admin.from("platform_accounts").delete().eq("id", created.user.id);
     await admin.from("vendor_admins").delete().eq("vendor_id", vendorId).eq("email", cleanEmail);
-    throw error;
+    return { error: error instanceof Error ? error.message : "Couldn't add the vendor admin." };
   }
 }
 
-export async function updateVendorAdminAction(vendorId: string, vendorName: string, adminId: string, input: { name: string; email: string; password?: string; previousEmail?: string }, vendorSubdomain?: string) {
+export async function updateVendorAdminAction(vendorId: string, vendorName: string, adminId: string, input: { name: string; email: string; password?: string; previousEmail?: string }, vendorSubdomain?: string): Promise<{ row: VendorAdminRow } | ActionError> {
   const { supabase, actor } = await requireSuperAdmin();
   const admin = createAdminClient();
-  const { row: currentRow, user: target } = await resolveVendorAdmin(admin, vendorId, adminId);
+  const resolved = await resolveVendorAdmin(admin, vendorId, adminId);
+  if (!resolved.ok) return { error: resolved.error };
+  const { row: currentRow, user: target } = resolved;
   const cleanName = input.name.trim();
   const cleanEmail = input.email.trim().toLowerCase();
   const previousEmail = input.previousEmail?.trim().toLowerCase() ?? currentRow.email.toLowerCase();
   const password = input.password?.trim();
-  if (!cleanName || !cleanEmail) throw new Error("Name and email are required.");
+  if (!cleanName || !cleanEmail) return { error: "Name and email are required." };
   const authUpdate: { email?: string; password?: string; user_metadata?: Record<string, unknown>; email_confirm?: boolean } = { user_metadata: { ...(target.user_metadata ?? {}), name: cleanName, vendor_id: vendorId } };
   if (cleanEmail !== (target.email ?? "").toLowerCase()) { authUpdate.email = cleanEmail; authUpdate.email_confirm = true; }
   if (password) authUpdate.password = password;
   const { error: updateError } = await admin.auth.admin.updateUserById(target.id, authUpdate);
-  if (updateError) throw new Error(updateError.message);
+  if (updateError) return { error: updateError.message };
   await syncVendorAdminProfile(admin, target.id, vendorId, cleanName, cleanEmail);
   const { data: row, error: rowError } = await admin.from("vendor_admins").update({ name: cleanName, email: cleanEmail }).eq("id", currentRow.id).eq("vendor_id", vendorId).select("id,name,email,role,added_at").single();
-  if (rowError || !row) throw new Error(rowError?.message || "Couldn't update the vendor admin record.");
+  if (rowError || !row) return { error: rowError?.message || "Couldn't update the vendor admin record." };
   await supabase.from("audit_log").insert({ action: "vendor_admin_credentials_updated", actor, entity: vendorName, detail: `Updated ${cleanName} (${cleanEmail})${password ? " and password" : ""}` });
   await sendVendorAdminCredentialsChangedEmail({ to: cleanEmail, name: cleanName, storeName: vendorName, storeUrl: `https://${vendorSubdomain ?? "store"}.nashemann.store`, adminUrl: `https://admin.${vendorSubdomain ?? "store"}.nashemann.store`, passwordChanged: Boolean(password) });
   if (previousEmail !== cleanEmail) {
@@ -177,16 +191,18 @@ export async function updateVendorAdminAction(vendorId: string, vendorName: stri
     await sendAccountEmailChangedNotice({ to: cleanEmail, newEmail: cleanEmail, isOldAddress: false });
   }
   revalidatePath(`/vendors/${vendorId}`); revalidatePath("/audit-log");
-  return row;
+  return { row };
 }
 
-export async function sendVendorAdminResetLinkAction(vendorId: string, vendorName: string, adminId: string, adminEmail: string, adminName: string, vendorSubdomain: string) {
+export async function sendVendorAdminResetLinkAction(vendorId: string, vendorName: string, adminId: string, adminEmail: string, adminName: string, vendorSubdomain: string): Promise<{ temporaryPassword: string; email: string; name: string } | ActionError> {
   const { supabase, actor } = await requireSuperAdmin();
   const admin = createAdminClient();
-  const { row, user } = await resolveVendorAdmin(admin, vendorId, adminId);
+  const resolved = await resolveVendorAdmin(admin, vendorId, adminId);
+  if (!resolved.ok) return { error: resolved.error };
+  const { row, user } = resolved;
   const password = generateTemporaryPassword();
   const { error } = await admin.auth.admin.updateUserById(user.id, { password, email_confirm: true });
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
   await supabase.from("audit_log").insert({ action: "vendor_admin_temporary_password_generated", actor, entity: vendorName, detail: `Generated a new temporary password for ${user.email ?? adminEmail} (${row.name || adminName})` });
   revalidatePath(`/vendors/${vendorId}`); revalidatePath("/audit-log");
   return { temporaryPassword: password, email: user.email ?? row.email ?? adminEmail, name: row.name || adminName };
@@ -203,20 +219,24 @@ export async function updateVendorControlProfileAction(vendorId: string, vendorN
   revalidatePath(`/vendors/${vendorId}`); revalidatePath("/audit-log");
 }
 
-export async function revokeVendorAdminSessionsAction(vendorId: string, vendorName: string, adminId: string, adminLabel: string, adminEmail: string) {
+export async function revokeVendorAdminSessionsAction(vendorId: string, vendorName: string, adminId: string, adminLabel: string, adminEmail: string): Promise<{ ok: true } | ActionError> {
   const { supabase, actor } = await requireSuperAdmin();
   const admin = createAdminClient();
-  const { user } = await resolveVendorAdmin(admin, vendorId, adminId);
-  const { error } = await admin.auth.admin.signOut(user.id, "global");
-  if (error) throw new Error(error.message);
+  const resolved = await resolveVendorAdmin(admin, vendorId, adminId);
+  if (!resolved.ok) return { error: resolved.error };
+  const { error } = await admin.auth.admin.signOut(resolved.user.id, "global");
+  if (error) return { error: error.message };
   await supabase.from("audit_log").insert({ action: "vendor_admin_sessions_revoked", actor, entity: vendorName, detail: `Revoked sessions for ${adminLabel}` });
   revalidatePath(`/vendors/${vendorId}`); revalidatePath("/audit-log");
+  return { ok: true as const };
 }
 
-export async function removeVendorAdminAction(vendorId: string, vendorName: string, adminId: string, adminLabel: string, adminEmail?: string) {
+export async function removeVendorAdminAction(vendorId: string, vendorName: string, adminId: string, adminLabel: string, adminEmail?: string): Promise<{ ok: true } | ActionError> {
   const { supabase, actor } = await requireSuperAdmin();
   const admin = createAdminClient();
-  const { row, user } = await resolveVendorAdmin(admin, vendorId, adminId);
+  const resolved = await resolveVendorAdmin(admin, vendorId, adminId);
+  if (!resolved.ok) return { error: resolved.error };
+  const { row, user } = resolved;
   await admin.from("vendor_admins").delete().eq("id", row.id).eq("vendor_id", vendorId);
   await Promise.all([
     admin.from("profiles").delete().eq("id", user.id),
@@ -225,4 +245,5 @@ export async function removeVendorAdminAction(vendorId: string, vendorName: stri
   ]);
   await supabase.from("audit_log").insert({ action: "vendor_admin_removed", actor, entity: vendorName, detail: `Removed ${adminLabel} (${adminEmail ?? row.email})` });
   revalidatePath(`/vendors/${vendorId}`); revalidatePath("/audit-log");
+  return { ok: true as const };
 }

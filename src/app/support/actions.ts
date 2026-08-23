@@ -4,39 +4,38 @@ import { revalidatePath } from "next/cache";
 import { requireMutatingStaff, requireStaff } from "@/lib/authz";
 import { groqComplete, type ChatMessage } from "@/lib/groq";
 
-export async function composeSupportMessageAction(input: { vendorName: string; recipientName: string; recipientEmail: string; body: string }) {
+// support_conversations/support_messages have no direct INSERT/UPDATE RLS
+// policies at all -- every write goes through SECURITY DEFINER RPCs
+// (send_admin_support_message here; the matching customer-side ones are
+// used by vendor-admins). This used to insert raw rows with a "name"/"email"
+// column pair that never existed on the live support_conversations schema,
+// which would have failed outright once it hit a real (non-superadmin-bypass)
+// RLS check -- replaced with the real RPC, which also handles "does this
+// customer already have an open conversation with this vendor" itself.
+export async function composeSupportMessageAction(input: {
+  customerId: string;
+  vendorId: string;
+  vendorName: string;
+  recipientName: string;
+  body: string;
+}) {
   const { supabase, actor } = await requireMutatingStaff();
 
-  const existing = await supabase
-    .from("support_conversations")
-    .select("id")
-    .ilike("email", input.recipientEmail)
-    .maybeSingle();
-
-  let conversationId: string;
-  let conversation: unknown = null;
-
-  if (existing.data) {
-    conversationId = existing.data.id;
-    const { error } = await supabase.from("support_conversations").update({ status: "open", admin_unread: true }).eq("id", conversationId);
-    if (error) throw new Error(error.message);
-  } else {
-    const { data: convo, error: convoError } = await supabase
-      .from("support_conversations")
-      .insert({ name: input.recipientName, email: input.recipientEmail, status: "open", admin_unread: true })
-      .select()
-      .single();
-    if (convoError || !convo) throw new Error(convoError?.message ?? "Couldn't start the conversation.");
-    conversationId = convo.id;
-    conversation = convo;
-  }
+  const { data: conversationId, error } = await supabase.rpc("send_admin_support_message", {
+    p_customer_id: input.customerId,
+    p_body: input.body,
+    p_vendor_id: input.vendorId,
+  });
+  if (error || !conversationId) throw new Error(error?.message ?? "Couldn't send the message.");
 
   const { data: message, error: msgError } = await supabase
     .from("support_messages")
-    .insert({ conversation_id: conversationId, sender_type: "customer", body: input.body })
-    .select()
+    .select("id, sender_type, body, created_at")
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: false })
+    .limit(1)
     .single();
-  if (msgError || !message) throw new Error(msgError?.message ?? "Couldn't send the message.");
+  if (msgError || !message) throw new Error(msgError?.message ?? "Message sent, but couldn't load it back.");
 
   await supabase.from("audit_log").insert({
     action: "support_message_sent",
@@ -48,20 +47,27 @@ export async function composeSupportMessageAction(input: { vendorName: string; r
   revalidatePath("/support");
   revalidatePath("/audit-log");
 
-  return { conversationId, conversation, message };
+  return { conversationId: conversationId as string, message };
 }
 
 export async function sendSupportReplyAction(conversationId: string, entity: string, body: string) {
   const { supabase, actor } = await requireMutatingStaff();
 
-  const { data: message, error } = await supabase
-    .from("support_messages")
-    .insert({ conversation_id: conversationId, sender_type: "admin", body })
-    .select()
-    .single();
-  if (error || !message) throw new Error(error?.message ?? "Couldn't send the reply.");
+  const { error } = await supabase.rpc("send_admin_support_message", {
+    p_customer_id: null,
+    p_body: body,
+    p_conversation_id: conversationId,
+  });
+  if (error) throw new Error(error.message);
 
-  await supabase.from("support_conversations").update({ admin_unread: false }).eq("id", conversationId);
+  const { data: message, error: msgError } = await supabase
+    .from("support_messages")
+    .select("id, sender_type, body, created_at")
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single();
+  if (msgError || !message) throw new Error(msgError?.message ?? "Reply sent, but couldn't load it back.");
 
   await supabase.from("audit_log").insert({
     action: "support_reply_sent",
