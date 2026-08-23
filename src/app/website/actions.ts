@@ -24,7 +24,7 @@ export async function saveSiteContentAction(payload: Partial<SiteContentPayload>
     updated_at: new Date().toISOString(),
   }));
 
-  const { error } = await supabase.from("site_content").upsert(rows, { onConflict: "key" });
+  const { error } = await supabase.from("platform_site_content").upsert(rows, { onConflict: "key" });
   if (error) throw new Error(error.message);
 
   await supabase.from("audit_log").insert({

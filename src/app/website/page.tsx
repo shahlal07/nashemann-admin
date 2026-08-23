@@ -13,7 +13,7 @@ export default async function WebsiteContentPage() {
   const { data: isStaff } = await supabase.rpc("is_staff");
   if (!isStaff) redirect("/login");
 
-  const { data: rows } = await supabase.from("site_content").select("key, value");
+  const { data: rows } = await supabase.from("platform_site_content").select("key, value");
   const byKey = new Map((rows ?? []).map((r) => [r.key, r.value]));
 
   return (
