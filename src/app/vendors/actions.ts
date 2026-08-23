@@ -61,8 +61,28 @@ export async function createVendorStoreAction(input: { businessName: string; sub
     await admin.from("profiles").delete().eq("id", userId);
     await admin.from("platform_accounts").delete().eq("id", userId);
     await admin.from("vendor_admins").delete().eq("vendor_id", vendor.id);
+    await admin.from("business_settings").delete().eq("vendor_id", vendor.id);
+    await admin.from("site_content").delete().eq("vendor_id", vendor.id);
     await admin.from("vendors").delete().eq("id", vendor.id);
   };
+
+  // Both rows are required, not optional -- vendor-admins' Settings, Profit
+  // Calculator, and Varieties pages all do a hard .single() read on
+  // business_settings and throw if the row doesn't exist, and the storefront
+  // reads site_content for every piece of copy it renders. A vendor created
+  // without these would get a working login into a panel that crashes the
+  // moment they open Settings.
+  const { error: settingsError } = await admin.from("business_settings").insert({ vendor_id: vendor.id, business_name: input.businessName.trim() });
+  if (settingsError) {
+    await cleanup();
+    throw new Error(`Couldn't create business settings: ${settingsError.message}`);
+  }
+
+  const { error: contentError } = await admin.from("site_content").insert({ vendor_id: vendor.id, content: {} });
+  if (contentError) {
+    await cleanup();
+    throw new Error(`Couldn't create storefront content: ${contentError.message}`);
+  }
 
   const { error: platformError } = await admin.from("platform_accounts").upsert({ id: userId, name: input.ownerName.trim(), email, provider: "email" });
   if (platformError) {
