@@ -37,30 +37,8 @@ type ResolveFailure = { ok: false; error: string };
 
 async function resolveVendorAdmin(admin: ReturnType<typeof createAdminClient>, vendorId: string, vendorAdminId: string): Promise<Resolved | ResolveFailure> {
   const { data: row, error } = await admin.from("vendor_admins").select("id,name,email,role,added_at").eq("vendor_id", vendorId).eq("id", vendorAdminId).maybeSingle();
-  if (error) {
-    console.error("[resolveVendorAdmin] query error:", { vendorId, vendorAdminId, error: error.message, code: error.code, details: error.details, hint: error.hint });
-    return { ok: false, error: error.message };
-  }
-  if (!row) {
-    // The row demonstrably exists when queried directly against the DB --
-    // this extra probing narrows down whether the admin client is even
-    // reaching the same database/project, or is silently RLS-filtered
-    // (which shouldn't be possible for a genuine service-role key, but
-    // that's exactly the hypothesis being ruled out here).
-    const { count: totalForVendor } = await admin.from("vendor_admins").select("id", { count: "exact", head: true }).eq("vendor_id", vendorId);
-    const { data: byIdOnly, error: byIdError } = await admin.from("vendor_admins").select("id,vendor_id").eq("id", vendorAdminId).maybeSingle();
-    const { data: authCheck } = await admin.auth.admin.listUsers({ page: 1, perPage: 1 });
-    console.error("[resolveVendorAdmin] no row found:", {
-      vendorId,
-      vendorAdminId,
-      totalRowsForVendor: totalForVendor,
-      byIdOnlyResult: byIdOnly,
-      byIdOnlyError: byIdError?.message,
-      authAdminWorks: Boolean(authCheck),
-      authAdminUserCount: authCheck?.users?.length,
-    });
-    return { ok: false, error: "Vendor admin record not found. Refresh the page and try again." };
-  }
+  if (error) return { ok: false, error: error.message };
+  if (!row) return { ok: false, error: "Vendor admin record not found. Refresh the page and try again." };
   const user = await findAuthUserByEmail(admin, row.email);
   if (!user) return { ok: false, error: `No Supabase Auth account exists for ${row.email}. Use Edit Credentials to recreate/sync this vendor admin.` };
   return { ok: true, row: row as VendorAdminRow, user };
