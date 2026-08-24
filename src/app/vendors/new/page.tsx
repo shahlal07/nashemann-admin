@@ -76,28 +76,27 @@ export default function CreateStorePage() {
       logoUrl = supabase.storage.from("vendor-logos").getPublicUrl(path).data.publicUrl;
     }
 
-    try {
-      const vendorId = await createVendorStoreAction({
-        businessName,
-        subdomain,
-        category,
-        city,
-        plan,
-        themeAccentFrom: accentFrom,
-        themeAccentTo: accentTo,
-        themeLogoEmoji: logoEmoji,
-        themeLogoUrl: logoUrl,
-        ownerName,
-        ownerEmail,
-        ownerPassword: tempPassword,
-      });
-      setCreatedVendorId(vendorId);
+    const result = await createVendorStoreAction({
+      businessName,
+      subdomain,
+      category,
+      city,
+      plan,
+      themeAccentFrom: accentFrom,
+      themeAccentTo: accentTo,
+      themeLogoEmoji: logoEmoji,
+      themeLogoUrl: logoUrl,
+      ownerName,
+      ownerEmail,
+      ownerPassword: tempPassword,
+    });
+    if ("error" in result) {
+      setError(result.error);
+    } else {
+      setCreatedVendorId(result.vendorId);
       setDone(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't create the store.");
-    } finally {
-      setSubmitting(false);
     }
+    setSubmitting(false);
   }
 
   if (done) {

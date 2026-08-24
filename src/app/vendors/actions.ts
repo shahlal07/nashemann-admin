@@ -2,110 +2,30 @@
 
 import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { requireSuperAdmin, requireMutatingStaff } from "@/lib/authz";
+import { provisionVendorStore, type ProvisionResult } from "@/lib/vendor-provisioning";
 
 function generateTemporaryPassword() {
   return `Ns${randomBytes(9).toString("base64url")}!`;
 }
 
-export async function createVendorStoreAction(input: { businessName: string; subdomain: string; category: string; city: string; plan: "per_order" | "monthly"; themeAccentFrom: string; themeAccentTo: string; themeLogoEmoji: string; themeLogoUrl: string | null; ownerName: string; ownerEmail: string; ownerPassword: string }) {
+// Was a second, independently-written copy of provisionVendorStore()'s
+// entire body -- diverged from it over time (different validation, no
+// category check, wrong rollback order deleting the Auth user before its
+// FK-referencing rows). A vendor created manually here could silently come
+// out different from one approved through Applications. Now just the thin
+// wrapper: resolve a password, delegate the real work, audit-log it.
+export async function createVendorStoreAction(input: { businessName: string; subdomain: string; category: string; city: string; plan: "per_order" | "monthly"; themeAccentFrom: string; themeAccentTo: string; themeLogoEmoji: string; themeLogoUrl: string | null; ownerName: string; ownerEmail: string; ownerPassword: string }): Promise<ProvisionResult> {
   const { supabase, actor } = await requireSuperAdmin();
-  const admin = createAdminClient();
 
-  const email = input.ownerEmail.trim().toLowerCase();
   const password = input.ownerPassword.trim() || generateTemporaryPassword();
-  const { data: existingUserData, error: listUsersError } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-  if (listUsersError) throw new Error(listUsersError.message);
-  if (existingUserData.users.some((u) => u.email?.toLowerCase() === email)) {
-    throw new Error(`An Auth account already exists for ${email}. Use the vendor's admin controls to update that account instead.`);
-  }
-
-  const { data: vendor, error: vendorError } = await supabase
-    .from("vendors")
-    .insert({
-      name: input.businessName.trim(),
-      slug: input.subdomain.trim().toLowerCase(),
-      subdomain: input.subdomain.trim().toLowerCase(),
-      custom_domain: `${input.subdomain.trim().toLowerCase()}.nashemann.store`,
-      category: input.category.trim() || null,
-      city: input.city.trim() || null,
-      plan: input.plan,
-      status: "active",
-      active: true,
-      theme_accent_from: input.themeAccentFrom,
-      theme_accent_to: input.themeAccentTo,
-      theme_logo_emoji: input.themeLogoEmoji,
-      theme_logo_url: input.themeLogoUrl,
-      joined_at: new Date().toISOString(),
-    })
-    .select("id, name, subdomain")
-    .single();
-  if (vendorError || !vendor) throw new Error(vendorError?.message || "Couldn't create the vendor store.");
-
-  const { data: createdAuth, error: authError } = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: { name: input.ownerName.trim() },
-  });
-
-  if (authError || !createdAuth.user) {
-    await admin.from("vendors").delete().eq("id", vendor.id);
-    throw new Error(authError?.message || "Couldn't create the vendor admin account.");
-  }
-
-  const userId = createdAuth.user.id;
-  const cleanup = async () => {
-    await admin.auth.admin.deleteUser(userId);
-    await admin.from("profiles").delete().eq("id", userId);
-    await admin.from("platform_accounts").delete().eq("id", userId);
-    await admin.from("vendor_admins").delete().eq("vendor_id", vendor.id);
-    await admin.from("business_settings").delete().eq("vendor_id", vendor.id);
-    await admin.from("site_content").delete().eq("vendor_id", vendor.id);
-    await admin.from("vendors").delete().eq("id", vendor.id);
-  };
-
-  // Both rows are required, not optional -- vendor-admins' Settings, Profit
-  // Calculator, and Varieties pages all do a hard .single() read on
-  // business_settings and throw if the row doesn't exist, and the storefront
-  // reads site_content for every piece of copy it renders. A vendor created
-  // without these would get a working login into a panel that crashes the
-  // moment they open Settings.
-  const { error: settingsError } = await admin.from("business_settings").insert({ vendor_id: vendor.id, business_name: input.businessName.trim() });
-  if (settingsError) {
-    await cleanup();
-    throw new Error(`Couldn't create business settings: ${settingsError.message}`);
-  }
-
-  const { error: contentError } = await admin.from("site_content").insert({ vendor_id: vendor.id, content: {} });
-  if (contentError) {
-    await cleanup();
-    throw new Error(`Couldn't create storefront content: ${contentError.message}`);
-  }
-
-  const { error: platformError } = await admin.from("platform_accounts").upsert({ id: userId, name: input.ownerName.trim(), email, provider: "email" });
-  if (platformError) {
-    await cleanup();
-    throw new Error(platformError.message);
-  }
-
-  const { error: profileError } = await admin.from("profiles").upsert({ id: userId, role: "admin", name: input.ownerName.trim(), email, vendor_id: vendor.id });
-  if (profileError) {
-    await cleanup();
-    throw new Error(profileError.message);
-  }
-
-  const { error: vendorAdminError } = await admin.from("vendor_admins").insert({ vendor_id: vendor.id, name: input.ownerName.trim(), email, role: "owner" });
-  if (vendorAdminError) {
-    await cleanup();
-    throw new Error(vendorAdminError.message);
-  }
+  const result = await provisionVendorStore(supabase, { ...input, ownerPassword: password });
+  if ("error" in result) return result;
 
   await supabase.from("audit_log").insert({ action: "vendor_created", actor, entity: input.businessName, detail: `Store provisioned through the Super Admin panel (subdomain: ${input.subdomain}, plan: ${input.plan}, owner: ${input.ownerName})` });
   revalidatePath("/vendors");
   revalidatePath("/audit-log");
-  return vendor.id as string;
+  return result;
 }
 
 export async function bulkSetVendorStatusAction(vendorIds: string[], vendorNames: string[], status: "active" | "suspended") {

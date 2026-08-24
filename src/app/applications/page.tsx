@@ -180,24 +180,23 @@ export default function ApplicationsPage() {
   async function decide(app: Application, status: "approved" | "rejected") {
     setError(null);
     setDecidingId(app.id);
-    try {
-      await decideVendorApplicationAction({
-        applicationId: app.id,
-        businessName: app.business_name,
-        subdomainPreference: app.subdomain_preference,
-        category: app.business_type,
-        city: app.city,
-        requestedPlan: app.requested_plan,
-        ownerName: app.owner_name,
-        ownerEmail: app.owner_email,
-        status,
-      });
+    const result = await decideVendorApplicationAction({
+      applicationId: app.id,
+      businessName: app.business_name,
+      subdomainPreference: app.subdomain_preference,
+      category: app.business_type,
+      city: app.city,
+      requestedPlan: app.requested_plan,
+      ownerName: app.owner_name,
+      ownerEmail: app.owner_email,
+      status,
+    });
+    if ("error" in result) {
+      setError(result.error);
+    } else {
       setApplications((prev) => prev.map((a) => (a.id === app.id ? { ...a, status } : a)));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't update this application.");
-    } finally {
-      setDecidingId(null);
     }
+    setDecidingId(null);
   }
 
   function toggleSelect(id: string) {
