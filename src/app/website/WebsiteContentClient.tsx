@@ -17,6 +17,7 @@ const TABS = [
   "Promo Popup",
   "Rewards & Referral",
   "AI Support",
+  "Terms & Conditions",
 ] as const;
 type Tab = (typeof TABS)[number];
 
@@ -53,6 +54,8 @@ type Contact = {
 type SocialLinks = { instagram: string; facebook: string; tiktok: string; linkedin: string; youtube: string };
 type PromoPopup = { enabled: boolean; eyebrow: string; headline: string; description: string; cta: string; delayMs: number };
 type AiSupport = { greeting: string; suggestedPrompts: string[] };
+type TermsSection = { title: string; body: string };
+type Terms = { lastUpdated: string; intro: string; sections: TermsSection[] };
 
 export function WebsiteContentClient({
   initialHero,
@@ -64,6 +67,7 @@ export function WebsiteContentClient({
   initialSocial,
   initialPromo,
   initialAiSupport,
+  initialTerms,
 }: {
   initialHero: Hero;
   initialHowItWorks: Step[];
@@ -74,6 +78,7 @@ export function WebsiteContentClient({
   initialSocial: SocialLinks;
   initialPromo: PromoPopup;
   initialAiSupport: AiSupport;
+  initialTerms: Terms;
 }) {
   const [tab, setTab] = useState<Tab>("Homepage Hero");
   const [hero, setHero] = useState(initialHero);
@@ -85,6 +90,7 @@ export function WebsiteContentClient({
   const [social, setSocial] = useState(initialSocial);
   const [promo, setPromo] = useState(initialPromo);
   const [aiSupport, setAiSupport] = useState(initialAiSupport);
+  const [terms, setTerms] = useState(initialTerms);
   const [saved, setSaved] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -100,6 +106,7 @@ export function WebsiteContentClient({
         social_links: social,
         promo_popup: promo,
         ai_support: aiSupport,
+        terms,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 1800);
@@ -619,6 +626,77 @@ export function WebsiteContentClient({
             </div>
           </div>
         </Card>
+      )}
+
+      {tab === "Terms & Conditions" && (
+        <div className="space-y-4">
+          <Card>
+            <CardHeader title="Terms & Conditions page" description="Shown at /terms on nashemann.store — linked from both vendor and customer signup as the required consent checkbox." />
+            <div className="space-y-4">
+              <label className="block max-w-xs">
+                <span className={labelClass}>Last updated (display text)</span>
+                <input value={terms.lastUpdated} onChange={(e) => setTerms({ ...terms, lastUpdated: e.target.value })} className={inputClass} />
+              </label>
+              <label className="block">
+                <span className={labelClass}>Intro paragraph</span>
+                <textarea value={terms.intro} onChange={(e) => setTerms({ ...terms, intro: e.target.value })} rows={3} className={inputClass} />
+              </label>
+            </div>
+          </Card>
+
+          <Card>
+            <CardHeader
+              title="Sections"
+              description="Rendered in order, each as its own heading + paragraph."
+              action={
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setTerms({ ...terms, sections: [...terms.sections, { title: `${terms.sections.length + 1}. New section`, body: "" }] })}
+                >
+                  <Plus size={13} /> Add section
+                </Button>
+              }
+            />
+            <div className="space-y-4">
+              {terms.sections.map((s, i) => (
+                <div key={i} className="rounded-[var(--radius-md)] border border-[var(--border)] p-4">
+                  <label className="block">
+                    <span className={labelClass}>Title</span>
+                    <input
+                      value={s.title}
+                      onChange={(e) => {
+                        const sections = [...terms.sections];
+                        sections[i] = { ...sections[i], title: e.target.value };
+                        setTerms({ ...terms, sections });
+                      }}
+                      className={inputClass}
+                    />
+                  </label>
+                  <label className="mt-3 block">
+                    <span className={labelClass}>Body</span>
+                    <textarea
+                      value={s.body}
+                      onChange={(e) => {
+                        const sections = [...terms.sections];
+                        sections[i] = { ...sections[i], body: e.target.value };
+                        setTerms({ ...terms, sections });
+                      }}
+                      rows={4}
+                      className={inputClass}
+                    />
+                  </label>
+                  <button
+                    onClick={() => setTerms({ ...terms, sections: terms.sections.filter((_, j) => j !== i) })}
+                    className="mt-2 inline-flex items-center gap-1 text-xs text-[var(--danger)] hover:underline"
+                  >
+                    <Trash2 size={12} /> Remove section
+                  </button>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
       )}
     </div>
   );

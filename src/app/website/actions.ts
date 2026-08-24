@@ -13,6 +13,7 @@ export type SiteContentPayload = {
   social_links: unknown;
   promo_popup: unknown;
   ai_support: unknown;
+  terms: unknown;
 };
 
 export async function saveSiteContentAction(payload: Partial<SiteContentPayload>) {

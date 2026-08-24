@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { WebsiteContentClient } from "./WebsiteContentClient";
-import { HERO_CONTENT, CONTACT_CONTENT, PROMO_POPUP, REWARDS_CONTENT, SOCIAL_LINKS } from "@/lib/site-content";
+import { HERO_CONTENT, CONTACT_CONTENT, PROMO_POPUP, REWARDS_CONTENT, SOCIAL_LINKS, TERMS_CONTENT } from "@/lib/site-content";
 
 export default async function WebsiteContentPage() {
   const supabase = await createClient();
@@ -34,6 +34,7 @@ export default async function WebsiteContentPage() {
           suggestedPrompts: [],
         }
       }
+      initialTerms={(byKey.get("terms") as typeof TERMS_CONTENT) ?? TERMS_CONTENT}
     />
   );
 }
