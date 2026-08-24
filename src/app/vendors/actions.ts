@@ -31,8 +31,13 @@ export async function createVendorStoreAction(input: { businessName: string; sub
 export async function bulkSetVendorStatusAction(vendorIds: string[], vendorNames: string[], status: "active" | "suspended") {
   const { supabase, actor } = await requireMutatingStaff();
   if (!vendorIds.length) return;
-  const { error } = await supabase.from("vendors").update({ status }).in("id", vendorIds);
+  const { data, error } = await supabase.from("vendors").update({ status }).in("id", vendorIds).select("id");
   if (error) throw new Error(error.message);
+  // RLS silently matches 0 rows on a permission mismatch instead of
+  // erroring -- a plain `if (error) throw` alone would report success on a
+  // no-op bulk write (see the fixed fix_vendors_update_rls_staff_mismatch
+  // migration for the exact bug this class already caused once here).
+  if (!data?.length) throw new Error("Couldn't update vendor status -- you may not have permission for these vendors.");
   await supabase.from("audit_log").insert({ action: status === "suspended" ? "vendor_suspended" : "vendor_reactivated", actor, entity: vendorNames.length <= 3 ? vendorNames.join(", ") : `${vendorNames.length} vendors`, detail: `Bulk ${status === "suspended" ? "suspend" : "reactivate"} (${vendorIds.length} vendors)` });
   revalidatePath("/vendors"); revalidatePath("/audit-log");
 }

@@ -53,18 +53,29 @@ async function syncVendorAdminProfile(admin: ReturnType<typeof createAdminClient
   if (profileError) throw new Error(profileError.message);
 }
 
+// Every vendors UPDATE below asserts the affected row count -- RLS silently
+// matches 0 rows on a permission mismatch instead of erroring (this bit a
+// real staff-role/RLS mismatch here once, see the fixed
+// fix_vendors_update_rls_staff_mismatch migration), so a plain
+// `if (error) throw` alone would report success on a no-op write.
+function assertUpdated(rows: unknown[] | null, what: string) {
+  if (!rows?.length) throw new Error(`Couldn't update ${what} -- you may not have permission for this vendor.`);
+}
+
 export async function setVendorWhiteLabelAction(vendorId: string, vendorName: string, enabled: boolean) {
   const { supabase, actor } = await requireFinanceStaff();
-  const { error } = await supabase.from("vendors").update({ white_label_enabled: enabled }).eq("id", vendorId);
+  const { data, error } = await supabase.from("vendors").update({ white_label_enabled: enabled }).eq("id", vendorId).select("id");
   if (error) throw new Error(error.message);
+  assertUpdated(data, "white-label setting");
   await supabase.from("audit_log").insert({ action: "vendor_white_label_toggled", actor, entity: vendorName, detail: enabled ? "White-label enabled" : "White-label disabled" });
   revalidatePath(`/vendors/${vendorId}`); revalidatePath("/audit-log");
 }
 
 export async function saveVendorThemeAction(vendorId: string, vendorName: string, theme: { accentFrom: string; accentTo: string; logoEmoji: string; logoUrl: string | null; font: string }) {
   const { supabase, actor } = await requireMutatingStaff();
-  const { error } = await supabase.from("vendors").update({ theme_accent_from: theme.accentFrom, theme_accent_to: theme.accentTo, theme_logo_emoji: theme.logoEmoji, theme_logo_url: theme.logoUrl, theme_font: theme.font }).eq("id", vendorId);
+  const { data, error } = await supabase.from("vendors").update({ theme_accent_from: theme.accentFrom, theme_accent_to: theme.accentTo, theme_logo_emoji: theme.logoEmoji, theme_logo_url: theme.logoUrl, theme_font: theme.font }).eq("id", vendorId).select("id");
   if (error) throw new Error(error.message);
+  assertUpdated(data, "storefront theme");
   await supabase.from("audit_log").insert({ action: "vendor_theme_updated", actor, entity: vendorName, detail: `Updated storefront theme: ${theme.font}` });
   const { data: vendor } = await supabase.from("vendors").select("subdomain").eq("id", vendorId).single();
   const admins = await getVendorAdminsAction(vendorId);
@@ -74,16 +85,18 @@ export async function saveVendorThemeAction(vendorId: string, vendorName: string
 
 export async function toggleVendorStatusAction(vendorId: string, vendorName: string, nextStatus: "active" | "suspended") {
   const { supabase, actor } = await requireMutatingStaff();
-  const { error } = await supabase.from("vendors").update({ status: nextStatus }).eq("id", vendorId);
+  const { data, error } = await supabase.from("vendors").update({ status: nextStatus }).eq("id", vendorId).select("id");
   if (error) throw new Error(error.message);
+  assertUpdated(data, "vendor status");
   await supabase.from("audit_log").insert({ action: nextStatus === "suspended" ? "vendor_suspended" : "vendor_reactivated", actor, entity: vendorName, detail: nextStatus });
   revalidatePath(`/vendors/${vendorId}`); revalidatePath("/vendors"); revalidatePath("/audit-log");
 }
 
 export async function changeVendorPlanAction(vendorId: string, vendorName: string, nextPlan: "per_order" | "monthly") {
   const { supabase, actor } = await requireMutatingStaff();
-  const { error } = await supabase.from("vendors").update({ plan: nextPlan }).eq("id", vendorId);
+  const { data, error } = await supabase.from("vendors").update({ plan: nextPlan }).eq("id", vendorId).select("id");
   if (error) throw new Error(error.message);
+  assertUpdated(data, "billing plan");
   await supabase.from("audit_log").insert({ action: "vendor_plan_changed", actor, entity: vendorName, detail: nextPlan });
   revalidatePath(`/vendors/${vendorId}`); revalidatePath("/audit-log");
 }
@@ -92,16 +105,18 @@ export async function changeVendorCategoryAction(vendorId: string, vendorName: s
   const { supabase, actor } = await requireSuperAdmin();
   const { data: schema } = await supabase.from("category_product_schemas").select("category").eq("category", category).maybeSingle();
   if (!schema) throw new Error("Unknown category.");
-  const { error } = await supabase.from("vendors").update({ category }).eq("id", vendorId);
+  const { data, error } = await supabase.from("vendors").update({ category }).eq("id", vendorId).select("id");
   if (error) throw new Error(error.message);
+  assertUpdated(data, "category");
   await supabase.from("audit_log").insert({ action: "vendor_category_changed", actor, entity: vendorName, detail: category });
   revalidatePath(`/vendors/${vendorId}`); revalidatePath("/vendors"); revalidatePath("/audit-log");
 }
 
 export async function changeVendorCurrencyAction(vendorId: string, vendorName: string, currency: string) {
   const { supabase, actor } = await requireFinanceStaff();
-  const { error } = await supabase.from("vendors").update({ currency }).eq("id", vendorId);
+  const { data, error } = await supabase.from("vendors").update({ currency }).eq("id", vendorId).select("id");
   if (error) throw new Error(error.message);
+  assertUpdated(data, "currency");
   await supabase.from("audit_log").insert({ action: "vendor_currency_changed", actor, entity: vendorName, detail: currency });
   revalidatePath(`/vendors/${vendorId}`); revalidatePath("/audit-log");
 }
@@ -112,8 +127,9 @@ export async function updateVendorCustomDomainAction(vendorId: string, vendorNam
   if (domain && domain.includes("nashemann.store")) throw new Error("Use the vendor subdomain for nashemann.store domains; custom domains must be external.");
   if (domain && !/^(?=.{4,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i.test(domain)) throw new Error("Enter a valid custom domain.");
   const activeDomain = domain || `${subdomain}.nashemann.store`;
-  const { error } = await supabase.from("vendors").update({ custom_domain: activeDomain }).eq("id", vendorId);
+  const { data, error } = await supabase.from("vendors").update({ custom_domain: activeDomain }).eq("id", vendorId).select("id");
   if (error) throw new Error(error.message);
+  assertUpdated(data, "custom domain");
   await supabase.from("audit_log").insert({ action: "vendor_custom_domain_changed", actor, entity: vendorName, detail: activeDomain });
   revalidatePath(`/vendors/${vendorId}`); revalidatePath("/vendors"); revalidatePath("/audit-log");
   return activeDomain;
@@ -128,8 +144,9 @@ export async function updateVendorSlugAction(vendorId: string, vendorName: strin
   if (slug === previousSlug) return slug;
   const { data: conflict } = await supabase.from("vendors").select("id").eq("subdomain", slug).neq("id", vendorId).maybeSingle();
   if (conflict) throw new Error(`"${slug}" is already taken by another store.`);
-  const { error } = await supabase.from("vendors").update({ subdomain: slug, custom_domain: `${slug}.nashemann.store` }).eq("id", vendorId);
+  const { data, error } = await supabase.from("vendors").update({ subdomain: slug, custom_domain: `${slug}.nashemann.store` }).eq("id", vendorId).select("id");
   if (error) throw new Error(error.message);
+  assertUpdated(data, "subdomain");
   await supabase.from("audit_log").insert({ action: "vendor_slug_changed", actor, entity: vendorName, detail: `${previousSlug} → ${slug}` });
   revalidatePath(`/vendors/${vendorId}`); revalidatePath("/vendors"); revalidatePath("/audit-log");
   return slug;
@@ -223,8 +240,9 @@ export async function updateVendorControlProfileAction(vendorId: string, vendorN
   const isPercent = input.feeType === "percent";
   if (isPercent && input.feeOverridePercent !== null && (!Number.isFinite(input.feeOverridePercent) || input.feeOverridePercent < 0 || input.feeOverridePercent > 100)) throw new Error("Fee override must be between 0 and 100 percent.");
   if (!isPercent && input.feeOverrideFixedAmount !== null && (!Number.isFinite(input.feeOverrideFixedAmount) || input.feeOverrideFixedAmount < 0)) throw new Error("Fixed fee amount must be zero or a positive number.");
-  const { error } = await supabase.from("vendors").update({ description: input.description.trim(), contact_email: input.contactEmail.trim() || null, contact_phone: input.contactPhone.trim() || null, instagram_url: input.instagramUrl.trim() || null, youtube_url: input.youtubeUrl.trim() || null, fee_type: input.feeType, fee_override_percent: isPercent ? input.feeOverridePercent : null, fee_override_fixed_amount: !isPercent ? input.feeOverrideFixedAmount : null }).eq("id", vendorId);
+  const { data, error } = await supabase.from("vendors").update({ description: input.description.trim(), contact_email: input.contactEmail.trim() || null, contact_phone: input.contactPhone.trim() || null, instagram_url: input.instagramUrl.trim() || null, youtube_url: input.youtubeUrl.trim() || null, fee_type: input.feeType, fee_override_percent: isPercent ? input.feeOverridePercent : null, fee_override_fixed_amount: !isPercent ? input.feeOverrideFixedAmount : null }).eq("id", vendorId).select("id");
   if (error) throw new Error(error.message);
+  assertUpdated(data, "Super Admin controls");
   await supabase.from("audit_log").insert({ action: "vendor_control_profile_updated", actor, entity: vendorName, detail: "Updated Super Admin controls" });
   revalidatePath(`/vendors/${vendorId}`); revalidatePath("/audit-log");
 }
