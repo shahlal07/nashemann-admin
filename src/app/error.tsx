@@ -2,6 +2,19 @@
 
 import { useEffect } from "react";
 
+// A stale JS chunk reference (page open across a deploy that replaced the
+// build, or a flaky connection) fails with one of these -- reset() can't
+// fix it since the chunk URL itself is gone, only a real reload re-fetches
+// the current build.
+function isChunkLoadError(error: Error): boolean {
+  return (
+    error.name === "ChunkLoadError" ||
+    /Loading chunk [\d]+ failed|Failed to fetch dynamically imported module|Importing a module script failed/i.test(
+      error.message
+    )
+  );
+}
+
 export default function ErrorBoundary({
   error,
   reset,
@@ -11,6 +24,13 @@ export default function ErrorBoundary({
 }) {
   useEffect(() => {
     console.error("[Super Admin Error Boundary]", error);
+    if (isChunkLoadError(error)) {
+      const key = "nashemann_admin_chunk_reload_attempted";
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, "1");
+        window.location.reload();
+      }
+    }
   }, [error]);
 
   const isAuthError = error.message?.toLowerCase().includes("unauthorized") ||
@@ -43,7 +63,7 @@ export default function ErrorBoundary({
           </div>
         )}
         <div className="flex gap-3">
-          <button onClick={reset} className="px-4 py-2 bg-neutral-100 text-neutral-950 rounded-lg font-medium hover:bg-neutral-200 transition-colors">Try Again</button>
+          <button onClick={() => (isChunkLoadError(error) ? window.location.reload() : reset())} className="px-4 py-2 bg-neutral-100 text-neutral-950 rounded-lg font-medium hover:bg-neutral-200 transition-colors">Try Again</button>
           <button onClick={() => window.location.reload()} className="px-4 py-2 bg-neutral-800 text-neutral-100 rounded-lg font-medium hover:bg-neutral-700 transition-colors">Reload Page</button>
         </div>
       </div>
