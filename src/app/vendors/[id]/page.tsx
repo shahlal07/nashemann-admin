@@ -25,7 +25,7 @@ export default async function VendorDetailPage({ params }: { params: Promise<{ i
     : { data: null };
   const isFinanceStaff = ["super_admin", "admin", "finance"].includes(currentStaff?.role ?? "");
 
-  const [{ data: admins }, { data: categorySchema }, { data: settlements }, { data: reviews }, { data: tenantHealth }] =
+  const [{ data: admins }, { data: categorySchema }, { data: allCategories }, { data: settlements }, { data: reviews }, { data: tenantHealth }] =
     await Promise.all([
       supabase
         .from("vendor_admins")
@@ -39,6 +39,7 @@ export default async function VendorDetailPage({ params }: { params: Promise<{ i
             .eq("category", vendor.category)
             .maybeSingle()
         : Promise.resolve({ data: null }),
+      supabase.from("category_product_schemas").select("category").order("display_order", { ascending: true }),
       supabase.from("settlements").select("month, status, gross_revenue, orders_count, due_date").eq("vendor_id", id),
       supabase.from("reviews").select("rating").eq("vendor_id", id),
       supabase
@@ -70,6 +71,7 @@ export default async function VendorDetailPage({ params }: { params: Promise<{ i
       vendor={vendor}
       initialAdmins={admins ?? []}
       categorySchema={categorySchema}
+      allCategories={(allCategories ?? []).map((c) => c.category)}
       health={health}
       churnRisk={churnRisk}
       isFinanceStaff={isFinanceStaff}

@@ -37,8 +37,14 @@ type ResolveFailure = { ok: false; error: string };
 
 async function resolveVendorAdmin(admin: ReturnType<typeof createAdminClient>, vendorId: string, vendorAdminId: string): Promise<Resolved | ResolveFailure> {
   const { data: row, error } = await admin.from("vendor_admins").select("id,name,email,role,added_at").eq("vendor_id", vendorId).eq("id", vendorAdminId).maybeSingle();
-  if (error) return { ok: false, error: error.message };
-  if (!row) return { ok: false, error: "Vendor admin record not found. Refresh the page and try again." };
+  if (error) {
+    console.error("[resolveVendorAdmin] query error:", { vendorId, vendorAdminId, error: error.message });
+    return { ok: false, error: error.message };
+  }
+  if (!row) {
+    console.error("[resolveVendorAdmin] no row found:", { vendorId, vendorAdminId });
+    return { ok: false, error: "Vendor admin record not found. Refresh the page and try again." };
+  }
   const user = await findAuthUserByEmail(admin, row.email);
   if (!user) return { ok: false, error: `No Supabase Auth account exists for ${row.email}. Use Edit Credentials to recreate/sync this vendor admin.` };
   return { ok: true, row: row as VendorAdminRow, user };
@@ -86,6 +92,16 @@ export async function changeVendorPlanAction(vendorId: string, vendorName: strin
   if (error) throw new Error(error.message);
   await supabase.from("audit_log").insert({ action: "vendor_plan_changed", actor, entity: vendorName, detail: nextPlan });
   revalidatePath(`/vendors/${vendorId}`); revalidatePath("/audit-log");
+}
+
+export async function changeVendorCategoryAction(vendorId: string, vendorName: string, category: string) {
+  const { supabase, actor } = await requireSuperAdmin();
+  const { data: schema } = await supabase.from("category_product_schemas").select("category").eq("category", category).maybeSingle();
+  if (!schema) throw new Error("Unknown category.");
+  const { error } = await supabase.from("vendors").update({ category }).eq("id", vendorId);
+  if (error) throw new Error(error.message);
+  await supabase.from("audit_log").insert({ action: "vendor_category_changed", actor, entity: vendorName, detail: category });
+  revalidatePath(`/vendors/${vendorId}`); revalidatePath("/vendors"); revalidatePath("/audit-log");
 }
 
 export async function changeVendorCurrencyAction(vendorId: string, vendorName: string, currency: string) {
