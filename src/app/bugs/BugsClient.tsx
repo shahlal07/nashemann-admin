@@ -7,10 +7,11 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { confirmBugReportAction, rejectBugReportAction } from "./actions";
+import { confirmBugReportAction, rejectBugReportAction, getBugScreenshotUrl } from "./actions";
 import { formatDateTime } from "@/lib/utils";
 
 export type BugReportStatus = "pending" | "confirmed" | "rejected";
+export type BugReportSource = "nashemann" | "storefront" | "vendor_admin";
 
 export type BugReportRow = {
   id: string;
@@ -19,11 +20,21 @@ export type BugReportRow = {
   status: BugReportStatus;
   admin_note: string | null;
   reward_granted: boolean;
-  reporter_name: string;
-  reporter_email: string;
-  screenshot_url: string | null;
+  reporter_name: string | null;
+  reporter_email: string | null;
+  profile_id: string | null;
+  screenshot_path: string | null;
   created_at: string;
   reviewed_at: string | null;
+  source: BugReportSource;
+  vendor_id: string | null;
+  vendors: { name: string } | null;
+};
+
+const SOURCE_LABEL: Record<BugReportSource, string> = {
+  nashemann: "nashemann.store",
+  storefront: "Storefront customer",
+  vendor_admin: "Vendor admin panel",
 };
 
 const TABS = ["all", "pending", "confirmed", "rejected"] as const;
@@ -39,6 +50,16 @@ export function BugsClient({ initialReports }: { initialReports: BugReportRow[] 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  const [screenshotUrls, setScreenshotUrls] = useState<Record<string, string | null>>({});
+
+  async function toggleExpand(r: BugReportRow) {
+    const next = expandedId === r.id ? null : r.id;
+    setExpandedId(next);
+    if (next && r.screenshot_path && !(r.id in screenshotUrls)) {
+      const url = await getBugScreenshotUrl(r.screenshot_path);
+      setScreenshotUrls((prev) => ({ ...prev, [r.id]: url }));
+    }
+  }
 
   const counts = {
     all: reports.length,
@@ -50,16 +71,17 @@ export function BugsClient({ initialReports }: { initialReports: BugReportRow[] 
 
   async function confirmReport(id: string) {
     const target = reports.find((r) => r.id === id);
+    const rewardEligible = target?.source === "nashemann";
     const patch = {
       status: "confirmed" as const,
-      reward_granted: true,
-      admin_note: "Confirmed — Rs 500 platform credit applied.",
+      reward_granted: rewardEligible,
+      admin_note: rewardEligible ? "Confirmed — Rs 500 platform credit applied." : "Confirmed.",
       reviewed_at: new Date().toISOString(),
     };
     const prev = reports;
     setReports((p) => p.map((r) => (r.id === id ? { ...r, ...patch } : r)));
     try {
-      await confirmBugReportAction(id, target?.title ?? "Bug report");
+      await confirmBugReportAction(id, target?.title ?? "Bug report", rewardEligible);
     } catch (err) {
       setReports(prev);
       alert(err instanceof Error ? err.message : "Couldn't confirm the report.");
@@ -111,18 +133,20 @@ export function BugsClient({ initialReports }: { initialReports: BugReportRow[] 
             return (
               <div key={r.id} className="py-3.5 first:pt-0 last:pb-0">
                 <button
-                  onClick={() => setExpandedId(expanded ? null : r.id)}
+                  onClick={() => toggleExpand(r)}
                   className="flex w-full items-center justify-between gap-3 text-left"
                 >
                   <div>
                     <p className="text-sm font-medium text-[var(--text)]">{r.title}</p>
                     <p className="mt-0.5 text-xs text-[var(--text-faint)]">
-                      {r.reporter_name} · {r.reporter_email} · {formatDateTime(r.created_at)}
+                      {SOURCE_LABEL[r.source]}
+                      {r.vendors?.name ? ` (${r.vendors.name})` : ""} · {r.reporter_name ?? "Anonymous"}
+                      {r.reporter_email ? ` · ${r.reporter_email}` : ""} · {formatDateTime(r.created_at)}
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <Badge tone={STATUS_TONE[r.status]}>
-                      {r.status === "confirmed" ? (
+                      {r.status === "confirmed" && r.reward_granted ? (
                         <>
                           Confirmed <Gift size={11} /> +Rs 500
                         </>
@@ -138,26 +162,30 @@ export function BugsClient({ initialReports }: { initialReports: BugReportRow[] 
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-3 overflow-hidden pl-1">
                     <p className="text-sm text-[var(--text-muted)]">{r.description}</p>
 
-                    {r.screenshot_url && (
+                    {r.screenshot_path && (
                       <div className="mt-3">
                         <p className="mb-1.5 flex items-center gap-1 text-xs font-medium text-[var(--text-muted)]">
                           <ImageIcon size={12} /> Attached screenshot
                         </p>
-                        <a href={r.screenshot_url} target="_blank" rel="noreferrer">
-                          {/* eslint-disable-next-line @next/next/no-img-element -- reporter-uploaded, arbitrary remote URL */}
-                          <img
-                            src={r.screenshot_url}
-                            alt="Reported bug screenshot"
-                            className="max-h-64 rounded-[var(--radius-md)] border border-[var(--border)] object-contain"
-                          />
-                        </a>
+                        {screenshotUrls[r.id] ? (
+                          <a href={screenshotUrls[r.id]!} target="_blank" rel="noreferrer">
+                            {/* eslint-disable-next-line @next/next/no-img-element -- reporter-uploaded, arbitrary remote URL */}
+                            <img
+                              src={screenshotUrls[r.id]!}
+                              alt="Reported bug screenshot"
+                              className="max-h-64 rounded-[var(--radius-md)] border border-[var(--border)] object-contain"
+                            />
+                          </a>
+                        ) : (
+                          <p className="text-xs text-[var(--text-faint)]">Loading…</p>
+                        )}
                       </div>
                     )}
 
                     {r.status === "pending" && rejectingId !== r.id && (
                       <div className="mt-3 flex gap-2">
                         <Button size="sm" variant="primary" onClick={() => confirmReport(r.id)}>
-                          <Check size={13} /> Confirm — grant Rs 500
+                          <Check size={13} /> {r.source === "nashemann" ? "Confirm — grant Rs 500" : "Confirm"}
                         </Button>
                         <Button size="sm" variant="danger" onClick={() => setRejectingId(r.id)}>
                           <X size={13} /> Reject
