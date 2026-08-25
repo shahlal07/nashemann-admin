@@ -7,7 +7,6 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { ChevronDown, ShieldCheck } from "lucide-react";
 import { Logo } from "./Logo";
 import { NAV_SECTIONS } from "./nav-items";
-import { getPlatformStats, MOCK_INFLUENCER_APPLICATIONS, MOCK_BUG_REPORTS } from "@/lib/mock-data";
 import { createClient } from "@/lib/supabase/client";
 import { ROLE_LABELS, type StaffRole } from "@/lib/roles";
 
@@ -20,12 +19,37 @@ const FINANCE_ROLES: StaffRole[] = ["super_admin", "admin", "finance"];
 export function Sidebar({ mobile = false, onNavigate }: { mobile?: boolean; onNavigate?: () => void }) {
   const pathname = usePathname();
   const prefersReducedMotion = useReducedMotion();
-  const stats = getPlatformStats();
-  const badgeValues: Record<string, number> = {
-    pendingApplications: stats.pendingApplications,
-    pendingInfluencerApplications: MOCK_INFLUENCER_APPLICATIONS.filter((a) => a.status === "pending").length,
-    pendingBugReports: MOCK_BUG_REPORTS.filter((b) => b.status === "pending").length,
-  };
+
+  // These used to read from mock-data.ts and never reflected real applications/
+  // reports (e.g. showed "3 pending" with the sidebar's own /applications page
+  // reading 0) -- every other page in this app was already live-Supabase, only
+  // this badge count was stuck on the mock seed. Counts refetch on route change
+  // so approving/rejecting on the list pages updates the badge without a reload.
+  const [badgeValues, setBadgeValues] = useState<Record<string, number>>({
+    pendingApplications: 0,
+    pendingInfluencerApplications: 0,
+    pendingBugReports: 0,
+  });
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const supabase = createClient();
+      const [applications, influencers, bugs] = await Promise.all([
+        supabase.from("vendor_applications").select("*", { count: "exact", head: true }).eq("status", "pending"),
+        supabase.from("influencer_applications").select("*", { count: "exact", head: true }).eq("status", "pending"),
+        supabase.from("bug_reports").select("*", { count: "exact", head: true }).eq("status", "pending"),
+      ]);
+      if (!active) return;
+      setBadgeValues({
+        pendingApplications: applications.count ?? 0,
+        pendingInfluencerApplications: influencers.count ?? 0,
+        pendingBugReports: bugs.count ?? 0,
+      });
+    })();
+    return () => {
+      active = false;
+    };
+  }, [pathname]);
 
   // Client-side role fetch purely to hide nav entries the viewer can't use --
   // the real gate is server-side (is_finance_staff() redirects + RLS).
