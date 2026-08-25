@@ -71,11 +71,51 @@ export async function setVendorWhiteLabelAction(vendorId: string, vendorName: st
   revalidatePath(`/vendors/${vendorId}`); revalidatePath("/audit-log");
 }
 
+// The storefront (vendor-storefronts/src/app/layout.tsx) doesn't read
+// vendors.theme_accent_from/to at all -- it renders colors from
+// site_content.content.brandColors (a 5-key hex palette) via a `:root`
+// style override. This mirrors vendor-admins' own Branding settings write
+// (src/app/admin/settings/content/actions.ts's writeContentPatch: read the
+// jsonb, shallow-merge the one section being saved, update by vendor_id)
+// so a superadmin theme save actually changes what shoppers see, not just
+// a column nobody downstream consumes.
+function shadeHex(hex: string, percent: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const clamp = (v: number) => Math.max(0, Math.min(255, v));
+  const r = clamp(((n >> 16) & 0xff) + Math.round(255 * percent));
+  const g = clamp(((n >> 8) & 0xff) + Math.round(255 * percent));
+  const b = clamp((n & 0xff) + Math.round(255 * percent));
+  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+}
+
+async function syncStorefrontTheme(
+  supabase: Awaited<ReturnType<typeof requireMutatingStaff>>["supabase"],
+  vendorId: string,
+  theme: { accentFrom: string; accentTo: string; logoEmoji: string; logoUrl: string | null }
+) {
+  const { data: row } = await supabase.from("site_content").select("content").eq("vendor_id", vendorId).maybeSingle();
+  const current = (row?.content as Record<string, unknown> | null) ?? {};
+  const brand = (current.brand as Record<string, unknown> | undefined) ?? {};
+  const next = {
+    ...current,
+    brand: { ...brand, accentEmoji: theme.logoEmoji, ...(theme.logoUrl ? { logoImageUrl: theme.logoUrl } : {}) },
+    brandColors: {
+      primary: theme.accentFrom,
+      primaryDeep: shadeHex(theme.accentFrom, -0.15),
+      secondary: theme.accentTo,
+      secondaryLight: shadeHex(theme.accentTo, 0.15),
+      accent: theme.accentTo,
+    },
+  };
+  await supabase.from("site_content").update({ content: next, updated_at: new Date().toISOString() }).eq("vendor_id", vendorId);
+}
+
 export async function saveVendorThemeAction(vendorId: string, vendorName: string, theme: { accentFrom: string; accentTo: string; logoEmoji: string; logoUrl: string | null; font: string }) {
   const { supabase, actor } = await requireMutatingStaff();
   const { data, error } = await supabase.from("vendors").update({ theme_accent_from: theme.accentFrom, theme_accent_to: theme.accentTo, theme_logo_emoji: theme.logoEmoji, theme_logo_url: theme.logoUrl, theme_font: theme.font }).eq("id", vendorId).select("id");
   if (error) throw new Error(error.message);
   assertUpdated(data, "storefront theme");
+  await syncStorefrontTheme(supabase, vendorId, theme);
   await supabase.from("audit_log").insert({ action: "vendor_theme_updated", actor, entity: vendorName, detail: `Updated storefront theme: ${theme.font}` });
   const { data: vendor } = await supabase.from("vendors").select("subdomain").eq("id", vendorId).single();
   const admins = await getVendorAdminsAction(vendorId);
