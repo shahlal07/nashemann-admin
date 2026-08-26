@@ -171,7 +171,7 @@ export async function provisionVendorStore(_supabase: SupabaseClient, input: Pro
 
   const { error: vendorAdminError } = await admin
     .from("vendor_admins")
-    .insert({ vendor_id: vendorId, name: ownerName, email: ownerEmail, role: "owner" });
+    .insert({ id: createdUser.user.id, vendor_id: vendorId, name: ownerName, email: ownerEmail, role: "owner" });
   if (vendorAdminError) {
     await rollbackUser();
     await rollbackVendor();
