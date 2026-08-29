@@ -4,6 +4,21 @@ import { revalidatePath } from "next/cache";
 import { requireFinanceStaff as requireStaff } from "@/lib/authz";
 import { sendSettlementPaidEmail } from "@/lib/email";
 
+// Settlement rows were never actually generated from real order data -- no
+// trigger or app code ever called an RPC to populate them, so every row on
+// this page until now was manually seeded. generate_monthly_settlements()
+// (SECURITY DEFINER, finance-staff-gated) sums real orders.total /
+// orders.platform_fee_amount for the month and upserts -- safe to re-run,
+// it never touches a settlement that's left "pending".
+export async function generateSettlementsAction(month: string) {
+  const { supabase } = await requireStaff();
+  const { error } = await supabase.rpc("generate_monthly_settlements", { p_month: month });
+  if (error) throw new Error(error.message);
+  revalidatePath("/settlements");
+  revalidatePath("/platform-fees");
+  revalidatePath("/");
+}
+
 function monthLabel(month: string) {
   return new Date(month).toLocaleDateString("en-PK", { month: "long", year: "numeric" });
 }

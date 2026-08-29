@@ -9,7 +9,7 @@ import { formatPKR, formatDateTime } from "@/lib/utils";
 import { formatInCurrency, type CurrencyRate } from "@/lib/currency";
 import { RecordPaymentModal } from "./RecordPaymentModal";
 import { ReasonModal } from "./ReasonModal";
-import { waiveSettlementAction, reverseSettlementAction } from "./actions";
+import { waiveSettlementAction, reverseSettlementAction, generateSettlementsAction } from "./actions";
 
 export type SettlementStatus = "pending" | "partially_paid" | "paid" | "waived" | "reversed";
 
@@ -80,6 +80,22 @@ export function SettlementsTable({ initialSettlements, rates = [] }: { initialSe
   const [waiveTarget, setWaiveTarget] = useState<SettlementRow | null>(null);
   const [reverseTarget, setReverseTarget] = useState<SettlementRow | null>(null);
   const [, startTransition] = useTransition();
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+
+  async function handleGenerate() {
+    setIsGenerating(true);
+    setGenerateError(null);
+    try {
+      const month = new Date().toISOString().slice(0, 10);
+      await generateSettlementsAction(month);
+      window.location.reload();
+    } catch (err) {
+      setGenerateError(err instanceof Error ? err.message : "Couldn't generate settlements.");
+    } finally {
+      setIsGenerating(false);
+    }
+  }
 
   const totalOutstanding = settlements
     .filter((s) => s.status === "pending" || s.status === "partially_paid")
@@ -122,8 +138,14 @@ export function SettlementsTable({ initialSettlements, rates = [] }: { initialSe
             <p className="text-xs font-medium text-[var(--text-muted)]">Outstanding this cycle</p>
             <p className="font-display mt-1 text-2xl font-semibold text-[var(--text)]">{formatPKR(totalOutstanding)}</p>
           </div>
-          <Badge tone="warning">{outstandingCount} outstanding</Badge>
+          <div className="flex items-center gap-3">
+            <Badge tone="warning">{outstandingCount} outstanding</Badge>
+            <Button type="button" onClick={handleGenerate} disabled={isGenerating}>
+              {isGenerating ? "Generating…" : "Generate this month"}
+            </Button>
+          </div>
         </div>
+        {generateError && <p className="mt-2 text-xs text-[var(--danger)]">{generateError}</p>}
       </Card>
 
       <Card>
