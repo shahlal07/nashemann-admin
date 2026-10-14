@@ -60,6 +60,28 @@ async function sendMail(params: { to: string; subject: string; html: string; fro
   }
 }
 
+export type InternalEmailCategory = "notifications" | "support" | "security" | "staff";
+
+export async function sendInternalTransactionalEmail(params: {
+  to: string;
+  subject: string;
+  html: string;
+  category?: InternalEmailCategory;
+}): Promise<boolean> {
+  const fromByCategory: Record<InternalEmailCategory, string> = {
+    notifications: FROM_NOTIFICATIONS,
+    support: FROM_SUPPORT,
+    security: FROM_SECURITY,
+    staff: FROM_STAFF,
+  };
+  return sendMail({
+    to: params.to,
+    subject: params.subject,
+    html: params.html,
+    from: fromByCategory[params.category ?? "notifications"],
+  });
+}
+
 function wrapEmail(bodyHtml: string): string {
   return `
     <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;">
