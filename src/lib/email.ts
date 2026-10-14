@@ -10,6 +10,7 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 
 const FROM_NOTIFICATIONS = "Nashemann <notifications@nashemann.store>";
+const FROM_SUPPORT = "Nashemann Support <support@nashemann.store>";
 const FROM_STAFF = "Nashemann Staff <staff@nashemann.store>";
 const FROM_SECURITY = "Nashemann Security <security@nashemann.store>";
 
@@ -58,6 +59,28 @@ async function sendMail(params: { to: string; subject: string; html: string; fro
     console.error(`[email] Failed to send "${params.subject}" to ${params.to}:`, err);
     return false;
   }
+}
+
+export type InternalEmailCategory = "notifications" | "support" | "security" | "staff";
+
+export async function sendInternalTransactionalEmail(params: {
+  to: string;
+  subject: string;
+  html: string;
+  category?: InternalEmailCategory;
+}): Promise<boolean> {
+  const fromByCategory: Record<InternalEmailCategory, string> = {
+    notifications: FROM_NOTIFICATIONS,
+    support: FROM_SUPPORT,
+    security: FROM_SECURITY,
+    staff: FROM_STAFF,
+  };
+  return sendMail({
+    to: params.to,
+    subject: params.subject,
+    html: params.html,
+    from: fromByCategory[params.category ?? "notifications"],
+  });
 }
 
 function wrapEmail(bodyHtml: string): string {
