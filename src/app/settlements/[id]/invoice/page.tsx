@@ -23,7 +23,7 @@ export default async function SettlementInvoicePage({ params }: { params: Promis
 
   const { data: settlement, error } = await supabase
     .from("settlements")
-    .select("id, vendor_id, month, orders_count, gross_revenue, platform_fee, adjustment_total, status, amount_paid, due_date, plan_snapshot, unit_fee, vendors(name, contact_email, currency, plan)")
+    .select("id, vendor_id, month, orders_count, gross_revenue, platform_fee, adjustment_total, status, amount_paid, due_date, plan_snapshot, unit_fee, fee_rate_mixed, vendors(name, contact_email, currency, plan)")
     .eq("id", id)
     .maybeSingle();
 
@@ -34,7 +34,7 @@ export default async function SettlementInvoicePage({ params }: { params: Promis
     ? (plan === "monthly" ? Number(settlement.platform_fee) : (Number(settlement.orders_count) > 0 ? Number(settlement.platform_fee) / Number(settlement.orders_count) : 0))
     : Number(settlement.unit_fee);
   const quantity = plan === "monthly" ? 1 : Number(settlement.orders_count);
-  const description = plan === "monthly" ? "Monthly Nashemann platform subscription" : "Nashemann per-order plan fee";
+  const description = plan === "monthly" ? "Monthly Nashemann platform subscription" : settlement.fee_rate_mixed ? "Nashemann per-order plan fee (rates varied during period)" : "Nashemann per-order plan fee";
   const baseFee = Number(settlement.platform_fee);
   const adjustmentTotal = Number(settlement.adjustment_total ?? 0);
   const totalDue = baseFee + adjustmentTotal;
@@ -74,7 +74,7 @@ export default async function SettlementInvoicePage({ params }: { params: Promis
           </section>
         </div>
         <table className="w-full border-collapse text-sm">
-          <thead><tr className="border-y border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500"><th className="py-3">Description</th><th className="py-3 text-right">Quantity</th><th className="py-3 text-right">Unit price</th><th className="py-3 text-right">Amount</th></tr></thead>
+          <thead><tr className="border-y border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500"><th className="py-3">Description</th><th className="py-3 text-right">Quantity</th><th className="py-3 text-right">{settlement.fee_rate_mixed ? "Average unit fee" : "Unit price"}</th><th className="py-3 text-right">Amount</th></tr></thead>
           <tbody>
             <tr className="border-b border-slate-100"><td className="py-4 font-semibold">{description}</td><td className="py-4 text-right">{quantity}</td><td className="py-4 text-right">{formatPKR(unitFee)}</td><td className="py-4 text-right font-semibold">{formatPKR(baseFee)}</td></tr>
             {adjustmentTotal !== 0 && <tr className="border-b border-slate-100"><td className="py-4">Refund/cancellation credits and adjustments</td><td className="py-4 text-right">—</td><td className="py-4 text-right">—</td><td className="py-4 text-right">{formatPKR(adjustmentTotal)}</td></tr>}
