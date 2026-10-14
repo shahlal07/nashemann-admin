@@ -10,6 +10,7 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 
 const FROM_NOTIFICATIONS = "Nashemann <notifications@nashemann.store>";
+const FROM_SUPPORT = "Nashemann Support <support@nashemann.store>";
 const FROM_STAFF = "Nashemann Staff <staff@nashemann.store>";
 const FROM_SECURITY = "Nashemann Security <security@nashemann.store>";
 
