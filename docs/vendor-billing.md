@@ -3,9 +3,9 @@
 ## Billing rules
 
 - The billing period is a closed calendar month.
-- A vendor on the **Per Order** plan is charged: eligible, non-cancelled/non-refunded orders × the configured per-order fee in platform_pricing when the invoice is generated.
+- A vendor on the **Per Order** plan is charged: the sum of each eligible order’s vendor-plan fee snapshot, recorded when the order is created. This preserves the price in effect for each order.
 - A vendor on the **Monthly** plan is charged the configured monthly fee.
-- The generated invoice snapshots the plan and unit fee. Existing invoices are immutable; repeated generation is idempotent and does not rewrite an issued invoice. A refund/cancellation after a per-order invoice is issued creates an audited credit adjustment rather than rewriting the original charge.
+- The generated invoice snapshots the plan, unit fee, and whether order rates varied during the period. Existing invoices are immutable; repeated generation is idempotent and does not rewrite an issued invoice. A refund/cancellation after a per-order invoice is issued creates an audited credit adjustment rather than rewriting the original charge.
 - Invoices are due on the last calendar day of the following month.
 - The Superadmin-configurable grace period is 0–30 days (default 10). A billing suspension is applied only to an active vendor with an unpaid invoice beyond the configured grace period.
 - Automatic reactivation only applies to a vendor carrying the billing-suspension marker and only when no overdue unpaid invoice remains. Manual suspensions are not automatically removed.
@@ -39,4 +39,4 @@
 
 ## Existing legacy records
 
-Existing settlement rows are deliberately not rewritten when the new plan-based calculation is enabled. Review legacy balances—especially old per-order invoices that were calculated under the previous fee logic—before collecting those historical amounts. New invoices use the plan and unit-rate snapshot described above.
+Existing order rows without a vendor-plan fee snapshot were backfilled using the current configured per-order price; that cannot reconstruct any older historical price changes. Existing settlement rows are deliberately not rewritten when the new plan-based calculation is enabled. Review legacy balances—especially old per-order invoices that were calculated under the previous fee logic—before collecting those historical amounts. New invoices use the plan and unit-rate snapshot described above.
