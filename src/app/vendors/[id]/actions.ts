@@ -270,9 +270,23 @@ export async function sendVendorAdminResetLinkAction(vendorId: string, vendorNam
   const password = generateTemporaryPassword();
   const { error } = await admin.auth.admin.updateUserById(user.id, { password, email_confirm: true });
   if (error) return { error: error.message };
-  await supabase.from("audit_log").insert({ action: "vendor_admin_temporary_password_generated", actor, entity: vendorName, detail: `Generated a new temporary password for ${user.email ?? adminEmail} (${row.name || adminName})` });
+  const recipient = user.email ?? row.email ?? adminEmail;
+  try {
+    await sendVendorAdminCredentialsChangedEmail({
+      to: recipient,
+      name: row.name || adminName,
+      storeName: vendorName,
+      storeUrl: `https://${vendorSubdomain}.nashemann.store`,
+      adminUrl: `https://admin.${vendorSubdomain}.nashemann.store`,
+      passwordChanged: true,
+      temporaryPassword: password,
+    });
+  } catch (notifyError) {
+    console.error("Vendor admin password reset email failed:", notifyError);
+  }
+  await supabase.from("audit_log").insert({ action: "vendor_admin_temporary_password_generated", actor, entity: vendorName, detail: `Generated a new temporary password for ${recipient} (${row.name || adminName})` });
   revalidatePath(`/vendors/${vendorId}`); revalidatePath("/audit-log");
-  return { temporaryPassword: password, email: user.email ?? row.email ?? adminEmail, name: row.name || adminName };
+  return { temporaryPassword: password, email: recipient, name: row.name || adminName };
 }
 
 export async function updateVendorControlProfileAction(vendorId: string, vendorName: string, input: { description: string; contactEmail: string; contactPhone: string; instagramUrl: string; youtubeUrl: string; feeType: "percent" | "fixed"; feeOverridePercent: number | null; feeOverrideFixedAmount: number | null }) {

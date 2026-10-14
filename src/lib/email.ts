@@ -112,6 +112,22 @@ export async function sendApplicationStatusEmail(params: {
   });
 }
 
+export async function sendSupportReplyEmail(params: {
+  to: string;
+  customerName: string;
+  message: string;
+}): Promise<void> {
+  const html = wrapEmail(`
+    <h2 style="margin-top:0;">You have a reply from Nashemann Support</h2>
+    <p>Hello ${escapeHtml(params.customerName || "there")},</p>
+    <p>Our support team replied to your conversation:</p>
+    <blockquote style="margin:16px 0;padding:12px 16px;border-left:3px solid #6d5dfc;background:#f9fafb;white-space:pre-wrap;">${escapeHtml(params.message)}</blockquote>
+    <p>Sign in to your Nashemann account if you need to continue the conversation.</p>
+    ${button("https://nashemann.store/account", "Open your account")}
+  `);
+  await sendMail({ to: params.to, subject: "New reply from Nashemann Support", html });
+}
+
 export async function sendSettlementPaidEmail(params: {
   to: string;
   vendorName: string;
