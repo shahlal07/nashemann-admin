@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { sendSettlementReminderEmail } from "@/lib/email";
+import { sendBillingJobFailureEmail, sendSettlementReminderEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -194,6 +194,18 @@ export async function GET(request: Request) {
       completed_at: new Date().toISOString(),
       error_message: message.slice(0, 1000),
     }).eq("id", run.id);
+    const { data: settings } = await supabase
+      .from("platform_settings")
+      .select("support_email")
+      .eq("id", true)
+      .maybeSingle();
+    if (settings?.support_email) {
+      await sendBillingJobFailureEmail({
+        to: settings.support_email,
+        runId: run.id,
+        errorMessage: message,
+      });
+    }
     return NextResponse.json({ error: "Billing job failed", run_id: run.id }, { status: 500 });
   }
 }
