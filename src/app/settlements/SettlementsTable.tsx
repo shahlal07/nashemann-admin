@@ -33,6 +33,7 @@ export type SettlementRow = {
   ordersCount: number;
   grossRevenue: number;
   platformFee: number;
+  adjustmentTotal: number;
   status: SettlementStatus;
   amountPaid: number;
   dueDate: string | null;
@@ -178,6 +179,7 @@ export function SettlementsTable({ initialSettlements, rates = [] }: { initialSe
                       <td className="py-3 pr-4 text-[var(--text)]">{formatPKR(s.grossRevenue)}</td>
                       <td className="py-3 pr-4 font-semibold text-[var(--text)]">
                         {formatPKR(s.platformFee)}
+                        {s.adjustmentTotal !== 0 && <span className="mt-0.5 block text-[10px] font-normal text-[var(--text-faint)]">Includes adjustments {formatPKR(s.adjustmentTotal)}</span>}
                         {s.vendorCurrency !== "PKR" && (
                           <span className="ml-1.5 font-normal text-[var(--text-faint)]">
                             (~{formatInCurrency(s.platformFee, s.vendorCurrency, rates)})
