@@ -25,7 +25,7 @@ export async function reviewVendorPaymentSubmissionAction(
   try {
     const { data: submission } = await supabase
       .from("vendor_payment_submissions")
-      .select("vendor_id, amount, reference, vendors(name, contact_email), settlements(month, platform_fee, amount_paid)")
+      .select("vendor_id, amount, reference, vendors(name, contact_email), settlements(month, platform_fee, adjustment_total, amount_paid)")
       .eq("id", submissionId)
       .single();
     if (submission) {
@@ -45,7 +45,7 @@ export async function reviewVendorPaymentSubmissionAction(
           vendorName: vendor?.name ?? "Vendor",
           monthLabel: new Date(`${settlement.month}T00:00:00.000Z`).toLocaleDateString("en-PK", { month: "long", year: "numeric", timeZone: "UTC" }),
           amount: Number(submission.amount),
-          balanceDue: Math.max(0, Number(settlement.platform_fee) - Number(settlement.amount_paid ?? 0)),
+          balanceDue: Math.max(0, Number(settlement.platform_fee) + Number(settlement.adjustment_total ?? 0) - Number(settlement.amount_paid ?? 0)),
           reference: submission.reference,
           decision,
           reviewNote,
