@@ -8,9 +8,10 @@ export const maxDuration = 60;
 type ReminderStage = "before_due_7" | "due_today" | "overdue_3" | "overdue_7" | "suspended_10";
 
 function getReminderStage(daysUntilDue: number, billingSuspended: boolean): ReminderStage | null {
+  if (billingSuspended) return "suspended_10";
   if (daysUntilDue > 0 && daysUntilDue <= 7) return "before_due_7";
   if (daysUntilDue === 0) return "due_today";
-  if (daysUntilDue <= -10) return billingSuspended ? "suspended_10" : null;
+  if (daysUntilDue <= -10) return null;
   if (daysUntilDue <= -7) return "overdue_7";
   if (daysUntilDue <= -3) return "overdue_3";
   return null;
