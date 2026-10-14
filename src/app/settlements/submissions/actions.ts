@@ -30,7 +30,7 @@ export async function reviewVendorPaymentSubmissionAction(
       .single();
     if (submission) {
       const vendor = submission.vendors as unknown as { name: string; contact_email: string | null } | null;
-      const settlement = submission.settlements as unknown as { month: string; platform_fee: number; amount_paid: number } | null;
+      const settlement = submission.settlements as unknown as { month: string; platform_fee: number; adjustment_total: number; amount_paid: number } | null;
       const { data: owner } = await supabase
         .from("vendor_admins")
         .select("email")
