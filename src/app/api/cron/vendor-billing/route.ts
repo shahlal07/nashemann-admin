@@ -7,10 +7,10 @@ export const maxDuration = 60;
 
 type ReminderStage = "before_due_7" | "due_today" | "overdue_3" | "overdue_7" | "suspended_10";
 
-function getReminderStage(daysUntilDue: number): ReminderStage | null {
+function getReminderStage(daysUntilDue: number, billingSuspended: boolean): ReminderStage | null {
   if (daysUntilDue > 0 && daysUntilDue <= 7) return "before_due_7";
   if (daysUntilDue === 0) return "due_today";
-  if (daysUntilDue <= -10) return "suspended_10";
+  if (daysUntilDue <= -10) return billingSuspended ? "suspended_10" : null;
   if (daysUntilDue <= -7) return "overdue_7";
   if (daysUntilDue <= -3) return "overdue_3";
   return null;
@@ -74,7 +74,7 @@ export async function GET(request: Request) {
     const vendorIds = [...new Set(outstanding.map((s) => s.vendor_id))];
     const [{ data: vendors, error: vendorsError }, { data: owners, error: ownersError }] = vendorIds.length
       ? await Promise.all([
-          supabase.from("vendors").select("id, name, contact_email, status").in("id", vendorIds),
+          supabase.from("vendors").select("id, name, contact_email, status, billing_suspended_at").in("id", vendorIds),
           supabase.from("vendor_admins").select("vendor_id, email, role").in("vendor_id", vendorIds).eq("role", "owner"),
         ])
       : [{ data: [], error: null }, { data: [], error: null }];
@@ -94,7 +94,8 @@ export async function GET(request: Request) {
     for (const settlement of outstanding) {
       const due = new Date(`${settlement.due_date}T00:00:00.000Z`);
       const daysUntilDue = Math.round((due.getTime() - today.getTime()) / 86400000);
-      const stage = getReminderStage(daysUntilDue);
+      const vendor = vendorById.get(settlement.vendor_id) ?? null;
+      const stage = getReminderStage(daysUntilDue, Boolean(vendor?.billing_suspended_at));
       if (!stage) continue;
 
       const { data: existing, error: existingError } = await supabase
@@ -109,7 +110,6 @@ export async function GET(request: Request) {
         continue;
       }
 
-      const { data: vendor } = { data: vendorById.get(settlement.vendor_id) ?? null };
       const to = vendor?.contact_email || ownerEmailByVendor.get(settlement.vendor_id);
       const nextAttempt = Number(existing?.attempts ?? 0) + 1;
       let logId = existing?.id;
