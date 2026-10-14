@@ -88,7 +88,8 @@ export function SettlementsTable({ initialSettlements, rates = [] }: { initialSe
     setIsGenerating(true);
     setGenerateError(null);
     try {
-      const month = new Date().toISOString().slice(0, 10);
+      const now = new Date();
+      const month = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)).toISOString().slice(0, 10);
       await generateSettlementsAction(month);
       window.location.reload();
     } catch (err) {
@@ -142,7 +143,7 @@ export function SettlementsTable({ initialSettlements, rates = [] }: { initialSe
           <div className="flex items-center gap-3">
             <Badge tone="warning">{outstandingCount} outstanding</Badge>
             <Button type="button" onClick={handleGenerate} disabled={isGenerating}>
-              {isGenerating ? "Generating…" : "Generate this month"}
+              {isGenerating ? "Generating…" : "Generate previous month"}
             </Button>
           </div>
         </div>
