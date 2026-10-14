@@ -28,10 +28,10 @@ function htmlToText(html: string): string {
     .trim();
 }
 
-async function sendMail(params: { to: string; subject: string; html: string; from?: string }): Promise<void> {
+async function sendMail(params: { to: string; subject: string; html: string; from?: string }): Promise<boolean> {
   if (!RESEND_API_KEY) {
     console.warn(`[email] Skipped "${params.subject}" to ${params.to} -- RESEND_API_KEY not set.`);
-    return;
+    return false;
   }
   try {
     const res = await fetch(RESEND_ENDPOINT, {
@@ -51,9 +51,12 @@ async function sendMail(params: { to: string; subject: string; html: string; fro
     if (!res.ok) {
       const body = await res.text().catch(() => "");
       console.error(`[email] Resend rejected "${params.subject}" to ${params.to}: ${res.status} ${body}`);
+      return false;
     }
+    return true;
   } catch (err) {
     console.error(`[email] Failed to send "${params.subject}" to ${params.to}:`, err);
+    return false;
   }
 }
 
@@ -236,4 +239,38 @@ export async function sendVendorAdminStoreNoticeEmail(params: {
     ${button(params.adminUrl, "Open vendor admin")}
   `);
   await sendMail({ to: params.to, subject: params.subject, html, from: FROM_NOTIFICATIONS });
+}
+
+export async function sendSettlementReminderEmail(params: {
+  to: string;
+  vendorName: string;
+  monthLabel: string;
+  platformFee: number;
+  amountPaid: number;
+  dueDate: string;
+  stage: "before_due_7" | "due_today" | "overdue_3" | "overdue_7" | "suspended_10";
+}): Promise<boolean> {
+  const balance = Math.max(0, params.platformFee - params.amountPaid);
+  const copy = {
+    before_due_7: { subject: `Nashemann platform fee due in 7 days — ${params.monthLabel}`, title: "Your platform fee invoice is ready", message: "Your invoice is due in 7 days. Please arrange payment before the due date." },
+    due_today: { subject: `Nashemann platform fee due today — ${params.monthLabel}`, title: "Your platform fee is due today", message: "Your invoice reaches its due date today. Please arrange payment to avoid service interruption." },
+    overdue_3: { subject: "Payment overdue — Nashemann platform fee", title: "Your platform fee is 3 days overdue", message: "Our records show an outstanding balance. Please pay or contact support if you believe this is incorrect." },
+    overdue_7: { subject: "Final reminder — overdue Nashemann platform fee", title: "Final reminder before store suspension", message: "Your invoice is 7 days overdue. Stores with unpaid invoices may be suspended after the 10-day grace period." },
+    suspended_10: { subject: "Store suspension due to overdue platform fee", title: "Your store has been suspended", message: "Your store was suspended automatically after the 10-day grace period. Superadmin must confirm payment before billing suspension can be lifted." },
+  }[params.stage];
+  const html = wrapEmail(`
+    <h2 style="margin-top:0;">${copy.title}</h2>
+    <p>Hello ${params.vendorName},</p>
+    <p>${copy.message}</p>
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;">
+      <tr><td style="padding:6px 0;color:#6b7280;">Billing period</td><td style="padding:6px 0;text-align:right;">${params.monthLabel}</td></tr>
+      <tr><td style="padding:6px 0;color:#6b7280;">Invoice total</td><td style="padding:6px 0;text-align:right;">Rs ${Math.round(params.platformFee).toLocaleString("en-PK")}</td></tr>
+      <tr><td style="padding:6px 0;color:#6b7280;">Payments recorded</td><td style="padding:6px 0;text-align:right;">Rs ${Math.round(params.amountPaid).toLocaleString("en-PK")}</td></tr>
+      <tr><td style="padding:6px 0;font-weight:700;">Balance due</td><td style="padding:6px 0;text-align:right;font-weight:700;">Rs ${Math.round(balance).toLocaleString("en-PK")}</td></tr>
+      <tr><td style="padding:6px 0;color:#6b7280;">Due date</td><td style="padding:6px 0;text-align:right;">${params.dueDate}</td></tr>
+    </table>
+    <p>Payments are marked as confirmed only after verification by Nashemann Superadmin.</p>
+    <p style="color:#6b7280;font-size:13px;">If you have already paid, contact platform support with your payment reference.</p>
+  `);
+  return sendMail({ to: params.to, subject: copy.subject, html });
 }
