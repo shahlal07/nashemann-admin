@@ -8,10 +8,15 @@ export default async function PaymentSubmissionsPage() {
   const { supabase } = await requireSuperAdmin();
   const { data: submissions, error } = await supabase
     .from("vendor_payment_submissions")
-    .select("id, vendor_id, settlement_id, submitted_by, amount, method, reference, notes, status, review_note, created_at, vendors(name), settlements(month, platform_fee, amount_paid, due_date)")
+    .select("id, vendor_id, settlement_id, submitted_by, amount, method, reference, notes, proof_path, status, review_note, created_at, vendors(name), settlements(month, platform_fee, amount_paid, due_date)")
     .order("created_at", { ascending: false })
     .limit(200);
   if (error) throw new Error(error.message);
+  const rows = await Promise.all((submissions ?? []).map(async (submission) => {
+    if (!submission.proof_path) return { ...submission, proofUrl: null as string | null };
+    const { data } = await supabase.storage.from("vendor-billing-proofs").createSignedUrl(submission.proof_path, 300);
+    return { ...submission, proofUrl: data?.signedUrl ?? null };
+  }));
 
   return (
     <main className="mx-auto max-w-6xl space-y-6 p-6">
@@ -22,7 +27,7 @@ export default async function PaymentSubmissionsPage() {
       </header>
 
       <section className="space-y-3">
-        {(submissions ?? []).map((s) => {
+        {rows.map((s) => {
           const vendor = s.vendors as unknown as { name: string } | null;
           const settlement = s.settlements as unknown as { month: string; platform_fee: number; amount_paid: number; due_date: string | null } | null;
           const balance = Math.max(0, Number(settlement?.platform_fee ?? 0) - Number(settlement?.amount_paid ?? 0));
@@ -45,6 +50,8 @@ export default async function PaymentSubmissionsPage() {
               <div className="mt-3 rounded-xl bg-[var(--surface-hover)] p-3 text-sm">
                 <p><strong>Reference:</strong> {s.reference}</p>
                 {s.notes && <p className="mt-1 whitespace-pre-wrap"><strong>Vendor notes:</strong> {s.notes}</p>}
+                {s.proofUrl && <p className="mt-2"><a className="font-semibold text-[var(--accent)] underline" href={s.proofUrl} target="_blank" rel="noreferrer">Open payment proof (expires in 5 minutes)</a></p>}
+                {s.proof_path && !s.proofUrl && <p className="mt-2 text-xs text-[var(--text-muted)]">Payment proof could not be opened; verify the upload in Supabase Storage.</p>}
                 {s.review_note && <p className="mt-1 whitespace-pre-wrap"><strong>Review note:</strong> {s.review_note}</p>}
               </div>
               {s.status === "submitted" && (
@@ -64,7 +71,7 @@ export default async function PaymentSubmissionsPage() {
             </article>
           );
         })}
-        {(submissions ?? []).length === 0 && <div className="rounded-2xl border border-[var(--border)] p-8 text-center text-sm text-[var(--text-muted)]">No vendor payment submissions have been received.</div>}
+        {rows.length === 0 && <div className="rounded-2xl border border-[var(--border)] p-8 text-center text-sm text-[var(--text-muted)]">No vendor payment submissions have been received.</div>}
       </section>
     </main>
   );
