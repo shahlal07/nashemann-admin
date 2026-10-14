@@ -274,3 +274,40 @@ export async function sendSettlementReminderEmail(params: {
   `);
   return sendMail({ to: params.to, subject: copy.subject, html });
 }
+
+function escapeHtml(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+export async function sendVendorPaymentReviewEmail(params: {
+  to: string;
+  vendorName: string;
+  monthLabel: string;
+  amount: number;
+  balanceDue: number;
+  reference: string;
+  decision: "confirmed" | "rejected";
+  reviewNote?: string | null;
+}): Promise<boolean> {
+  const confirmed = params.decision === "confirmed";
+  const title = confirmed ? "Payment confirmed" : "Payment submission needs attention";
+  const subject = confirmed
+    ? `Nashemann payment confirmed — ${params.monthLabel}`
+    : `Nashemann payment submission rejected — ${params.monthLabel}`;
+  const html = wrapEmail(`
+    <h2 style="margin-top:0;">${title}</h2>
+    <p>Hello ${escapeHtml(params.vendorName)},</p>
+    <p>${confirmed
+      ? "Nashemann Superadmin verified the payment details you submitted. Your invoice balance has been updated."
+      : "Your payment submission was not accepted. Please review the note below and submit corrected details if needed."}</p>
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;">
+      <tr><td style="padding:6px 0;color:#6b7280;">Billing period</td><td style="padding:6px 0;text-align:right;">${escapeHtml(params.monthLabel)}</td></tr>
+      <tr><td style="padding:6px 0;color:#6b7280;">Payment amount</td><td style="padding:6px 0;text-align:right;">Rs ${Math.round(params.amount).toLocaleString("en-PK")}</td></tr>
+      <tr><td style="padding:6px 0;color:#6b7280;">Reference</td><td style="padding:6px 0;text-align:right;">${escapeHtml(params.reference)}</td></tr>
+      <tr><td style="padding:6px 0;font-weight:700;">Balance due</td><td style="padding:6px 0;text-align:right;font-weight:700;">Rs ${Math.round(params.balanceDue).toLocaleString("en-PK")}</td></tr>
+    </table>
+    ${params.reviewNote ? `<p><strong>Superadmin note:</strong> ${escapeHtml(params.reviewNote)}</p>` : ""}
+    <p style="color:#6b7280;font-size:13px;">A billing-related suspension is lifted only after Superadmin-confirmed payments clear all overdue balances.</p>
+  `);
+  return sendMail({ to: params.to, subject, html });
+}
