@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireFinanceStaff as requireStaff, requireSuperAdmin } from "@/lib/authz";
-import { sendSettlementPaidEmail } from "@/lib/email";
+import { sendSettlementPaidEmail, sendVendorPaymentReviewEmail } from "@/lib/email";
 
 // Generate invoices for a closed billing period. The database function snapshots the vendor plan and unit rate, excludes cancelled/refunded orders, and never silently rewrites an existing invoice.
 export async function generateSettlementsAction(month: string) {
@@ -72,20 +72,31 @@ export async function recordPaymentAction(input: {
     .eq("id", input.settlementId)
     .maybeSingle();
 
-  if (settlement?.status === "paid" && settlement.vendor_id) {
+  if (settlement?.vendor_id) {
     const [{ data: vendor }, { data: owner }] = await Promise.all([
-      supabase.from("vendors").select("contact_email").eq("id", settlement.vendor_id).maybeSingle(),
+      supabase.from("vendors").select("name, contact_email").eq("id", settlement.vendor_id).maybeSingle(),
       supabase.from("vendor_admins").select("email").eq("vendor_id", settlement.vendor_id).eq("role", "owner").limit(1).maybeSingle(),
     ]);
     const to = vendor?.contact_email || owner?.email;
-    if (to) {
+    const totalDue = Number(settlement.platform_fee) + Number(settlement.adjustment_total ?? 0);
+    if (to && settlement.status === "paid") {
       await sendSettlementPaidEmail({
         to,
-        vendorName: input.vendorName,
+        vendorName: vendor?.name ?? input.vendorName,
         monthLabel: monthLabel(targetSettlement.month),
         amountPaid: settlement.amount_paid,
         grossRevenue: settlement.gross_revenue,
-        platformFee: Number(settlement.platform_fee) + Number(settlement.adjustment_total ?? 0),
+        platformFee: totalDue,
+      });
+    } else if (to) {
+      await sendVendorPaymentReviewEmail({
+        to,
+        vendorName: vendor?.name ?? input.vendorName,
+        monthLabel: monthLabel(targetSettlement.month),
+        amount: input.amount,
+        balanceDue: Math.max(0, totalDue - Number(settlement.amount_paid ?? 0)),
+        reference: input.reference,
+        decision: "confirmed",
       });
     }
   }
