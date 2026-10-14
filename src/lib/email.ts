@@ -311,3 +311,18 @@ export async function sendVendorPaymentReviewEmail(params: {
   `);
   return sendMail({ to: params.to, subject, html });
 }
+
+export async function sendBillingJobFailureEmail(params: {
+  to: string;
+  runId: string;
+  errorMessage: string;
+}): Promise<boolean> {
+  const html = wrapEmail(`
+    <h2 style="margin-top:0;color:#b91c1c;">Automated billing job failed</h2>
+    <p>The daily Nashemann vendor billing job failed and needs attention.</p>
+    <p><strong>Run ID:</strong> ${escapeHtml(params.runId)}</p>
+    <p><strong>Error:</strong> ${escapeHtml(params.errorMessage.slice(0, 1000))}</p>
+    <p>Please inspect the billing job run record and Vercel function logs before retrying manually.</p>
+  `);
+  return sendMail({ to: params.to, subject: "Action required: Nashemann billing job failed", html, from: FROM_SECURITY });
+}
