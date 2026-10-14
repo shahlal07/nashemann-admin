@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useState, useTransition } from "react";
+import Link from "next/link";
 import { ChevronDown, Receipt } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -193,6 +194,7 @@ export function SettlementsTable({ initialSettlements, rates = [] }: { initialSe
                       </td>
                       <td className="py-3">
                         <div className="flex items-center justify-end gap-1.5">
+                          <Link href={`/settlements/${s.id}/invoice`}><Button size="sm" variant="ghost">Invoice</Button></Link>
                           {(s.status === "pending" || s.status === "partially_paid") && (
                             <Button size="sm" variant="primary" onClick={() => setPaymentTarget(s)}>
                               Record payment
