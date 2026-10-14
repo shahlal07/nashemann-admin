@@ -33,15 +33,43 @@ export async function bulkSetVendorStatusAction(vendorIds: string[], vendorNames
   if (!vendorIds.length) return;
 
   if (status === "active") {
+    const { data: vendors, error: vendorLookupError } = await supabase
+      .from("vendors")
+      .select("id, billing_suspended_at")
+      .in("id", vendorIds);
+    if (vendorLookupError) throw new Error(vendorLookupError.message);
+
     const { data: overdue, error: overdueError } = await supabase
       .from("settlements")
-      .select("id, vendor_id, platform_fee, amount_paid, due_date, status")
+      .select("id, vendor_id, platform_fee, adjustment_total, amount_paid, due_date, status")
       .in("vendor_id", vendorIds)
       .lt("due_date", new Date().toISOString().slice(0, 10))
       .in("status", ["pending", "partially_paid"]);
     if (overdueError) throw new Error(overdueError.message);
-    const unpaid = (overdue ?? []).filter((s) => Number(s.amount_paid) < Number(s.platform_fee));
-    if (unpaid.length) throw new Error("Cannot reactivate vendors with overdue platform fees. Confirm the payment first.");
+    const unpaid = (overdue ?? []).filter((s) =>
+      Number(s.amount_paid ?? 0) < Number(s.platform_fee) + Number(s.adjustment_total ?? 0)
+    );
+    if (unpaid.length) throw new Error("Cannot reactivate vendors with overdue platform fees. Confirm payment for every overdue balance first.");
+
+    for (const vendor of vendors ?? []) {
+      if (!vendor.billing_suspended_at) continue;
+      const { data: settlements, error: settlementsError } = await supabase
+        .from("settlements")
+        .select("id")
+        .eq("vendor_id", vendor.id);
+      if (settlementsError) throw new Error(settlementsError.message);
+      const settlementIds = (settlements ?? []).map((s) => s.id);
+      if (!settlementIds.length) throw new Error("A billing-suspended vendor requires a confirmed payment before reactivation.");
+      const { data: payment, error: paymentError } = await supabase
+        .from("settlement_payments")
+        .select("id")
+        .in("settlement_id", settlementIds)
+        .gte("paid_at", vendor.billing_suspended_at)
+        .limit(1)
+        .maybeSingle();
+      if (paymentError) throw new Error(paymentError.message);
+      if (!payment) throw new Error("A billing-suspended vendor can only be reactivated after Superadmin confirms a payment.");
+    }
   }
 
   // A change made manually by Superadmin is an explicit administrative
