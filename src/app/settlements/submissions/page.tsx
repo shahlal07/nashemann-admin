@@ -8,7 +8,7 @@ export default async function PaymentSubmissionsPage() {
   const { supabase } = await requireSuperAdmin();
   const { data: submissions, error } = await supabase
     .from("vendor_payment_submissions")
-    .select("id, vendor_id, settlement_id, submitted_by, amount, method, reference, notes, proof_path, status, review_note, created_at, vendors(name), settlements(month, platform_fee, amount_paid, due_date)")
+    .select("id, vendor_id, settlement_id, submitted_by, amount, method, reference, notes, proof_path, status, review_note, created_at, vendors(name), settlements(month, platform_fee, adjustment_total, amount_paid, due_date)")
     .order("created_at", { ascending: false })
     .limit(200);
   if (error) throw new Error(error.message);
@@ -30,7 +30,7 @@ export default async function PaymentSubmissionsPage() {
         {rows.map((s) => {
           const vendor = s.vendors as unknown as { name: string } | null;
           const settlement = s.settlements as unknown as { month: string; platform_fee: number; amount_paid: number; due_date: string | null } | null;
-          const balance = Math.max(0, Number(settlement?.platform_fee ?? 0) - Number(settlement?.amount_paid ?? 0));
+          const balance = Math.max(0, Number(settlement?.platform_fee ?? 0) + Number(settlement?.adjustment_total ?? 0) - Number(settlement?.amount_paid ?? 0));
           return (
             <article key={s.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
               <div className="flex flex-wrap items-start justify-between gap-4">
