@@ -8,11 +8,11 @@ export const maxDuration = 60;
 type ReminderStage = "before_due_7" | "due_today" | "overdue_3" | "overdue_7" | "suspended_10";
 
 function getReminderStage(daysUntilDue: number): ReminderStage | null {
-  if (daysUntilDue === 7) return "before_due_7";
+  if (daysUntilDue > 0 && daysUntilDue <= 7) return "before_due_7";
   if (daysUntilDue === 0) return "due_today";
-  if (daysUntilDue === -3) return "overdue_3";
-  if (daysUntilDue === -7) return "overdue_7";
-  if (daysUntilDue === -10) return "suspended_10";
+  if (daysUntilDue <= -10) return "suspended_10";
+  if (daysUntilDue <= -7) return "overdue_7";
+  if (daysUntilDue <= -3) return "overdue_3";
   return null;
 }
 
@@ -65,14 +65,11 @@ export async function GET(request: Request) {
     const { data: settlements, error: settlementError } = await supabase
       .from("settlements")
       .select("id, vendor_id, month, due_date, platform_fee, amount_paid, status")
-      .in("status", ["pending", "partially_paid"])
-      .lt("platform_fee", 999999999999); // Avoids accidental full-table query plans on malformed schema.
+      .in("status", ["pending", "partially_paid"]);
     if (settlementError) throw new Error(settlementError.message);
 
     const outstanding = (settlements ?? []).filter((s) =>
-      s.due_date &&
-      Number(s.platform_fee) > Number(s.amount_paid ?? 0) &&
-      s.due_date
+      s.due_date && Number(s.platform_fee) > Number(s.amount_paid ?? 0)
     );
     const vendorIds = [...new Set(outstanding.map((s) => s.vendor_id))];
     const [{ data: vendors, error: vendorsError }, { data: owners, error: ownersError }] = vendorIds.length
