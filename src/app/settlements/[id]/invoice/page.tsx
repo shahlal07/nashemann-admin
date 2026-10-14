@@ -23,12 +23,18 @@ export default async function SettlementInvoicePage({ params }: { params: Promis
 
   const { data: settlement, error } = await supabase
     .from("settlements")
-    .select("id, vendor_id, month, orders_count, gross_revenue, platform_fee, status, amount_paid, due_date, created_at, vendors(name, contact_email, currency)")
+    .select("id, vendor_id, month, orders_count, gross_revenue, platform_fee, status, amount_paid, due_date, plan_snapshot, unit_fee, vendors(name, contact_email, currency, plan)")
     .eq("id", id)
     .maybeSingle();
 
   if (error || !settlement) notFound();
-  const vendor = settlement.vendors as unknown as { name: string; contact_email: string | null; currency: string | null } | null;
+  const vendor = settlement.vendors as unknown as { name: string; contact_email: string | null; currency: string | null; plan: string | null } | null;
+  const plan = settlement.plan_snapshot ?? vendor?.plan ?? "per_order";
+  const unitFee = settlement.unit_fee == null
+    ? (plan === "monthly" ? Number(settlement.platform_fee) : (Number(settlement.orders_count) > 0 ? Number(settlement.platform_fee) / Number(settlement.orders_count) : 0))
+    : Number(settlement.unit_fee);
+  const quantity = plan === "monthly" ? 1 : Number(settlement.orders_count);
+  const description = plan === "monthly" ? "Monthly Nashemann platform subscription" : "Nashemann per-order plan fee";
   const balance = Math.max(0, Number(settlement.platform_fee) - Number(settlement.amount_paid ?? 0));
 
   return (
@@ -60,16 +66,16 @@ export default async function SettlementInvoicePage({ params }: { params: Promis
           <section className="sm:text-right">
             <h2 className="text-xs font-bold uppercase tracking-wide text-slate-500">Due date</h2>
             <p className="mt-2 text-lg font-semibold">{settlement.due_date ?? "Not set"}</p>
-            <p className="text-sm text-slate-600">Currency: PKR</p>
+            <p className="text-sm text-slate-600">Plan: {plan === "monthly" ? "Monthly" : "Per order"}</p>
           </section>
         </div>
         <table className="w-full border-collapse text-sm">
-          <thead><tr className="border-y border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500"><th className="py-3">Description</th><th className="py-3 text-right">Quantity</th><th className="py-3 text-right">Amount</th></tr></thead>
+          <thead><tr className="border-y border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500"><th className="py-3">Description</th><th className="py-3 text-right">Quantity</th><th className="py-3 text-right">Unit price</th><th className="py-3 text-right">Amount</th></tr></thead>
           <tbody>
-            <tr className="border-b border-slate-100"><td className="py-4">Eligible orders processed during {monthLabel(settlement.month)}</td><td className="py-4 text-right">{settlement.orders_count}</td><td className="py-4 text-right">{formatPKR(Number(settlement.gross_revenue))}</td></tr>
-            <tr className="border-b border-slate-100"><td className="py-4 font-semibold">Nashemann platform fee</td><td className="py-4 text-right">—</td><td className="py-4 text-right font-semibold">{formatPKR(Number(settlement.platform_fee))}</td></tr>
+            <tr className="border-b border-slate-100"><td className="py-4 font-semibold">{description}</td><td className="py-4 text-right">{quantity}</td><td className="py-4 text-right">{formatPKR(unitFee)}</td><td className="py-4 text-right font-semibold">{formatPKR(Number(settlement.platform_fee))}</td></tr>
           </tbody>
         </table>
+        <div className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">Eligible orders: {settlement.orders_count} · Gross sales (informational): {formatPKR(Number(settlement.gross_revenue))}</div>
         <div className="ml-auto mt-6 max-w-sm space-y-3">
           <div className="flex justify-between text-sm text-slate-600"><span>Invoice total</span><span>{formatPKR(Number(settlement.platform_fee))}</span></div>
           <div className="flex justify-between text-sm text-slate-600"><span>Payments confirmed</span><span>{formatPKR(Number(settlement.amount_paid ?? 0))}</span></div>
