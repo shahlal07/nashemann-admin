@@ -2,7 +2,7 @@
 
 import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
-import { requireSuperAdmin, requireMutatingStaff } from "@/lib/authz";
+import { requireSuperAdmin } from "@/lib/authz";
 import { provisionVendorStore, type ProvisionResult } from "@/lib/vendor-provisioning";
 
 function generateTemporaryPassword() {
@@ -29,9 +29,34 @@ export async function createVendorStoreAction(input: { businessName: string; sub
 }
 
 export async function bulkSetVendorStatusAction(vendorIds: string[], vendorNames: string[], status: "active" | "suspended") {
-  const { supabase, actor } = await requireMutatingStaff();
+  const { supabase, actor } = await requireSuperAdmin();
   if (!vendorIds.length) return;
-  const { data, error } = await supabase.from("vendors").update({ status }).in("id", vendorIds).select("id");
+
+  if (status === "active") {
+    const { data: overdue, error: overdueError } = await supabase
+      .from("settlements")
+      .select("id, vendor_id, platform_fee, amount_paid, due_date, status")
+      .in("vendor_id", vendorIds)
+      .lt("due_date", new Date().toISOString().slice(0, 10))
+      .in("status", ["pending", "partially_paid"]);
+    if (overdueError) throw new Error(overdueError.message);
+    const unpaid = (overdue ?? []).filter((s) => Number(s.amount_paid) < Number(s.platform_fee));
+    if (unpaid.length) throw new Error("Cannot reactivate vendors with overdue platform fees. Confirm the payment first.");
+  }
+
+  // A change made manually by Superadmin is an explicit administrative
+  // decision, not an automatic billing suspension. Clear the billing marker
+  // so the daily billing job will never undo this manual status decision.
+  const { data, error } = await supabase
+    .from("vendors")
+    .update({
+      status,
+      billing_suspended_at: null,
+      billing_suspension_reason: null,
+      billing_suspension_settlement_id: null,
+    })
+    .in("id", vendorIds)
+    .select("id");
   if (error) throw new Error(error.message);
   // RLS silently matches 0 rows on a permission mismatch instead of
   // erroring -- a plain `if (error) throw` alone would report success on a
