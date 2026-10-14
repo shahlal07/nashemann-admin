@@ -4,12 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireFinanceStaff as requireStaff, requireSuperAdmin } from "@/lib/authz";
 import { sendSettlementPaidEmail } from "@/lib/email";
 
-// Settlement rows were never actually generated from real order data -- no
-// trigger or app code ever called an RPC to populate them, so every row on
-// this page until now was manually seeded. generate_monthly_settlements()
-// (SECURITY DEFINER, finance-staff-gated) sums real orders.total /
-// orders.platform_fee_amount for the month and upserts -- safe to re-run,
-// it never touches a settlement that's left "pending".
+// Generate invoices for a closed billing period. The database function snapshots the vendor plan and unit rate, excludes cancelled/refunded orders, and never silently rewrites an existing invoice.
 export async function generateSettlementsAction(month: string) {
   const { supabase } = await requireStaff();
   const { error } = await supabase.rpc("generate_monthly_settlements", { p_month: month });
