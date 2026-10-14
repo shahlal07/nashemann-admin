@@ -18,7 +18,7 @@ export default async function SettlementsPage() {
     supabase
       .from("settlements")
       .select(
-        "id, vendor_id, month, orders_count, gross_revenue, platform_fee, status, amount_paid, due_date, waived_reason, reversed_reason, vendors(name, currency), settlement_payments(id, amount, method, reference, notes, paid_at, staff_profiles(name))"
+        "id, vendor_id, month, orders_count, gross_revenue, platform_fee, adjustment_total, status, amount_paid, due_date, waived_reason, reversed_reason, vendors(name, currency), settlement_payments(id, amount, method, reference, notes, paid_at, staff_profiles(name))"
       )
       .order("month", { ascending: false }),
     supabase.from("currency_rates").select("currency, rate_to_pkr"),
@@ -32,7 +32,8 @@ export default async function SettlementsPage() {
     month: s.month,
     ordersCount: s.orders_count,
     grossRevenue: Number(s.gross_revenue),
-    platformFee: Number(s.platform_fee),
+    platformFee: Number(s.platform_fee) + Number(s.adjustment_total ?? 0),
+    adjustmentTotal: Number(s.adjustment_total ?? 0),
     status: s.status,
     amountPaid: Number(s.amount_paid ?? 0),
     dueDate: s.due_date,
