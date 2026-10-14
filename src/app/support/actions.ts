@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireMutatingStaff, requireStaff } from "@/lib/authz";
 import { groqComplete, type ChatMessage } from "@/lib/groq";
+import { sendSupportReplyEmail } from "@/lib/email";
 
 // support_conversations/support_messages have no direct INSERT/UPDATE RLS
 // policies at all -- every write goes through SECURITY DEFINER RPCs
@@ -52,6 +53,15 @@ export async function composeSupportMessageAction(input: {
     detail: input.body.length > 140 ? `${input.body.slice(0, 140)}…` : input.body,
   });
 
+  try {
+    const { data: customer } = await supabase.from("profiles").select("name, email").eq("id", input.customerId).maybeSingle();
+    if (customer?.email) {
+      await sendSupportReplyEmail({ to: customer.email, customerName: customer.name ?? input.recipientName, message: input.body });
+    }
+  } catch (notifyError) {
+    console.error("Support message email notification failed:", notifyError);
+  }
+
   revalidatePath("/support");
   revalidatePath("/audit-log");
 
@@ -60,6 +70,7 @@ export async function composeSupportMessageAction(input: {
 
 export async function sendSupportReplyAction(conversationId: string, entity: string, body: string): Promise<SupportMessage | ActionError> {
   const { supabase, actor } = await requireMutatingStaff();
+  const { data: conversation } = await supabase.from("support_conversations").select("customer_id").eq("id", conversationId).maybeSingle();
 
   const { error } = await supabase.rpc("send_admin_support_message", {
     p_customer_id: null,
@@ -83,6 +94,17 @@ export async function sendSupportReplyAction(conversationId: string, entity: str
     entity,
     detail: body.length > 140 ? `${body.slice(0, 140)}…` : body,
   });
+
+  try {
+    if (conversation?.customer_id) {
+      const { data: customer } = await supabase.from("profiles").select("name, email").eq("id", conversation.customer_id).maybeSingle();
+      if (customer?.email) {
+        await sendSupportReplyEmail({ to: customer.email, customerName: customer.name ?? entity, message: body });
+      }
+    }
+  } catch (notifyError) {
+    console.error("Support reply email notification failed:", notifyError);
+  }
 
   revalidatePath(`/support/${conversationId}`);
   revalidatePath("/support");
