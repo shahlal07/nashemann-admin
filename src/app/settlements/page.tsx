@@ -61,7 +61,7 @@ export default async function SettlementsPage() {
 
   return (
     <div>
-      <div className="mb-4 flex justify-end"><Link href="/settlements/submissions" className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold text-[var(--text)] hover:bg-[var(--surface-hover)]">Review vendor payment submissions</Link></div>
+      <div className="mb-4 flex flex-wrap justify-end gap-2"><Link href="/settlements/submissions" className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold text-[var(--text)] hover:bg-[var(--surface-hover)]">Review vendor payment submissions</Link><Link href="/settlements/billing-settings" className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold text-[var(--text)] hover:bg-[var(--surface-hover)]">Billing policy</Link></div>
       <PageHeader
         title="Settlements"
         description="Monthly platform-fee reconciliation per vendor, across both pricing plans."
