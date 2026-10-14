@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireFinanceStaff as requireStaff } from "@/lib/authz";
+import { requireFinanceStaff as requireStaff, requireSuperAdmin } from "@/lib/authz";
 import { sendSettlementPaidEmail } from "@/lib/email";
 
 // Settlement rows were never actually generated from real order data -- no
@@ -32,7 +32,7 @@ export async function recordPaymentAction(input: {
   reference: string;
   notes: string;
 }) {
-  const { supabase, user, staffProfile } = await requireStaff();
+  const { supabase, user, staffProfile } = await requireSuperAdmin();
 
   if (!(input.amount > 0)) throw new Error("Amount must be greater than zero");
 
@@ -90,7 +90,7 @@ export async function recordPaymentAction(input: {
 }
 
 export async function waiveSettlementAction(settlementId: string, vendorName: string, month: string, reason: string) {
-  const { supabase, user, staffProfile } = await requireStaff();
+  const { supabase, user, staffProfile } = await requireSuperAdmin();
 
   const { error } = await supabase
     .from("settlements")
@@ -112,7 +112,7 @@ export async function waiveSettlementAction(settlementId: string, vendorName: st
 }
 
 export async function reverseSettlementAction(settlementId: string, vendorName: string, month: string, reason: string) {
-  const { supabase, user, staffProfile } = await requireStaff();
+  const { supabase, user, staffProfile } = await requireSuperAdmin();
 
   const { error } = await supabase
     .from("settlements")
