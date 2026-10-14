@@ -252,7 +252,7 @@ export async function sendSettlementReminderEmail(params: {
 }): Promise<boolean> {
   const balance = Math.max(0, params.platformFee - params.amountPaid);
   const copy = {
-    before_due_7: { subject: `Nashemann platform fee due in 7 days — ${params.monthLabel}`, title: "Your platform fee invoice is ready", message: "Your invoice is due in 7 days. Please arrange payment before the due date." },
+    before_due_7: { subject: `Nashemann platform fee due soon — ${params.monthLabel}`, title: "Your platform fee invoice is ready", message: "Your invoice is due within the next 7 days. Please arrange payment before the due date." },
     due_today: { subject: `Nashemann platform fee due today — ${params.monthLabel}`, title: "Your platform fee is due today", message: "Your invoice reaches its due date today. Please arrange payment to avoid service interruption." },
     overdue_3: { subject: "Payment overdue — Nashemann platform fee", title: "Your platform fee is 3 days overdue", message: "Our records show an outstanding balance. Please pay or contact support if you believe this is incorrect." },
     overdue_7: { subject: "Final reminder — overdue Nashemann platform fee", title: "Final reminder before store suspension", message: "Your invoice is 7 days overdue. Stores with unpaid invoices may be suspended after the 10-day grace period." },
