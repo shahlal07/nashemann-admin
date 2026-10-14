@@ -16,7 +16,7 @@ export default async function PlatformFeesPage() {
   const [{ data }, { data: rates }] = await Promise.all([
     supabase
       .from("settlements")
-      .select("id, vendor_id, month, platform_fee, amount_paid, status, due_date, vendors(name, currency)")
+      .select("id, vendor_id, month, platform_fee, adjustment_total, amount_paid, status, due_date, vendors(name, currency)")
       .order("month", { ascending: false }),
     supabase.from("currency_rates").select("currency, rate_to_pkr"),
   ]);
@@ -27,7 +27,7 @@ export default async function PlatformFeesPage() {
     vendorName: (s.vendors as unknown as { name: string; currency: string } | null)?.name ?? "Unknown vendor",
     vendorCurrency: (s.vendors as unknown as { name: string; currency: string } | null)?.currency ?? "PKR",
     month: s.month,
-    platformFee: Number(s.platform_fee),
+    platformFee: Number(s.platform_fee) + Number(s.adjustment_total ?? 0),
     amountPaid: Number(s.amount_paid ?? 0),
     status: s.status,
     dueDate: s.due_date,
