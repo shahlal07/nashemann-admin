@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/PageHeader";
 import { SettlementsTable, type SettlementRow } from "./SettlementsTable";
@@ -60,6 +61,7 @@ export default async function SettlementsPage() {
 
   return (
     <div>
+      <div className="mb-4 flex justify-end"><Link href="/settlements/submissions" className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold text-[var(--text)] hover:bg-[var(--surface-hover)]">Review vendor payment submissions</Link></div>
       <PageHeader
         title="Settlements"
         description="Monthly platform-fee reconciliation per vendor, across both pricing plans."
