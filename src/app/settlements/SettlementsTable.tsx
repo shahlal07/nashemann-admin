@@ -103,7 +103,7 @@ export function SettlementsTable({ initialSettlements, rates = [] }: { initialSe
   const totalOutstanding = settlements
     .filter((s) => s.status === "pending" || s.status === "partially_paid")
     .reduce((sum, s) => sum + Math.max(0, s.platformFee - s.amountPaid), 0);
-  const outstandingCount = settlements.filter((s) => s.status === "pending" || s.status === "partially_paid").length;
+  const outstandingCount = settlements.filter((s) => (s.status === "pending" || s.status === "partially_paid") && s.platformFee > s.amountPaid).length;
 
   function refreshRow(id: string, amount: number) {
     setSettlements((prev) =>
@@ -198,7 +198,7 @@ export function SettlementsTable({ initialSettlements, rates = [] }: { initialSe
                       <td className="py-3">
                         <div className="flex items-center justify-end gap-1.5">
                           <Link href={`/settlements/${s.id}/invoice`}><Button size="sm" variant="ghost">Invoice</Button></Link>
-                          {(s.status === "pending" || s.status === "partially_paid") && (
+                          {(s.status === "pending" || s.status === "partially_paid") && Math.max(0, s.platformFee - s.amountPaid) > 0 && (
                             <Button size="sm" variant="primary" onClick={() => setPaymentTarget(s)}>
                               Record payment
                             </Button>
