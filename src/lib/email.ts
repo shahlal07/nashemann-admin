@@ -255,8 +255,8 @@ export async function sendSettlementReminderEmail(params: {
     before_due_7: { subject: `Nashemann platform fee due soon — ${params.monthLabel}`, title: "Your platform fee invoice is ready", message: "Your invoice is due within the next 7 days. Please arrange payment before the due date." },
     due_today: { subject: `Nashemann platform fee due today — ${params.monthLabel}`, title: "Your platform fee is due today", message: "Your invoice reaches its due date today. Please arrange payment to avoid service interruption." },
     overdue_3: { subject: "Payment overdue — Nashemann platform fee", title: "Your platform fee is 3 days overdue", message: "Our records show an outstanding balance. Please pay or contact support if you believe this is incorrect." },
-    overdue_7: { subject: "Final reminder — overdue Nashemann platform fee", title: "Final reminder before store suspension", message: "Your invoice is 7 days overdue. Stores with unpaid invoices may be suspended after the 10-day grace period." },
-    suspended_10: { subject: "Store suspension due to overdue platform fee", title: "Your store has been suspended", message: "Your store was suspended automatically after the 10-day grace period. Superadmin must confirm payment before billing suspension can be lifted." },
+    overdue_7: { subject: "Final reminder — overdue Nashemann platform fee", title: "Final reminder before store suspension", message: "Your invoice is 7 days overdue. Stores with unpaid invoices may be suspended after the configured grace period." },
+    suspended_10: { subject: "Store suspension due to overdue platform fee", title: "Your store has been suspended", message: "Your store was suspended automatically after the configured grace period. Superadmin must confirm payment before billing suspension can be lifted." },
   }[params.stage];
   const html = wrapEmail(`
     <h2 style="margin-top:0;">${copy.title}</h2>
