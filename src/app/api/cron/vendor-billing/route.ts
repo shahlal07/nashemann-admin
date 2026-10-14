@@ -63,13 +63,29 @@ export async function GET(request: Request) {
     });
     if (billingError) throw new Error(billingError.message);
 
-    const { data: settlements, error: settlementError } = await supabase
-      .from("settlements")
-      .select("id, vendor_id, month, due_date, platform_fee, adjustment_total, amount_paid, status")
-      .in("status", ["pending", "partially_paid"]);
-    if (settlementError) throw new Error(settlementError.message);
+    const settlements: Array<{
+      id: string;
+      vendor_id: string;
+      month: string;
+      due_date: string | null;
+      platform_fee: number;
+      adjustment_total: number;
+      amount_paid: number;
+      status: string;
+    }> = [];
+    for (let offset = 0; ; offset += 500) {
+      const { data: page, error: settlementError } = await supabase
+        .from("settlements")
+        .select("id, vendor_id, month, due_date, platform_fee, adjustment_total, amount_paid, status")
+        .in("status", ["pending", "partially_paid"])
+        .order("due_date", { ascending: true })
+        .range(offset, offset + 499);
+      if (settlementError) throw new Error(settlementError.message);
+      settlements.push(...(page ?? []));
+      if (!page || page.length < 500) break;
+    }
 
-    const outstanding = (settlements ?? []).filter((s) =>
+    const outstanding = settlements.filter((s) =>
       s.due_date && Number(s.platform_fee) + Number(s.adjustment_total ?? 0) > Number(s.amount_paid ?? 0)
     );
     const vendorIds = [...new Set(outstanding.map((s) => s.vendor_id))];
