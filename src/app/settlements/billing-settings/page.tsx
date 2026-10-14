@@ -19,6 +19,7 @@ export default async function BillingSettingsPage() {
         <h1 className="mt-3 text-2xl font-bold text-[var(--text)]">Billing policy</h1>
         <p className="mt-2 text-sm text-[var(--text-muted)]">Configure the number of calendar days after an invoice due date before automatic store suspension. This setting applies to future daily billing runs.</p>
       </header>
+      <div className="flex justify-end"><a href="/settlements/monitoring" className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold text-[var(--text)] hover:bg-[var(--surface-hover)]">Open billing monitor</a></div>
       <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
         <p className="text-sm text-[var(--text-muted)]">Current grace period</p>
         <p className="mt-1 text-3xl font-bold text-[var(--text)]">{data.billing_grace_days} days</p>
