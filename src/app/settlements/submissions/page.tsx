@@ -29,7 +29,7 @@ export default async function PaymentSubmissionsPage() {
       <section className="space-y-3">
         {rows.map((s) => {
           const vendor = s.vendors as unknown as { name: string } | null;
-          const settlement = s.settlements as unknown as { month: string; platform_fee: number; amount_paid: number; due_date: string | null } | null;
+          const settlement = s.settlements as unknown as { month: string; platform_fee: number; adjustment_total: number; amount_paid: number; due_date: string | null } | null;
           const balance = Math.max(0, Number(settlement?.platform_fee ?? 0) + Number(settlement?.adjustment_total ?? 0) - Number(settlement?.amount_paid ?? 0));
           return (
             <article key={s.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
