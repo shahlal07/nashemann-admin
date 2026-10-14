@@ -33,14 +33,14 @@ export async function recordPaymentAction(input: {
 
   const { data: targetSettlement, error: settlementLookupError } = await supabase
     .from("settlements")
-    .select("id, vendor_id, month, status, platform_fee, amount_paid")
+    .select("id, vendor_id, month, status, platform_fee, adjustment_total, amount_paid")
     .eq("id", input.settlementId)
     .single();
   if (settlementLookupError || !targetSettlement) throw new Error("Settlement not found.");
   if (["paid", "waived", "reversed"].includes(targetSettlement.status)) {
     throw new Error("This settlement is no longer payable.");
   }
-  const outstanding = Math.max(0, Number(targetSettlement.platform_fee) - Number(targetSettlement.amount_paid ?? 0));
+  const outstanding = Math.max(0, Number(targetSettlement.platform_fee) + Number(targetSettlement.adjustment_total ?? 0) - Number(targetSettlement.amount_paid ?? 0));
   if (input.amount > outstanding) throw new Error(`Payment exceeds the outstanding balance of Rs ${Math.round(outstanding).toLocaleString("en-PK")}.`);
 
   const { error } = await supabase.from("settlement_payments").insert({
@@ -68,7 +68,7 @@ export async function recordPaymentAction(input: {
   // post-trigger state, so this only fires once the balance actually hits zero.
   const { data: settlement } = await supabase
     .from("settlements")
-    .select("status, vendor_id, gross_revenue, platform_fee, amount_paid")
+    .select("status, vendor_id, gross_revenue, platform_fee, adjustment_total, amount_paid")
     .eq("id", input.settlementId)
     .maybeSingle();
 
@@ -85,7 +85,7 @@ export async function recordPaymentAction(input: {
         monthLabel: monthLabel(targetSettlement.month),
         amountPaid: settlement.amount_paid,
         grossRevenue: settlement.gross_revenue,
-        platformFee: settlement.platform_fee,
+        platformFee: Number(settlement.platform_fee) + Number(settlement.adjustment_total ?? 0),
       });
     }
   }
