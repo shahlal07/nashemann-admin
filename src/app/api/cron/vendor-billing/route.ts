@@ -175,7 +175,7 @@ export async function GET(request: Request) {
         monthLabel: monthLabel(settlement.month),
         platformFee: Number(settlement.platform_fee) + Number(settlement.adjustment_total ?? 0),
         amountPaid: Number(settlement.amount_paid ?? 0),
-        dueDate: settlement.due_date,
+        dueDate: settlement.due_date ?? "Not set",
         stage,
       });
       await supabase.from("billing_reminder_log").update({
