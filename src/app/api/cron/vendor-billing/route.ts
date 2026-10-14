@@ -64,12 +64,12 @@ export async function GET(request: Request) {
 
     const { data: settlements, error: settlementError } = await supabase
       .from("settlements")
-      .select("id, vendor_id, month, due_date, platform_fee, amount_paid, status")
+      .select("id, vendor_id, month, due_date, platform_fee, adjustment_total, amount_paid, status")
       .in("status", ["pending", "partially_paid"]);
     if (settlementError) throw new Error(settlementError.message);
 
     const outstanding = (settlements ?? []).filter((s) =>
-      s.due_date && Number(s.platform_fee) > Number(s.amount_paid ?? 0)
+      s.due_date && Number(s.platform_fee) + Number(s.adjustment_total ?? 0) > Number(s.amount_paid ?? 0)
     );
     const vendorIds = [...new Set(outstanding.map((s) => s.vendor_id))];
     const [{ data: vendors, error: vendorsError }, { data: owners, error: ownersError }] = vendorIds.length
@@ -156,7 +156,7 @@ export async function GET(request: Request) {
         to,
         vendorName: vendor?.name ?? "Vendor",
         monthLabel: monthLabel(settlement.month),
-        platformFee: Number(settlement.platform_fee),
+        platformFee: Number(settlement.platform_fee) + Number(settlement.adjustment_total ?? 0),
         amountPaid: Number(settlement.amount_paid ?? 0),
         dueDate: settlement.due_date,
         stage,
