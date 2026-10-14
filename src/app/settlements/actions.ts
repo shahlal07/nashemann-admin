@@ -34,7 +34,19 @@ export async function recordPaymentAction(input: {
 }) {
   const { supabase, user, staffProfile } = await requireSuperAdmin();
 
-  if (!(input.amount > 0)) throw new Error("Amount must be greater than zero");
+  if (!Number.isFinite(input.amount) || input.amount <= 0) throw new Error("Amount must be greater than zero.");
+
+  const { data: targetSettlement, error: settlementLookupError } = await supabase
+    .from("settlements")
+    .select("id, vendor_id, month, status, platform_fee, amount_paid")
+    .eq("id", input.settlementId)
+    .single();
+  if (settlementLookupError || !targetSettlement) throw new Error("Settlement not found.");
+  if (["paid", "waived", "reversed"].includes(targetSettlement.status)) {
+    throw new Error("This settlement is no longer payable.");
+  }
+  const outstanding = Math.max(0, Number(targetSettlement.platform_fee) - Number(targetSettlement.amount_paid ?? 0));
+  if (input.amount > outstanding) throw new Error(`Payment exceeds the outstanding balance of Rs ${Math.round(outstanding).toLocaleString("en-PK")}.`);
 
   const { error } = await supabase.from("settlement_payments").insert({
     settlement_id: input.settlementId,
@@ -49,7 +61,7 @@ export async function recordPaymentAction(input: {
   await supabase.from("audit_log").insert({
     action: "settlement_payment_recorded",
     actor: staffProfile?.name ?? user.email ?? "Unknown",
-    entity: `${input.vendorName} · ${monthLabel(input.month)}`,
+    entity: `${input.vendorName} · ${monthLabel(targetSettlement.month)}`,
     detail: `Recorded ${input.method} payment of Rs ${Math.round(input.amount).toLocaleString("en-PK")}${
       input.reference ? ` (ref: ${input.reference})` : ""
     }`,
@@ -75,7 +87,7 @@ export async function recordPaymentAction(input: {
       await sendSettlementPaidEmail({
         to,
         vendorName: input.vendorName,
-        monthLabel: monthLabel(input.month),
+        monthLabel: monthLabel(targetSettlement.month),
         amountPaid: settlement.amount_paid,
         grossRevenue: settlement.gross_revenue,
         platformFee: settlement.platform_fee,
