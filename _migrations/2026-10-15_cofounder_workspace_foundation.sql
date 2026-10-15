@@ -165,3 +165,19 @@ drop trigger if exists owner_membership_audit_trigger on public.owner_membership
 create trigger owner_membership_audit_trigger
 after insert or update or delete on public.owner_memberships
 for each row execute function public.log_owner_membership_change();
+
+create or replace function public.touch_owner_membership_updated_at()
+returns trigger
+language plpgsql
+set search_path = public, pg_temp
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists owner_membership_updated_at_trigger on public.owner_memberships;
+create trigger owner_membership_updated_at_trigger
+before update on public.owner_memberships
+for each row execute function public.touch_owner_membership_updated_at();
