@@ -30,6 +30,7 @@ function normalizeOwnerInput(input: OwnerInput): OwnerInput {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Enter a valid recovery/contact email.");
   if (!responsibilities.length || responsibilities.some((v) => !FOUNDER_RESPONSIBILITIES.includes(v))) throw new Error("Select at least one valid owner domain.");
   if (capabilities.some((v) => !FOUNDER_CAPABILITIES.includes(v))) throw new Error("One or more selected capabilities are invalid.");
+  if (!capabilities.includes("workspace.read")) throw new Error("Every active owner account must have workspace.read capability.");
   if (!["active", "pending", "suspended"].includes(input.status)) throw new Error("Invalid membership status.");
   if (input.password && input.password.length < PASSWORD_MIN_LENGTH) throw new Error(`Passwords must be at least ${PASSWORD_MIN_LENGTH} characters.`);
 
@@ -37,7 +38,7 @@ function normalizeOwnerInput(input: OwnerInput): OwnerInput {
 }
 
 async function writeOwnerAudit(
-  supabase: Awaited<ReturnType<typeof import("@/lib/supabase/server").createClient>>,
+  supabase: any,
   actor: string,
   action: string,
   username: string,
@@ -69,7 +70,7 @@ export async function createOwnerAction(input: OwnerInput) {
   const { data: duplicate, error: duplicateError } = await admin
     .from("owner_memberships")
     .select("user_id")
-    .ilike("username", clean.username)
+    .eq("username", clean.username)
     .maybeSingle();
   if (duplicateError) throw new Error(duplicateError.message);
   if (duplicate) throw new Error("That owner username is already in use.");
@@ -100,7 +101,7 @@ export async function createOwnerAction(input: OwnerInput) {
   await writeOwnerAudit(supabase, actor, "owner_account_created", clean.username, `Created owner account; status=${clean.status}; domains=${clean.responsibilities.join(", ")}`);
   revalidatePath("/owner-accounts");
   revalidatePath("/owners");
-  return { ok: true };
+  return { ok: true, warning: sessionRevocationWarning };
 }
 
 export async function updateOwnerAction(userId: string, input: OwnerInput) {
@@ -158,9 +159,10 @@ export async function updateOwnerAction(userId: string, input: OwnerInput) {
     throw new Error(authUpdateError.message);
   }
 
+  let sessionRevocationWarning: string | null = null;
   if (clean.status === "suspended") {
     const { error: signOutError } = await admin.auth.admin.signOut(userId, "global");
-    if (signOutError) throw new Error(`Membership suspended, but existing sessions could not be revoked: ${signOutError.message}`);
+    if (signOutError) sessionRevocationWarning = signOutError.message;
   }
 
   const changes = [
@@ -173,7 +175,8 @@ export async function updateOwnerAction(userId: string, input: OwnerInput) {
     JSON.stringify(current.capabilities ?? []) !== JSON.stringify(clean.capabilities) ? "capabilities" : null,
   ].filter(Boolean);
 
-  await writeOwnerAudit(supabase, actor, "owner_account_updated", clean.username, changes.length ? `Updated: ${changes.join(", ")}` : "Owner account saved with no detected field changes.");
+  const auditDetail = changes.length ? `Updated: ${changes.join(", ")}` : "Owner account saved with no detected field changes.";
+  await writeOwnerAudit(supabase, actor, "owner_account_updated", clean.username, sessionRevocationWarning ? `${auditDetail}; session revocation warning: ${sessionRevocationWarning}` : auditDetail);
   revalidatePath("/owner-accounts");
   revalidatePath("/owners");
   return { ok: true };
