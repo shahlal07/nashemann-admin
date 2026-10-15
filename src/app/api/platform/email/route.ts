@@ -44,7 +44,16 @@ async function resendRequest(path: string, init?: RequestInit) {
 
 async function loadDomains() {
   const payload = await resendRequest("/domains?limit=100");
-  return Array.isArray(payload?.data) ? payload.data : [];
+  const domains = Array.isArray(payload?.data) ? payload.data : [];
+  return Promise.all(domains.map(async (domain: any) => {
+    if (Array.isArray(domain.records) && domain.records.length) return domain;
+    try {
+      const detail = await resendRequest("/domains/" + encodeURIComponent(String(domain.id)));
+      return detail?.data ?? detail;
+    } catch {
+      return domain;
+    }
+  }));
 }
 
 async function recordAudit(actor: string, action: string, detail: string) {
