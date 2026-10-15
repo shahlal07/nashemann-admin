@@ -6,9 +6,9 @@ export default async function FounderApprovalsPage() {
 
   return (
     <section className="mx-auto max-w-3xl">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">Governance</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-violet-deep)]">Governance</p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight">Approval center</h1>
-      <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
+      <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
         A single queue for decisions that need explicit founder review, with a recorded
         actor, outcome, timestamp, and rationale.
       </p>
