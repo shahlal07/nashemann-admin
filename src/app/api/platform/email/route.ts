@@ -43,6 +43,14 @@ async function resendRequest(path: string, init?: RequestInit) {
   return payload;
 }
 
+async function loadUsage() {
+  try {
+    return await resendRequest("/usage");
+  } catch {
+    return null;
+  }
+}
+
 async function loadDomains() {
   const payload = await resendRequest("/domains?limit=100");
   const domains = Array.isArray(payload?.data) ? payload.data : [];
@@ -73,10 +81,11 @@ export async function GET() {
 
   try {
     const admin = createAdminClient();
-    const [settingsResult, domains, sentTotal, sentToday, sentMonth, failedMonth, skippedMonth, recentResult, ...categoryCounts] =
+    const [settingsResult, domains, usagePayload, sentTotal, sentToday, sentMonth, failedMonth, skippedMonth, recentResult, ...categoryCounts] =
       await Promise.all([
         admin.from("platform_email_settings").select("category_enabled,sender_from,updated_at").eq("id", true).maybeSingle(),
         loadDomains(),
+        loadUsage(),
         admin.from("platform_email_log").select("id", { count: "exact", head: true }).eq("status", "sent"),
         admin.from("platform_email_log").select("id", { count: "exact", head: true }).eq("status", "sent").gte("created_at", new Date(new Date().setUTCHours(0, 0, 0, 0)).toISOString()),
         admin.from("platform_email_log").select("id", { count: "exact", head: true }).eq("status", "sent").gte("created_at", new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).toISOString()),
@@ -90,6 +99,14 @@ export async function GET() {
 
     if (settingsResult.error) throw new Error(settingsResult.error.message);
     if (recentResult.error) throw new Error(recentResult.error.message);
+    const usage = usagePayload?.data ?? usagePayload;
+    const quota = {
+      emailsUsed: typeof usage?.emails?.used === "number" ? usage.emails.used : null,
+      emailsLimit: typeof usage?.emails?.limit === "number" ? usage.emails.limit : null,
+      emailsResetsAt: typeof usage?.emails?.resets_at === "string" ? usage.emails.resets_at : null,
+      domainsUsed: typeof usage?.domains?.used === "number" ? usage.domains.used : null,
+      domainsLimit: typeof usage?.domains?.limit === "number" ? usage.domains.limit : null,
+    };
     const sourceCounts = await Promise.all(SOURCES.map((source) =>
       admin.from("platform_email_log").select("id", { count: "exact", head: true }).eq("status", "sent").eq("source", source)
     ));
@@ -103,6 +120,7 @@ export async function GET() {
         updatedAt: settingsResult.data?.updated_at ?? null,
       },
       domains,
+      quota,
       metrics: {
         sentTotal: sentTotal.count ?? 0,
         sentToday: sentToday.count ?? 0,
