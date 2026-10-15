@@ -96,27 +96,43 @@ drop policy if exists owner_decisions_select_domain on public.owner_decisions;
 create policy owner_decisions_select_domain on public.owner_decisions
   for select to authenticated
   using (
-    public.has_owner_capability('governance.read')
-    and public.has_owner_domain_access(domain)
+    public.has_owner_domain_access(domain)
+    and (
+      public.has_owner_capability('governance.read')
+      or (domain = 'product_technology' and public.has_owner_capability('technology.read'))
+      or (domain = 'business_strategy' and public.has_owner_capability('strategy.read'))
+    )
   );
 drop policy if exists owner_decisions_insert_domain on public.owner_decisions;
 create policy owner_decisions_insert_domain on public.owner_decisions
   for insert to authenticated
   with check (
-    public.has_owner_capability('governance.manage')
-    and public.has_owner_domain_access(domain)
+    public.has_owner_domain_access(domain)
+    and (
+      public.has_owner_capability('governance.manage')
+      or (domain = 'product_technology' and public.has_owner_capability('technology.manage'))
+      or (domain = 'business_strategy' and public.has_owner_capability('strategy.manage'))
+    )
     and created_by = auth.uid()
   );
 drop policy if exists owner_decisions_update_domain on public.owner_decisions;
 create policy owner_decisions_update_domain on public.owner_decisions
   for update to authenticated
   using (
-    public.has_owner_capability('governance.manage')
-    and public.has_owner_domain_access(domain)
+    public.has_owner_domain_access(domain)
+    and (
+      public.has_owner_capability('governance.manage')
+      or (domain = 'product_technology' and public.has_owner_capability('technology.manage'))
+      or (domain = 'business_strategy' and public.has_owner_capability('strategy.manage'))
+    )
   )
   with check (
-    public.has_owner_capability('governance.manage')
-    and public.has_owner_domain_access(domain)
+    public.has_owner_domain_access(domain)
+    and (
+      public.has_owner_capability('governance.manage')
+      or (domain = 'product_technology' and public.has_owner_capability('technology.manage'))
+      or (domain = 'business_strategy' and public.has_owner_capability('strategy.manage'))
+    )
   );
 revoke all on public.owner_decisions from anon;
 grant select, insert, update on public.owner_decisions to authenticated;
