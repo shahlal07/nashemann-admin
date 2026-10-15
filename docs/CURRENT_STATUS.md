@@ -11,6 +11,7 @@ Last updated: 2026-10-15
 - [ ] Verify actual app/API/database/auth/deployment relationships.
 - [ ] Confirm all owners follow the read-first/update-after-work protocol.
 - [x] Draft cross-repository Co-Founder Platform integration plan on feature branch; issue #15 opened. This is planning work only, not an implemented feature.
+- [x] Run targeted read-only Supabase discovery for founder/governance tables and existing staff authorization functions; no matching tables found in the name search. Full schema/RLS audit remains open.
 
 ## Application readiness — not yet verified
 
@@ -25,7 +26,7 @@ Last updated: 2026-10-15
 | Settlement and reconciliation | Unknown | Test idempotency, concurrency and audit history |
 | CI, build, releases and rollback | Unknown | Inspect workflow files and recent runs |
 | Domains and production deployments | Unknown | Verify provider dashboards and smoke tests |
-| Co-Founder / Owner Platform | Planning in progress | Confirm founder identities, responsibility assignments, approval rules and data access matrix; then audit schema/RLS before coding |
+| Co-Founder / Owner Platform | Planning in progress | Complete schema/RLS/grant audit; confirm founder identities, responsibility assignments, approval rules and data access matrix; then implement |
 
 ## Immediate priorities
 1. Audit existing code and open work before rebuilding anything.
