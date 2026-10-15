@@ -17,8 +17,8 @@ export default async function FounderAccessPage() {
             Sign in with your existing Nashemann account. Founder access is granted separately
             and is not created by signing in.
           </p>
-          <Link className="mt-6 inline-flex rounded-xl bg-[var(--accent-violet)] px-4 py-2.5 text-sm font-medium text-white" href="/login">
-            Go to sign in
+          <Link className="mt-6 inline-flex rounded-xl bg-[var(--accent-violet)] px-4 py-2.5 text-sm font-medium text-white" href="/owners/login">
+            Owner sign in
           </Link>
         </section>
       </main>
