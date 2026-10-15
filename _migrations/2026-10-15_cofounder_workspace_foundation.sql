@@ -65,7 +65,15 @@ alter table public.owner_memberships
   drop constraint if exists owner_memberships_username_format;
 alter table public.owner_memberships
   add constraint owner_memberships_username_format
-  check (username is null or username ~ '^[a-z][a-z0-9._-]{2,29}
+  check (
+    username is null
+    or (
+      length(username) between 3 and 30
+      and username = lower(username)
+      and username ~ '^[a-z]'
+      and username !~ '[^a-z0-9._-]'
+    )
+  );
 
 alter table public.owner_memberships enable row level security;
 
