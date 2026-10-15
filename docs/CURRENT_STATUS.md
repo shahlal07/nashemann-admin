@@ -26,7 +26,7 @@ Last updated: 2026-10-15
 | Settlement and reconciliation | Unknown | Test idempotency, concurrency and audit history |
 | CI, build, releases and rollback | Unknown | Inspect workflow files and recent runs |
 | Domains and production deployments | Unknown | Verify provider dashboards and smoke tests |
-| Co-Founder / Owner Platform | Planning in progress | Complete schema/RLS/grant audit; confirm founder identities, responsibility assignments, approval rules and data access matrix; then implement |
+| Co-Founder / Owner Platform | Implementation scaffold in feature branch; not deployed | Review source and migration, run CI, confirm founder identities/responsibilities and approval rules; do not apply migration until approved |
 
 ## Immediate priorities
 1. Audit existing code and open work before rebuilding anything.
@@ -38,3 +38,12 @@ Last updated: 2026-10-15
 
 ## Update format
 Date, repo(s), task/issue/PR, finding/change, test evidence, remaining risk, responsible role, next action.
+
+## Co-Founder Platform implementation update — 2026-10-15
+
+- **Branch:** `feature/cofounder-workspace-foundation`
+- **Implemented in source:** separate founder capability types; fail-closed server-side membership guard; owner route group and shell; read-only module placeholders; safe access/forbidden pages; proposed membership/RLS/audit migration.
+- **Safety:** existing `StaffRole`, `requireStaff()`, `requireSuperAdmin()`, and existing admin pages were not changed. The Supabase migration was committed as source only and has not been applied.
+- **Data:** owner pages do not show invented metrics; finance and technology integrations are explicitly pending.
+- **Tests:** not run. Container network could not resolve GitHub, and package.json has no test script. Lint/build/typecheck and SQL migration validation are required before merge.
+- **Next:** review code, establish CI evidence, confirm founder permission matrix, and integrate the Kimi dashboard output when available.
