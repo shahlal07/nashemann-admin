@@ -184,7 +184,9 @@ A first application-code foundation has been committed on branch `feature/cofoun
 - Added `_migrations/2026-10-15_cofounder_workspace_foundation.sql` defining the founder membership table, allowed responsibility/capability values, default-pending activation, RLS limited to self-read and Super Admin management, and an append-only audit trail for membership changes.
 - Adjusted `AppChrome` only for the new access/forbidden routes. Existing admin routes and `StaffRole` definitions were not changed.
 
-**Not yet done:** The SQL migration has not been applied to Supabase; no founder membership has been provisioned; no Kimi UI files have been received; decision/approval CRUD, Super Admin membership management UI, real finance/technology data adapters, and integration tests remain pending. This first pass is a guarded scaffold, not a production-ready owner platform.
+**Follow-up implementation on this branch:** Added `/owners/login` using the existing Supabase Auth credentials, with a separate `owner_memberships` status check; updated the access page to use owner login; added domain-scoped decision/approval read views and a second migration defining domain-filtered RLS, approval self-review prevention, and governance audit rows. Added `docs/OWNER_ACCESS_BOUNDARIES.md` to the public web and both vendor repositories on separate security branches. The existing vendor-admin DAL already requires `profiles.role` to be `admin` or `staff`, a non-null `vendor_id`, and an active vendor; owner membership does not satisfy those checks.
+
+**Still not done:** Neither migration has been applied to Supabase; no founder membership has been provisioned; no Kimi UI files have been received; no owner account credentials have been created; write flows, Super Admin membership provisioning UI, finance/technology data adapters, and integration tests remain pending. This is not a production-ready owner platform.
 
 ## 12. Verification status
 
