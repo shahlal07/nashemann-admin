@@ -31,6 +31,19 @@ function normalizeOwnerInput(input: OwnerInput): OwnerInput {
   if (!responsibilities.length || responsibilities.some((v) => !FOUNDER_RESPONSIBILITIES.includes(v))) throw new Error("Select at least one valid owner domain.");
   if (capabilities.some((v) => !FOUNDER_CAPABILITIES.includes(v))) throw new Error("One or more selected capabilities are invalid.");
   if (!capabilities.includes("workspace.read")) throw new Error("Every active owner account must have workspace.read capability.");
+  const capabilityDependencies: Array<[FounderCapability, FounderCapability]> = [
+    ["governance.manage", "governance.read"],
+    ["approvals.request", "approvals.read"],
+    ["approvals.review", "approvals.read"],
+    ["finance.manage", "finance.read"],
+    ["technology.manage", "technology.read"],
+    ["strategy.manage", "strategy.read"],
+  ];
+  for (const [capability, required] of capabilityDependencies) {
+    if (capabilities.includes(capability) && !capabilities.includes(required)) {
+      throw new Error(`${capability} requires ${required} so the owner can access and manage the relevant records.`);
+    }
+  }
   if (!["active", "pending", "suspended"].includes(input.status)) throw new Error("Invalid membership status.");
   if (input.password && input.password.length < PASSWORD_MIN_LENGTH) throw new Error(`Passwords must be at least ${PASSWORD_MIN_LENGTH} characters.`);
 
