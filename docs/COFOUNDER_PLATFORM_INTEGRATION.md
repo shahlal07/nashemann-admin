@@ -39,7 +39,19 @@ The current `nashemann-admin` code inspected for this plan includes:
 
 Implication: do not simply add `cofounder` to `StaffRole` and assume that the existing `requireStaff()` flow will work. The current authorization path is explicitly staff-oriented. Design and test a distinct owner-membership authorization boundary, or prove an existing supported model is appropriate before choosing a schema.
 
-## 4. Recommended access architecture
+## 4. Read-only live database discovery (2026-10-15)
+
+Read-only queries were run against the connected Supabase project `eznxsosvsgkhexbjoolh`. No data was changed and no migration was applied.
+
+- A targeted `information_schema.tables` query across `public` and `private` found **no base tables** with names matching founder, owner, decision, approval, governance, company_task, or action_item.
+- Existing access-related objects include `staff_profiles` and database functions `is_staff()`, `is_finance_staff()`, and `is_mutating_staff()`, all marked SECURITY DEFINER in the catalog.
+- Existing `staff_profiles` policies include self-select, self-update constrained to the same `id`, and Super Admin write. Existing finance/settlement tables use staff/finance/super-admin checks and vendor-scoped read policies.
+- This is not a complete policy review of every table or function. It is enough to conclude that an owner/governance schema has **not yet been identified** in this targeted check; do not assume it exists.
+- The repository `_migrations/` directory on `master` contains four SQL files in the listing inspected. That directory may not be a complete representation of all migrations applied to the live database; the live database migration history and source-of-truth migration workflow must be compared before schema work.
+
+**Consequence:** owner membership, approval records, decision records, and their RLS cannot yet be safely implemented from known existing tables. Next technical step is a read-only schema/RLS/function/grant audit and explicit founder permission matrix. Do not create owner accounts or modify production roles as part of this discovery.
+
+## 5. Recommended access architecture
 
 ### Authentication
 
@@ -81,7 +93,7 @@ Avoid embedding permissions only in React constants. Avoid relying on a client-s
 - Handle unauthenticated, unauthorized, suspended, loading, and failed permission-resolution states.
 - Do not create dead navigation links for pages that are not implemented.
 
-## 5. Workspace modules and data contracts
+## 6. Workspace modules and data contracts
 
 Build the UI in slices; do not build every module as an unconnected mock dashboard.
 
@@ -110,7 +122,7 @@ Build the UI in slices; do not build every module as an unconnected mock dashboa
 - A browser success toast must not precede a server-confirmed outcome.
 - Retries for non-idempotent actions must not create duplicate approvals, payments, or records.
 
-## 6. Design integration contract for Kimi-generated UI
+## 7. Design integration contract for Kimi-generated UI
 
 When Kimi's output arrives:
 
@@ -124,7 +136,7 @@ When Kimi's output arrives:
 8. Check responsive states, keyboard accessibility, loading/empty/error states, and unauthorized access.
 9. Record exact lint/build/test commands and results; do not claim checks that were not run.
 
-## 7. Rollout sequence
+## 8. Rollout sequence
 
 1. **Contract and access audit:** inspect current layouts, staff auth, Supabase schema, RLS, deployments, and existing issues/PRs.
 2. **Permission matrix approval:** confirm founder identities, responsibility assignments, view/edit/approve powers, approval quorum, and Super Admin boundaries.
@@ -135,7 +147,7 @@ When Kimi's output arrives:
 7. **Cross-repo checks:** prove owner access cannot cross into public customer routes or vendor tenant boundaries.
 8. **Verification and release:** run typecheck/lint/build/tests, auth matrix tests, RLS tests, and preview smoke tests; deploy only after review.
 
-## 8. Acceptance criteria
+## 9. Acceptance criteria
 
 - Existing Super Admin login, navigation, and privileged workflows remain behaviorally unchanged.
 - Non-founder users cannot access owner routes or owner data by direct URL or direct server/API invocation.
@@ -148,7 +160,7 @@ When Kimi's output arrives:
 - No schema, role, pricing, settlement, or production change occurs without the required review/approval.
 - CI and test evidence is recorded honestly.
 
-## 9. Open decisions / blockers
+## 10. Open decisions / blockers
 
 - Which founders will have accounts, and which responsibilities belong to each?
 - Are founder permissions role-based, capability-based, or a combination?
@@ -161,6 +173,6 @@ When Kimi's output arrives:
 
 Until these are confirmed, implement only reversible UI foundations and read-only work that does not widen permissions.
 
-## 10. Verification status
+## 11. Verification status
 
-This document records a plan based on source files inspected in GitHub. It does not mean that any owner route, database schema, permission, deployment, or production behavior has been changed. The code changes and security tests described above remain pending.
+This document records a plan based on source files inspected in GitHub and the read-only database discovery above. No owner route, database schema, permission, deployment, or production behavior has been changed. The code changes and security tests described above remain pending.
