@@ -110,7 +110,7 @@ create table if not exists public.owner_membership_audit (
   id bigint generated always as identity primary key,
   target_user_id uuid not null,
   actor_user_id uuid references auth.users(id) on delete set null,
-  action text not null check (action in ('INSERT', 'UPDATE', 'DELETE')),
+  operation text not null check (operation in ('INSERT', 'UPDATE', 'DELETE')),
   old_record jsonb,
   new_record jsonb,
   created_at timestamptz not null default now()
@@ -144,21 +144,21 @@ as $$
 begin
   if tg_op = 'INSERT' then
     insert into public.owner_membership_audit (
-      target_user_id, actor_user_id, action, old_record, new_record
+      target_user_id, actor_user_id, operation, old_record, new_record
     ) values (
       new.user_id, auth.uid(), tg_op, null, to_jsonb(new)
     );
     return new;
   elsif tg_op = 'UPDATE' then
     insert into public.owner_membership_audit (
-      target_user_id, actor_user_id, action, old_record, new_record
+      target_user_id, actor_user_id, operation, old_record, new_record
     ) values (
       new.user_id, auth.uid(), tg_op, to_jsonb(old), to_jsonb(new)
     );
     return new;
   else
     insert into public.owner_membership_audit (
-      target_user_id, actor_user_id, action, old_record, new_record
+      target_user_id, actor_user_id, operation, old_record, new_record
     ) values (
       old.user_id, auth.uid(), tg_op, to_jsonb(old), null
     );
@@ -234,7 +234,7 @@ create table if not exists public.owner_membership_audit (
   id bigint generated always as identity primary key,
   target_user_id uuid not null,
   actor_user_id uuid references auth.users(id) on delete set null,
-  action text not null check (action in ('INSERT', 'UPDATE', 'DELETE')),
+  operation text not null check (operation in ('INSERT', 'UPDATE', 'DELETE')),
   old_record jsonb,
   new_record jsonb,
   created_at timestamptz not null default now()
@@ -268,21 +268,21 @@ as $$
 begin
   if tg_op = 'INSERT' then
     insert into public.owner_membership_audit (
-      target_user_id, actor_user_id, action, old_record, new_record
+      target_user_id, actor_user_id, operation, old_record, new_record
     ) values (
       new.user_id, auth.uid(), tg_op, null, to_jsonb(new)
     );
     return new;
   elsif tg_op = 'UPDATE' then
     insert into public.owner_membership_audit (
-      target_user_id, actor_user_id, action, old_record, new_record
+      target_user_id, actor_user_id, operation, old_record, new_record
     ) values (
       new.user_id, auth.uid(), tg_op, to_jsonb(old), to_jsonb(new)
     );
     return new;
   else
     insert into public.owner_membership_audit (
-      target_user_id, actor_user_id, action, old_record, new_record
+      target_user_id, actor_user_id, operation, old_record, new_record
     ) values (
       old.user_id, auth.uid(), tg_op, to_jsonb(old), null
     );
