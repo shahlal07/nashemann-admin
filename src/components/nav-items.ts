@@ -34,6 +34,8 @@ export type NavItem = {
   badgeKey?: "pendingApplications" | "pendingInfluencerApplications" | "pendingBugReports";
   /** Hidden from Support and Read-Only staff -- these pages redirect them away server-side too (is_finance_staff()). */
   financeOnly?: boolean;
+  /** Restricted to Super Admin only. */
+  superAdminOnly?: boolean;
 };
 
 export type NavSection = {
@@ -67,7 +69,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     label: "Marketing & Social",
     items: [
-      { label: "Email Control Center", href: "/marketing/email", icon: Mail },
+      { label: "Email Control Center", href: "/marketing/email", icon: Mail, superAdminOnly: true },
       { label: "Announcements", href: "/announcements", icon: Radio },
       {
         label: "Influencers",
