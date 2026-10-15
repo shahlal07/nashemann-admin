@@ -17,7 +17,6 @@ type EmailPolicy = {
   senderFrom: Record<InternalEmailCategory, string>;
 };
 
-const CATEGORIES: InternalEmailCategory[] = ["notifications", "marketing", "support", "security", "staff"];
 const DEFAULT_ENABLED: Record<InternalEmailCategory, boolean> = {
   notifications: true, marketing: true, support: true, security: true, staff: true,
 };
