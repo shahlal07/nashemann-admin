@@ -10,10 +10,18 @@ Use this shared view for cross-repository priorities. Detailed technical discuss
 | BRAIN-004 | P1 | Validate vendor onboarding, product/inventory and fulfilment | vendor-admins | Marketplace & Operations | Ready |
 | BRAIN-005 | P1 | Validate browsing, cart/checkout and order confirmation | nashemann-web | Product & Technology | Ready |
 | BRAIN-006 | P1 | Validate storefront routing, catalog accuracy and checkout handoff | vendor-storefronts | Product & Technology | Ready |
-| BRAIN-007 | P0 | Audit Rs.20 order fee, eligibility rule and Rs.5,999 subscription | Admin + relevant code | Finance + Tech | Ready |
-| BRAIN-008 | P0 | Audit settlement/reconciliation idempotency, concurrency and auditability | Admin + relevant code | Finance + Tech | Ready |
-| BRAIN-009 | P1 | Verify privileged admin actions are authorized and logged | nashemann-admin | Finance + Tech | Ready |
+| BRAIN-007 | P0 | Audit Rs.20 order fee, eligibility rule and Rs.5,999 subscription | Admin + relevant code | Finance + Tech | In progress |
+| BRAIN-008 | P0 | Audit settlement/reconciliation idempotency, concurrency and auditability | Admin + relevant code | Finance + Tech | In progress |
+| BRAIN-009 | P1 | Verify privileged admin actions are authorized and logged | nashemann-admin | Finance + Tech | In progress |
 | BRAIN-010 | P1 | Verify CI/build/test/release/rollback evidence | All four | Product & Technology | Ready |
+
+## Active Finance & Governance work
+
+- Audit evidence: [docs/FINANCE_AUDIT_2026-10-15.md](FINANCE_AUDIT_2026-10-15.md)
+- Branch: `finance/BRAIN-007-009-admin-finance-audit`
+- Related implementation issue: [nashemann-admin #10](https://github.com/shahlal07/nashemann-admin/issues/10)
+- Related governance issue: [nashemann-admin #11](https://github.com/shahlal07/nashemann-admin/issues/11)
+- Next: locate authoritative Supabase SQL/RLS definitions; add guarded state transitions and concurrency/audit tests only after the database contract is verified.
 
 ## Previously reported repo issues — verify live status
 - [nashemann-web #5](https://github.com/shahlal07/nashemann-web/issues/5) — customer order journey.
