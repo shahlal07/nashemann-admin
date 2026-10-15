@@ -305,3 +305,37 @@ drop trigger if exists owner_decisions_updated_at_trigger on public.owner_decisi
 create trigger owner_decisions_updated_at_trigger
 before update on public.owner_decisions
 for each row execute function public.touch_owner_decision_updated_at();
+
+
+-- Existing platform finance data remains the source of truth. These policies
+-- expose it only to active owners with both the finance capability and domain.
+drop policy if exists owner_finance_read_settlements on public.settlements;
+create policy owner_finance_read_settlements
+  on public.settlements
+  for select to authenticated
+  using (
+    public.has_owner_capability('finance.read')
+    and public.has_owner_domain_access('finance_governance')
+  );
+
+drop policy if exists owner_finance_read_settlement_payments on public.settlement_payments;
+create policy owner_finance_read_settlement_payments
+  on public.settlement_payments
+  for select to authenticated
+  using (
+    public.has_owner_capability('finance.read')
+    and public.has_owner_domain_access('finance_governance')
+    and exists (
+      select 1 from public.settlements s
+      where s.id = settlement_payments.settlement_id
+    )
+  );
+
+drop policy if exists owner_finance_read_platform_pricing on public.platform_pricing;
+create policy owner_finance_read_platform_pricing
+  on public.platform_pricing
+  for select to authenticated
+  using (
+    public.has_owner_capability('finance.read')
+    and public.has_owner_domain_access('finance_governance')
+  );
