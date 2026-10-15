@@ -10,8 +10,11 @@ Last updated: 2026-10-15
 - [ ] Reconcile live issues, branches and PRs into the master tracker.
 - [ ] Verify actual app/API/database/auth/deployment relationships.
 - [ ] Confirm all owners follow the read-first/update-after-work protocol.
-- [x] Draft cross-repository Co-Founder Platform integration plan on feature branch; issue #15 opened. This is planning work only, not an implemented feature.
-- [x] Run targeted read-only Supabase discovery for founder/governance tables and existing staff authorization functions; no matching tables found in the name search. Full schema/RLS audit remains open.
+- [x] Draft cross-repository Co-Founder Platform integration plan; issue #15 opened.
+- [x] Broader read-only live Supabase discovery confirmed owner membership/decision/approval/audit tables and owner capability/domain helper functions. Earlier targeted name search was incomplete.
+- [x] Created initial owner-workspace implementation branch with separate owner login, server-side membership guard, RLS-backed live overview, and Super Admin-only owner provisioning.
+- [ ] Run lint, typecheck, build, auth/RLS tests, and preview smoke tests for the implementation branch.
+- [ ] Provision and verify the three founder memberships after the branch passes checks; no founder account has been created yet.
 
 ## Application readiness — not yet verified
 
@@ -26,7 +29,7 @@ Last updated: 2026-10-15
 | Settlement and reconciliation | Unknown | Test idempotency, concurrency and audit history |
 | CI, build, releases and rollback | Unknown | Inspect workflow files and recent runs |
 | Domains and production deployments | Unknown | Verify provider dashboards and smoke tests |
-| Co-Founder / Owner Platform | Planning in progress | Complete schema/RLS/grant audit; confirm founder identities, responsibility assignments, approval rules and data access matrix; then implement |
+| Co-Founder / Owner Platform | Implementation branch in progress; not deployed | Validate branch in CI/preview, finish access-management lifecycle and authorization tests, confirm responsibilities/approval rules, then deploy |
 
 ## Immediate priorities
 1. Audit existing code and open work before rebuilding anything.
