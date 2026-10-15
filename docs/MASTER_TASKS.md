@@ -14,6 +14,14 @@ Use this shared view for cross-repository priorities. Detailed technical discuss
 | BRAIN-008 | P0 | Audit settlement/reconciliation idempotency, concurrency and auditability | Admin + relevant code | Finance + Tech | Ready |
 | BRAIN-009 | P1 | Verify privileged admin actions are authorized and logged | nashemann-admin | Finance + Tech | Ready |
 | BRAIN-010 | P1 | Verify CI/build/test/release/rollback evidence | All four | Product & Technology | Ready |
+| BRAIN-011 | P1 | Design and integrate role-based Co-Founder / Owner Platform while preserving Super Admin | All four; initial target nashemann-admin | Product & Technology + Finance/Governance | In progress |
+
+## BRAIN-011 — Co-Founder Platform
+- Plan: [docs/COFOUNDER_PLATFORM_INTEGRATION.md](COFOUNDER_PLATFORM_INTEGRATION.md)
+- Issue: [nashemann-admin #15](https://github.com/shahlal07/nashemann-admin/issues/15)
+- Planning branch: `product/cofounder-platform-alignment`
+- Current scope: architecture, permission boundaries, and integration readiness. No application code, schema, role, or production behavior has changed in this task yet.
+- Acceptance includes confirmed founder responsibilities and approval rules, server-side owner authorization, unchanged Super Admin behavior, preserved tenant isolation, auditability, and actual test evidence.
 
 ## Previously reported repo issues — verify live status
 - [nashemann-web #5](https://github.com/shahlal07/nashemann-web/issues/5) — customer order journey.
