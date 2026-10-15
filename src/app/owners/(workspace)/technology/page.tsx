@@ -6,9 +6,9 @@ export default async function FounderTechnologyPage() {
 
   return (
     <section className="mx-auto max-w-3xl">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">Product & technology</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-violet-deep)]">Product & technology</p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight">Delivery and platform health</h1>
-      <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
+      <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
         A founder-level view of roadmap priorities, security work, release readiness,
         incidents, and delivery ownership.
       </p>
