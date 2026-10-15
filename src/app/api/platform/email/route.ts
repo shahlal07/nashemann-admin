@@ -95,7 +95,7 @@ async function syncRecentProviderEmails(admin: ReturnType<typeof createAdminClie
         source: "external",
         recipient_domain: recipientDomain,
         subject: typeof email?.subject === "string" ? email.subject.slice(0, 240) : "",
-        status: "sent",
+        status: "sent" as const,
         provider_id: id,
         created_at: typeof email?.created_at === "string" ? email.created_at : new Date().toISOString(),
       }];
