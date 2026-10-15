@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition, type FormEvent } from "react";
-import { createOwnerDecisionAction } from "../actions";
+import { createOwnerDecisionAction } from "../../actions";
 import type { FounderResponsibility } from "@/lib/founders/capabilities";
 
 const LABELS: Record<FounderResponsibility, string> = {
@@ -23,7 +23,8 @@ export function DecisionCreateForm({ domains }: { domains: FounderResponsibility
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     setError(null);
     setSuccess(false);
     startSaving(async () => {
@@ -33,7 +34,7 @@ export function DecisionCreateForm({ domains }: { domains: FounderResponsibility
           summary: String(form.get("summary") ?? ""),
           domain: String(form.get("domain") ?? ""),
         });
-        event.currentTarget?.reset();
+        formElement.reset();
         setSuccess(true);
         router.refresh();
       } catch (e) {
