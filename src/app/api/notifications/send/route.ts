@@ -1,12 +1,14 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { sendInternalTransactionalEmail, type InternalEmailCategory } from "@/lib/email";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const ALLOWED_CATEGORIES: InternalEmailCategory[] = ["notifications", "support", "security", "staff"];
+const ALLOWED_CATEGORIES: InternalEmailCategory[] = ["notifications", "marketing", "support", "security", "staff"];
+const ALLOWED_SOURCES = ["nashemann-admin", "nashemann-web", "vendor-admins", "vendor-storefronts", "external"];
 const MAX_HTML_LENGTH = 120_000;
 
 function matchesSecret(supplied: string, expected: string): boolean {
@@ -33,7 +35,7 @@ export async function POST(request: Request) {
   }
 
   const body = (await request.json().catch(() => null)) as
-    | { to?: unknown; subject?: unknown; html?: unknown; category?: unknown }
+    | { to?: unknown; subject?: unknown; html?: unknown; category?: unknown; source?: unknown }
     | null;
   if (!body || typeof body.subject !== "string" || !body.subject.trim() || body.subject.length > 240) {
     return NextResponse.json({ error: "Invalid email subject" }, { status: 400 });
@@ -54,6 +56,30 @@ export async function POST(request: Request) {
   const category = typeof body.category === "string" && ALLOWED_CATEGORIES.includes(body.category as InternalEmailCategory)
     ? body.category as InternalEmailCategory
     : "notifications";
+  const source = typeof body.source === "string" && ALLOWED_SOURCES.includes(body.source) ? body.source : "external";
+  const admin = createAdminClient();
+  const { data: emailSettings, error: settingsError } = await admin
+    .from("platform_email_settings")
+    .select("category_enabled")
+    .eq("id", true)
+    .maybeSingle();
+  if (settingsError) {
+    return NextResponse.json({ error: "Email policy could not be checked; message was not sent." }, { status: 503 });
+  }
+
+  if (emailSettings?.category_enabled?.[category] === false) {
+    await Promise.all((recipients as string[]).map((to) =>
+      admin.from("platform_email_log").insert({
+        category,
+        source,
+        recipient_domain: to.trim().split("@").pop()?.toLowerCase() ?? null,
+        subject: (body.subject as string).slice(0, 240),
+        status: "skipped",
+        error_message: "Email category disabled by Super Admin.",
+      })
+    ));
+    return NextResponse.json({ success: true, sent: 0, skipped: recipients.length, reason: "category_disabled" });
+  }
 
   const results = await Promise.all(
     (recipients as string[]).map((to) =>
@@ -62,6 +88,7 @@ export async function POST(request: Request) {
         subject: body.subject as string,
         html: body.html as string,
         category,
+        source,
       })
     )
   );
