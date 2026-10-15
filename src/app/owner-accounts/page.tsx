@@ -1,13 +1,18 @@
 import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/PageHeader";
-import { requireStaff } from "@/lib/authz";
+import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { OwnerAccountsClient, type OwnerAccountRow } from "./OwnerAccountsClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function OwnerAccountsPage() {
-  const { staffProfile } = await requireStaff();
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+  const { data: isStaff } = await supabase.rpc("is_staff");
+  if (!isStaff) redirect("/login");
+  const { data: staffProfile } = await supabase.from("staff_profiles").select("role").eq("id", user.id).maybeSingle();
   if (staffProfile?.role !== "super_admin") redirect("/");
 
   const admin = createAdminClient();
