@@ -31,10 +31,11 @@ export async function requireFounder(requiredCapability?: FounderCapability, req
 
   const membership = data as FounderMembership;
 
-  if (
-    requiredCapability &&
-    !membership.capabilities.includes(requiredCapability)
-  ) {
+  if (requiredCapability && !membership.capabilities.includes(requiredCapability)) {
+    redirect("/owners/forbidden");
+  }
+
+  if (requiredDomain && !membership.responsibilities.includes(requiredDomain)) {
     redirect("/owners/forbidden");
   }
 
