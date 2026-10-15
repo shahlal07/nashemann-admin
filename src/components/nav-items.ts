@@ -23,6 +23,7 @@ import {
   Headset,
   UserCircle,
   Wallet,
+  Mail,
 } from "lucide-react";
 
 export type NavItem = {
@@ -33,6 +34,8 @@ export type NavItem = {
   badgeKey?: "pendingApplications" | "pendingInfluencerApplications" | "pendingBugReports";
   /** Hidden from Support and Read-Only staff -- these pages redirect them away server-side too (is_finance_staff()). */
   financeOnly?: boolean;
+  /** Restricted to Super Admin only. */
+  superAdminOnly?: boolean;
 };
 
 export type NavSection = {
@@ -64,10 +67,22 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
+    label: "Marketing & Social",
+    items: [
+      { label: "Email Control Center", href: "/marketing/email", icon: Mail, superAdminOnly: true },
+      { label: "Announcements", href: "/announcements", icon: Radio },
+      {
+        label: "Influencers",
+        href: "/influencers",
+        icon: Megaphone,
+        badgeKey: "pendingInfluencerApplications",
+      },
+    ],
+  },
+  {
     label: "Insights",
     items: [
       { label: "Rewards & Referrals", href: "/loyalty", icon: Gift },
-      { label: "Announcements", href: "/announcements", icon: Radio },
       { label: "Analytics", href: "/analytics", icon: BarChart3 },
       { label: "Tenant Health", href: "/health", icon: Activity },
       { label: "Reports", href: "/reports", icon: FileDown },
@@ -80,12 +95,6 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: "Platform Fees", href: "/platform-fees", icon: Wallet, financeOnly: true },
       { label: "Settlements", href: "/settlements", icon: Receipt, financeOnly: true },
       { label: "Pricing Plans", href: "/pricing", icon: Tags, financeOnly: true },
-      {
-        label: "Influencers",
-        href: "/influencers",
-        icon: Megaphone,
-        badgeKey: "pendingInfluencerApplications",
-      },
     ],
   },
   {

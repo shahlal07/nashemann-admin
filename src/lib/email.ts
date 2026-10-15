@@ -1,20 +1,76 @@
 import "server-only";
+import { createAdminClient } from "@/lib/supabase/admin";
 
-// Resend, called directly over fetch rather than through the `resend` SDK --
-// avoids adding a dependency for what is a single POST endpoint. Deliberately
-// best-effort throughout: a failed send here must never fail the real admin
-// action (application decision, settlement payment, staff invite, ...) it's
-// reporting on, since that side effect already succeeded server-side.
-// Errors are logged, not thrown.
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
-
 const FROM_NOTIFICATIONS = "Nashemann <notifications@nashemann.store>";
+const FROM_MARKETING = "Nashemann <marketing@nashemann.store>";
 const FROM_SUPPORT = "Nashemann Support <support@nashemann.store>";
 const FROM_STAFF = "Nashemann Staff <staff@nashemann.store>";
 const FROM_SECURITY = "Nashemann Security <security@nashemann.store>";
-
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://nashemann.store";
+
+export type InternalEmailCategory = "notifications" | "marketing" | "support" | "security" | "staff";
+type EmailStatus = "sent" | "failed" | "skipped";
+type EmailPolicy = {
+  categoryEnabled: Record<InternalEmailCategory, boolean>;
+  senderFrom: Record<InternalEmailCategory, string>;
+};
+
+const DEFAULT_ENABLED: Record<InternalEmailCategory, boolean> = {
+  notifications: true, marketing: true, support: true, security: true, staff: true,
+};
+const DEFAULT_SENDERS: Record<InternalEmailCategory, string> = {
+  notifications: "", marketing: "", support: "", security: "", staff: "",
+};
+const CATEGORY_LABELS: Record<InternalEmailCategory, string> = {
+  notifications: "Notifications", marketing: "Marketing", support: "Support", security: "Security", staff: "Staff",
+};
+const DEFAULT_FROM: Record<InternalEmailCategory, string> = {
+  notifications: FROM_NOTIFICATIONS, marketing: FROM_MARKETING, support: FROM_SUPPORT, security: FROM_SECURITY, staff: FROM_STAFF,
+};
+
+async function loadEmailPolicy(): Promise<EmailPolicy> {
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin.from("platform_email_settings")
+      .select("category_enabled,sender_from").eq("id", true).maybeSingle();
+    if (error) throw error;
+    return {
+      categoryEnabled: { ...DEFAULT_ENABLED, ...(data?.category_enabled ?? {}) },
+      senderFrom: { ...DEFAULT_SENDERS, ...(data?.sender_from ?? {}) },
+    };
+  } catch (error) {
+    console.error("[email] Could not load email policy; using safe defaults:", error);
+    return { categoryEnabled: { notifications: false, marketing: false, support: false, security: false, staff: false }, senderFrom: { ...DEFAULT_SENDERS } };
+  }
+}
+
+async function recordEmailEvent(params: {
+  category: InternalEmailCategory; source: string; to: string; subject: string;
+  status: EmailStatus; providerId?: string | null; errorMessage?: string | null;
+}) {
+  try {
+    const admin = createAdminClient();
+    const recipientDomain = params.to.split("@").pop()?.toLowerCase().slice(0, 253) ?? null;
+    const { error } = await admin.from("platform_email_log").insert({
+      category: params.category, source: params.source.slice(0, 80), recipient_domain: recipientDomain,
+      subject: params.subject.slice(0, 240), status: params.status, provider_id: params.providerId ?? null,
+      error_message: params.errorMessage?.slice(0, 1000) ?? null,
+    });
+    if (error) console.error("[email] Could not record email event:", error.message);
+  } catch (error) {
+    console.error("[email] Could not record email event:", error);
+  }
+}
+
+function inferCategory(from?: string): InternalEmailCategory {
+  if (from === FROM_MARKETING || /marketing@/i.test(from ?? "")) return "marketing";
+  if (from === FROM_SUPPORT || /support@/i.test(from ?? "")) return "support";
+  if (from === FROM_SECURITY || /security@/i.test(from ?? "")) return "security";
+  if (from === FROM_STAFF || /staff@/i.test(from ?? "")) return "staff";
+  return "notifications";
+}
 
 function htmlToText(html: string): string {
   return html
@@ -29,57 +85,58 @@ function htmlToText(html: string): string {
     .trim();
 }
 
-async function sendMail(params: { to: string; subject: string; html: string; from?: string }): Promise<boolean> {
-  if (!RESEND_API_KEY) {
-    console.warn(`[email] Skipped "${params.subject}" to ${params.to} -- RESEND_API_KEY not set.`);
+async function sendMail(params: {
+  to: string; subject: string; html: string; from?: string;
+  category?: InternalEmailCategory; source?: string;
+}): Promise<boolean> {
+  const category = params.category ?? inferCategory(params.from);
+  const source = params.source ?? "nashemann-admin";
+  const policy = await loadEmailPolicy();
+  if (policy.categoryEnabled[category] === false) {
+    await recordEmailEvent({ category, source, to: params.to, subject: params.subject, status: "skipped", errorMessage: "Email category disabled by Super Admin." });
+    console.info(`[email] Skipped "${params.subject}" because category "${category}" is disabled.`);
     return false;
   }
+
+  if (!RESEND_API_KEY) {
+    await recordEmailEvent({ category, source, to: params.to, subject: params.subject, status: "failed", errorMessage: "RESEND_API_KEY is not configured." });
+    console.warn(`[email] Skipped "${params.subject}" -- RESEND_API_KEY not set.`);
+    return false;
+  }
+
+  const configuredSender = policy.senderFrom[category];
+  const from = configuredSender && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(configuredSender)
+    ? `Nashemann ${CATEGORY_LABELS[category]} <${configuredSender}>`
+    : params.from ?? DEFAULT_FROM[category];
+
   try {
     const res = await fetch(RESEND_ENDPOINT, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: params.from ?? FROM_NOTIFICATIONS,
-        to: params.to,
-        subject: params.subject,
-        html: params.html,
-        text: htmlToText(params.html),
-      }),
+      headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from, to: params.to, subject: params.subject, html: params.html, text: htmlToText(params.html) }),
     });
     if (!res.ok) {
       const body = await res.text().catch(() => "");
-      console.error(`[email] Resend rejected "${params.subject}" to ${params.to}: ${res.status} ${body}`);
+      console.error(`[email] Resend rejected "${params.subject}": ${res.status} ${body}`);
+      await recordEmailEvent({ category, source, to: params.to, subject: params.subject, status: "failed", errorMessage: `Resend HTTP ${res.status}` });
       return false;
     }
+    const payload = await res.json().catch(() => ({}));
+    await recordEmailEvent({ category, source, to: params.to, subject: params.subject, status: "sent", providerId: typeof payload?.id === "string" ? payload.id : null });
     return true;
   } catch (err) {
-    console.error(`[email] Failed to send "${params.subject}" to ${params.to}:`, err);
+    console.error(`[email] Failed to send "${params.subject}":`, err);
+    await recordEmailEvent({ category, source, to: params.to, subject: params.subject, status: "failed", errorMessage: err instanceof Error ? err.message : "Network error" });
     return false;
   }
 }
 
-export type InternalEmailCategory = "notifications" | "support" | "security" | "staff";
-
 export async function sendInternalTransactionalEmail(params: {
-  to: string;
-  subject: string;
-  html: string;
-  category?: InternalEmailCategory;
+  to: string; subject: string; html: string; category?: InternalEmailCategory; source?: string;
 }): Promise<boolean> {
-  const fromByCategory: Record<InternalEmailCategory, string> = {
-    notifications: FROM_NOTIFICATIONS,
-    support: FROM_SUPPORT,
-    security: FROM_SECURITY,
-    staff: FROM_STAFF,
-  };
   return sendMail({
-    to: params.to,
-    subject: params.subject,
-    html: params.html,
-    from: fromByCategory[params.category ?? "notifications"],
+    to: params.to, subject: params.subject, html: params.html,
+    category: params.category ?? "notifications", source: params.source ?? "external",
   });
 }
 
@@ -148,7 +205,7 @@ export async function sendSupportReplyEmail(params: {
     <p>Sign in to your Nashemann account if you need to continue the conversation.</p>
     ${button("https://nashemann.store/account", "Open your account")}
   `);
-  await sendMail({ to: params.to, subject: "New reply from Nashemann Support", html });
+  await sendMail({ to: params.to, subject: "New reply from Nashemann Support", html, category: "support" });
 }
 
 export async function sendSettlementPaidEmail(params: {
@@ -183,7 +240,7 @@ export async function sendAnnouncementEmail(params: {
     <h2 style="margin-top:12px;">${params.title}</h2>
     <p style="white-space:pre-wrap;">${params.message}</p>
   `);
-  await sendMail({ to: params.to, subject: params.title, html });
+  await sendMail({ to: params.to, subject: params.title, html, category: "marketing" });
 }
 
 export async function sendStaffInviteEmail(params: { to: string; name: string; roleLabel: string; setPasswordUrl: string }): Promise<void> {
@@ -194,7 +251,7 @@ export async function sendStaffInviteEmail(params: { to: string; name: string; r
     ${button(params.setPasswordUrl, "Set your password")}
     <p style="margin-top:18px;color:#6b7280;font-size:13px;">This link expires soon -- if it's stopped working, ask a super admin to resend your invite.</p>
   `);
-  await sendMail({ to: params.to, subject: "You've been invited to Nashemann Admin", html, from: FROM_STAFF });
+  await sendMail({ to: params.to, subject: "You've been invited to Nashemann Admin", html, from: FROM_STAFF, category: "staff" });
 }
 
 export async function sendAccountEmailChangedNotice(params: { to: string; newEmail: string; isOldAddress: boolean }): Promise<void> {
@@ -216,6 +273,7 @@ export async function sendAccountEmailChangedNotice(params: { to: string; newEma
     subject: "Your Nashemann account email was changed",
     html,
     from: FROM_SECURITY,
+    category: "security",
   });
 }
 
@@ -240,7 +298,7 @@ export async function sendVendorAdminCredentialsChangedEmail(params: {
     ${button(params.adminUrl, "Open vendor admin")}
     <p style="margin-top:18px;color:#6b7280;font-size:13px;">If you did not expect this change, contact the Nashemann platform team.</p>
   `);
-  await sendMail({ to: params.to, subject: `${params.storeName} admin credentials updated`, html, from: FROM_SECURITY });
+  await sendMail({ to: params.to, subject: `${params.storeName} admin credentials updated`, html, from: FROM_SECURITY, category: "security" });
 }
 
 export async function sendVendorAdminPasswordResetEmail(params: {

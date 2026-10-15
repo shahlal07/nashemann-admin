@@ -73,7 +73,7 @@ export function Sidebar({ mobile = false, onNavigate }: { mobile?: boolean; onNa
   const canSeeFinance = role ? FINANCE_ROLES.includes(role) : true; // default open while loading to avoid a layout flash
   const visibleSections = NAV_SECTIONS.map((s) => ({
     ...s,
-    items: s.items.filter((item) => !item.financeOnly || canSeeFinance),
+    items: s.items.filter((item) => (!item.financeOnly || canSeeFinance) && (!item.superAdminOnly || role === "super_admin")),
   })).filter((s) => s.items.length > 0);
 
   // Sections start collapsed except whichever one contains the current page.
