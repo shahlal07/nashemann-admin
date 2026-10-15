@@ -17,7 +17,7 @@ export async function requireFounder(requiredCapability?: FounderCapability, req
     error: userError,
   } = await supabase.auth.getUser();
 
-  if (userError || !user) redirect("/login");
+  if (userError || !user) redirect("/owners/login");
 
   const { data, error } = await supabase
     .from("owner_memberships")
