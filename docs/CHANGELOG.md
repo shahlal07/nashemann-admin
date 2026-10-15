@@ -2,6 +2,15 @@
 
 Record meaningful changes newest first: date, task, repos, summary, PR/commit, tests/evidence, risks and next action.
 
+## 2026-10-15 — Co-Founder Platform live schema discovery
+- **Task:** BRAIN-011; issue #15; draft PR #16.
+- **Repository / service:** `nashemann-admin` documentation branch and connected Supabase project `eznxsosvsgkhexbjoolh`.
+- **Change:** Updated `docs/COFOUNDER_PLATFORM_INTEGRATION.md` with evidence from read-only database inspection.
+- **Evidence:** A targeted `information_schema.tables` query across `public` and `private` found no base tables matching founder, owner, decision, approval, governance, company_task, or action_item. Catalog inspection confirmed existing `is_staff()`, `is_finance_staff()`, and `is_mutating_staff()` functions are SECURITY DEFINER. The existing `staff_profiles` policies and finance/settlement policies were reviewed for context.
+- **Verification:** Read-only SQL only. No rows, roles, policies, schema, or production settings changed. No application tests run.
+- **Risk:** This targeted search does not prove no suitable table exists under a different name. Full schema/RLS/grant review and migration-history comparison remain necessary before designing a migration.
+- **Next:** Complete the authorization/schema inventory, confirm founder permission matrix, then integrate Kimi's actual code against the real app structure.
+
 ## 2026-10-15 — Co-Founder Platform integration plan
 - **Task:** BRAIN-011.
 - **Repositories:** Cross-repository planning; initial implementation target proposed as shahlal07/nashemann-admin.
