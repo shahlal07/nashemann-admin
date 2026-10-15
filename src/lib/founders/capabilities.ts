@@ -7,6 +7,7 @@ export const FOUNDER_CAPABILITIES = [
   "governance.read",
   "governance.manage",
   "approvals.read",
+  "approvals.request",
   "approvals.review",
   "finance.read",
   "finance.manage",
