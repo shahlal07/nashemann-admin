@@ -173,6 +173,19 @@ When Kimi's output arrives:
 
 Until these are confirmed, implement only reversible UI foundations and read-only work that does not widen permissions.
 
-## 11. Verification status
+## 11. Implementation progress — 2026-10-15
 
-This document records a plan based on source files inspected in GitHub and the read-only database discovery above. No owner route, database schema, permission, deployment, or production behavior has been changed. The code changes and security tests described above remain pending.
+A first application-code foundation has been committed on branch `feature/cofounder-workspace-foundation`:
+
+- Added `src/lib/founders/capabilities.ts` with an explicit founder capability/responsibility allowlist, separate from `StaffRole`.
+- Added `src/lib/founders/authz.ts` with a server-only `requireFounder()` guard. It resolves the current Supabase user, checks an active `owner_memberships` row, checks required capabilities, and fails closed if the query/schema/membership is unavailable.
+- Added a separate `/owners` route group with an owner workspace shell and capability-protected overview, decisions, approvals, finance, and technology pages. Modules show explicit “not connected” states rather than fabricated data.
+- Added safe access and forbidden states outside the existing staff admin shell.
+- Added `_migrations/2026-10-15_cofounder_workspace_foundation.sql` defining the founder membership table, allowed responsibility/capability values, default-pending activation, RLS limited to self-read and Super Admin management, and an append-only audit trail for membership changes.
+- Adjusted `AppChrome` only for the new access/forbidden routes. Existing admin routes and `StaffRole` definitions were not changed.
+
+**Not yet done:** The SQL migration has not been applied to Supabase; no founder membership has been provisioned; no Kimi UI files have been received; decision/approval CRUD, Super Admin membership management UI, real finance/technology data adapters, and integration tests remain pending. This first pass is a guarded scaffold, not a production-ready owner platform.
+
+## 12. Verification status
+
+GitHub accepted the source commits. Automated lint/build/typecheck and database migration tests have not run in this environment: outbound GitHub access from the execution container was unavailable, and the repository has no dedicated test script in `package.json`. The migration and source code require review and CI evidence before merge or deployment. No live database schema, permission, deployment, or production behavior has been changed.
