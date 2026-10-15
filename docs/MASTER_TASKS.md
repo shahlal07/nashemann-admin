@@ -20,7 +20,10 @@ Use this shared view for cross-repository priorities. Detailed technical discuss
 - Plan: [docs/COFOUNDER_PLATFORM_INTEGRATION.md](COFOUNDER_PLATFORM_INTEGRATION.md)
 - Issue: [nashemann-admin #15](https://github.com/shahlal07/nashemann-admin/issues/15)
 - Planning branch: `product/cofounder-platform-alignment`
-- Current scope: architecture, permission boundaries, and integration readiness. No application code, schema, role, or production behavior has changed in this task yet.
+- Implementation branch: `finance/BRAIN-011-owner-workspace-foundation`
+- Live schema discovery: owner membership/decision/approval/audit tables and owner capability/domain functions exist in Supabase; current owner membership count is 0.
+- Implemented on branch: separate owner login and shell, server-side active-membership guard, RLS-backed live overview, and Super Admin-only account provisioning with selected capabilities and rollback attempt if membership insertion fails.
+- Not yet verified: lint/typecheck/build, preview auth tests, provisioning against live RLS/triggers, account suspension/revocation, approval quorum rules, or deployment. Do not merge or deploy until CI/preview evidence is reviewed.
 - Acceptance includes confirmed founder responsibilities and approval rules, server-side owner authorization, unchanged Super Admin behavior, preserved tenant isolation, auditability, and actual test evidence.
 
 ## Previously reported repo issues — verify live status
