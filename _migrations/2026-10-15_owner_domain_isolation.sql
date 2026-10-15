@@ -253,7 +253,7 @@ create table if not exists public.owner_governance_audit (
     'business_strategy', 'operations'
   )),
   actor_user_id uuid references auth.users(id) on delete set null,
-  action text not null check (action in ('INSERT', 'UPDATE')),
+  operation text not null check (operation in ('INSERT', 'UPDATE')),
   old_record jsonb,
   new_record jsonb,
   created_at timestamptz not null default now()
@@ -281,12 +281,12 @@ set search_path = public, pg_temp
 as $$
 begin
   if tg_op = 'INSERT' then
-    insert into public.owner_governance_audit(entity_type, entity_id, domain, actor_user_id, action, new_record)
+    insert into public.owner_governance_audit(entity_type, entity_id, domain, actor_user_id, operation, new_record)
     values (case when tg_table_name = 'owner_decisions' then 'decision' else 'approval' end, new.id, new.domain, auth.uid(), tg_op, to_jsonb(new));
     return new;
   end if;
 
-  insert into public.owner_governance_audit(entity_type, entity_id, domain, actor_user_id, action, old_record, new_record)
+  insert into public.owner_governance_audit(entity_type, entity_id, domain, actor_user_id, operation, old_record, new_record)
   values (case when tg_table_name = 'owner_decisions' then 'decision' else 'approval' end, new.id, old.domain, auth.uid(), tg_op, to_jsonb(old), to_jsonb(new));
   return new;
 end;
