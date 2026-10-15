@@ -1,5 +1,6 @@
 import { FileText } from "lucide-react";
 import { requireFounder } from "@/lib/founders/authz";
+import { DecisionCreateForm } from "./DecisionCreateForm";
 
 const domainLabels: Record<string, string> = {
   shared_governance: "Shared governance",
@@ -11,6 +12,13 @@ const domainLabels: Record<string, string> = {
 
 export default async function FounderDecisionsPage() {
   const { supabase, membership } = await requireFounder("governance.read");
+  const creatableDomains = membership.responsibilities.filter((domain) =>
+    domain === "product_technology"
+      ? membership.capabilities.includes("technology.manage")
+      : domain === "business_strategy"
+        ? membership.capabilities.includes("strategy.manage")
+        : membership.capabilities.includes("governance.manage"),
+  );
   const { data, error } = await (supabase.from("owner_decisions") as any)
     .select("id, title, summary, domain, status, created_at")
     .order("created_at", { ascending: false })
@@ -30,6 +38,8 @@ export default async function FounderDecisionsPage() {
           </span>
         ))}
       </div>
+
+      <DecisionCreateForm domains={creatableDomains} />
 
       {error ? (
         <div className="mt-8 rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-8">
