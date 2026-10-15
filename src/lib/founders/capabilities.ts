@@ -33,6 +33,7 @@ export type FounderResponsibility = (typeof FOUNDER_RESPONSIBILITIES)[number];
 
 export type FounderMembership = {
   user_id: string;
+  username: string | null;
   display_name: string | null;
   status: "pending" | "active" | "suspended";
   responsibilities: FounderResponsibility[];
