@@ -113,16 +113,7 @@ create policy owner_membership_audit_read_authorized
   on public.owner_membership_audit
   for select
   to authenticated
-  using (
-    public.is_super_admin()
-    or exists (
-      select 1
-      from public.owner_memberships membership
-      where membership.user_id = auth.uid()
-        and membership.status = 'active'
-        and membership.capabilities @> array['audit.read']::text[]
-    )
-  );
+  using (public.is_super_admin());
 
 grant select on public.owner_membership_audit to authenticated;
 revoke insert, update, delete on public.owner_membership_audit from anon, authenticated;
