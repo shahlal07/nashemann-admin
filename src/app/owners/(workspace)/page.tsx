@@ -91,7 +91,7 @@ export default async function FounderOverviewPage() {
               <Link
                 key={href}
                 href={href}
-                className="group rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 transition-colors hover:border-[var(--accent)]/40 hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] sm:p-6"
+                className="group rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 transition-colors hover:border-[var(--accent-violet)]/40 hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-violet)] sm:p-6"
               >
                 <div className="flex items-start justify-between gap-4">
                   <span className="grid size-11 place-items-center rounded-xl bg-[var(--surface-hover)] text-[var(--accent-violet-deep)]">
