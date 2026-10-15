@@ -23,6 +23,7 @@ import {
   Headset,
   UserCircle,
   Wallet,
+  Mail,
 } from "lucide-react";
 
 export type NavItem = {
@@ -64,10 +65,22 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
+    label: "Marketing & Social",
+    items: [
+      { label: "Email Control Center", href: "/marketing/email", icon: Mail },
+      { label: "Announcements", href: "/announcements", icon: Radio },
+      {
+        label: "Influencers",
+        href: "/influencers",
+        icon: Megaphone,
+        badgeKey: "pendingInfluencerApplications",
+      },
+    ],
+  },
+  {
     label: "Insights",
     items: [
       { label: "Rewards & Referrals", href: "/loyalty", icon: Gift },
-      { label: "Announcements", href: "/announcements", icon: Radio },
       { label: "Analytics", href: "/analytics", icon: BarChart3 },
       { label: "Tenant Health", href: "/health", icon: Activity },
       { label: "Reports", href: "/reports", icon: FileDown },
@@ -80,12 +93,6 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: "Platform Fees", href: "/platform-fees", icon: Wallet, financeOnly: true },
       { label: "Settlements", href: "/settlements", icon: Receipt, financeOnly: true },
       { label: "Pricing Plans", href: "/pricing", icon: Tags, financeOnly: true },
-      {
-        label: "Influencers",
-        href: "/influencers",
-        icon: Megaphone,
-        badgeKey: "pendingInfluencerApplications",
-      },
     ],
   },
   {
