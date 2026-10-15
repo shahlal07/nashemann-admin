@@ -25,11 +25,12 @@ export async function requireOwner(capability?: string) {
 
   if (!user) redirect("/owner-login");
 
-  const { data: membership, error } = await supabase
+  const { data: rawMembership, error } = await supabase
     .from("owner_memberships")
     .select("user_id, username, display_name, status, responsibilities, capabilities")
     .eq("user_id", user.id)
-    .maybeSingle<OwnerMembership>();
+    .maybeSingle();
+  const membership = rawMembership as OwnerMembership | null;
 
   if (error || !membership || membership.status !== "active") {
     redirect("/owner-login?error=not-authorized");
