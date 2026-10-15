@@ -299,7 +299,7 @@ begin
   new.updated_by = auth.uid();
   return new;
 end;
-$;
+$$;
 
 drop trigger if exists owner_decisions_updated_at_trigger on public.owner_decisions;
 create trigger owner_decisions_updated_at_trigger
