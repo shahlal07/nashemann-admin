@@ -160,7 +160,7 @@ export async function updateOwnerAction(userId: string, input: OwnerInput) {
   }
 
   let sessionRevocationWarning: string | null = null;
-  if (clean.status === "suspended") {
+  if (clean.status === "suspended" || clean.password) {
     const { error: signOutError } = await admin.auth.admin.signOut(userId, "global");
     if (signOutError) sessionRevocationWarning = signOutError.message;
   }
