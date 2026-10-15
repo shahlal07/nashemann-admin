@@ -29,6 +29,7 @@ type EmailRow = {
 type Payload = {
   settings: { categoryEnabled: Record<Category, boolean>; senderFrom: Record<Category, string>; updatedAt: string | null };
   domains: Domain[];
+  quota: { emailsUsed: number | null; emailsLimit: number | null; emailsResetsAt: string | null; domainsUsed: number | null; domainsLimit: number | null };
   metrics: { sentTotal: number; sentToday: number; sentMonth: number; failedMonth: number; skippedMonth: number; byCategory: Record<Category, number>; bySource: Record<string, number> };
   recent: EmailRow[];
 };
@@ -170,6 +171,26 @@ export function EmailCenterClient() {
           </Card>
         ))}
       </div>
+
+      <Card>
+        <CardHeader title="Resend account quota" description="Live provider usage across this Resend account, including any sends not recorded by this panel." />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-[var(--border)] p-4">
+            <p className="text-xs text-[var(--text-muted)]">Monthly emails used</p>
+            <p className="mt-2 font-display text-2xl font-semibold text-[var(--text)]">
+              {loading ? "—" : data?.quota?.emailsUsed == null ? "Unavailable" : `${data.quota.emailsUsed.toLocaleString()} / ${data.quota.emailsLimit?.toLocaleString() ?? "—"}`}
+            </p>
+            {data?.quota?.emailsResetsAt && <p className="mt-1 text-xs text-[var(--text-faint)]">Quota resets: {new Date(data.quota.emailsResetsAt).toLocaleString()}</p>}
+          </div>
+          <div className="rounded-xl border border-[var(--border)] p-4">
+            <p className="text-xs text-[var(--text-muted)]">Sending domains used</p>
+            <p className="mt-2 font-display text-2xl font-semibold text-[var(--text)]">
+              {loading ? "—" : data?.quota?.domainsUsed == null ? "Unavailable" : `${data.quota.domainsUsed.toLocaleString()} / ${data.quota.domainsLimit?.toLocaleString() ?? "—"}`}
+            </p>
+            <p className="mt-1 text-xs text-[var(--text-faint)]">Domain limit is controlled by your Resend plan.</p>
+          </div>
+        </div>
+      </Card>
 
       <Card>
         <CardHeader title="Accepted sends by app" description="All logged sends since this control center was enabled, grouped by the app that requested them." />
