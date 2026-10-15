@@ -33,7 +33,7 @@ language sql
 stable
 security definer
 set search_path = public, private, pg_temp
-as $
+as $$
   select exists (
     select 1
     from public.owner_memberships m
