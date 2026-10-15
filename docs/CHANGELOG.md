@@ -1,3 +1,14 @@
+## 2026-10-15 — Co-Founder workspace implementation foundation
+
+- **Task:** BRAIN-011; implementation branch `feature/cofounder-workspace-foundation`.
+- **Repository:** `shahlal07/nashemann-admin`.
+- **Change:** Added separate founder capability types and a fail-closed Supabase membership guard; introduced an isolated `/owners` route group, responsive workspace shell, protected read-only module placeholders, access and forbidden states; updated `AppChrome` only for the new access-state routes.
+- **Database source:** Added `_migrations/2026-10-15_cofounder_workspace_foundation.sql` with owner membership, explicit allowlists, RLS, Super Admin-only membership writes, and a trigger-backed membership audit table. **Migration has not been applied to the connected Supabase project.**
+- **Preserved:** existing staff roles and staff authorization helpers; no live memberships or founder permissions were created; no financial records or pricing were changed.
+- **Verification:** GitHub accepted source commits. Automated lint/build/typecheck/SQL migration tests were not run. An attempted local clone failed because the execution container could not resolve github.com; `package.json` has no dedicated test script.
+- **Limitations:** Kimi UI not yet received; dashboard uses clearly labeled placeholders; approval/decision writes, Super Admin provisioning UI, live data adapters, and end-to-end tests remain pending.
+- **Next:** review the branch, run CI and SQL migration validation, confirm founder permissions, then merge/deploy only after approval.
+
 # Shared Project Changelog
 
 Record meaningful changes newest first: date, task, repos, summary, PR/commit, tests/evidence, risks and next action.
