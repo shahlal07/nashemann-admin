@@ -232,6 +232,10 @@ create table if not exists public.owner_governance_audit (
   id bigint generated always as identity primary key,
   entity_type text not null check (entity_type in ('decision', 'approval')),
   entity_id uuid not null,
+  domain text not null check (domain in (
+    'shared_governance', 'finance_governance', 'product_technology',
+    'business_strategy', 'operations'
+  )),
   actor_user_id uuid references auth.users(id) on delete set null,
   action text not null check (action in ('INSERT', 'UPDATE')),
   old_record jsonb,
@@ -245,7 +249,10 @@ create policy owner_governance_audit_read_authorized on public.owner_governance_
   for select to authenticated
   using (
     public.is_super_admin()
-    or public.has_owner_capability('audit.read')
+    or (
+      public.has_owner_capability('audit.read')
+      and public.has_owner_domain_access(domain)
+    )
   );
 revoke all on public.owner_governance_audit from anon, authenticated;
 grant select on public.owner_governance_audit to authenticated;
@@ -258,13 +265,13 @@ set search_path = public, pg_temp
 as $$
 begin
   if tg_op = 'INSERT' then
-    insert into public.owner_governance_audit(entity_type, entity_id, actor_user_id, action, new_record)
-    values (case when tg_table_name = 'owner_decisions' then 'decision' else 'approval' end, new.id, auth.uid(), tg_op, to_jsonb(new));
+    insert into public.owner_governance_audit(entity_type, entity_id, domain, actor_user_id, action, new_record)
+    values (case when tg_table_name = 'owner_decisions' then 'decision' else 'approval' end, new.id, new.domain, auth.uid(), tg_op, to_jsonb(new));
     return new;
   end if;
 
-  insert into public.owner_governance_audit(entity_type, entity_id, actor_user_id, action, old_record, new_record)
-  values (case when tg_table_name = 'owner_decisions' then 'decision' else 'approval' end, new.id, auth.uid(), tg_op, to_jsonb(old), to_jsonb(new));
+  insert into public.owner_governance_audit(entity_type, entity_id, domain, actor_user_id, action, old_record, new_record)
+  values (case when tg_table_name = 'owner_decisions' then 'decision' else 'approval' end, new.id, old.domain, auth.uid(), tg_op, to_jsonb(old), to_jsonb(new));
   return new;
 end;
 $$;
@@ -285,11 +292,14 @@ language plpgsql
 set search_path = public, pg_temp
 as $$
 begin
+  if new.domain <> old.domain then
+    raise exception 'A decision domain cannot be changed after creation';
+  end if;
   new.updated_at = now();
   new.updated_by = auth.uid();
   return new;
 end;
-$$;
+$;
 
 drop trigger if exists owner_decisions_updated_at_trigger on public.owner_decisions;
 create trigger owner_decisions_updated_at_trigger
