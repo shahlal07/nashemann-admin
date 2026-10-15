@@ -51,6 +51,65 @@ async function loadUsage() {
   }
 }
 
+/**
+ * The log table records mail sent through the internal relay, but operators
+ * can also send messages directly through Resend. Reconcile the latest
+ * provider-accepted messages so the dashboard does not misleadingly remain
+ * at zero when those sends are absent from the local log. Full recipient
+ * addresses are intentionally not persisted; the log stores only domains.
+ */
+async function syncRecentProviderEmails(admin: ReturnType<typeof createAdminClient>) {
+  try {
+    const payload = await resendRequest("/emails?limit=100");
+    const emails = Array.isArray(payload?.data) ? payload.data : [];
+    const providerIds = emails
+      .map((email: any) => typeof email?.id === "string" ? email.id : null)
+      .filter((id: string | null): id is string => Boolean(id));
+    if (!providerIds.length) return;
+
+    const { data: existing, error: existingError } = await admin
+      .from("platform_email_log")
+      .select("provider_id")
+      .in("provider_id", providerIds);
+    if (existingError) {
+      console.error("[email-center] Could not check provider email sync:", existingError.message);
+      return;
+    }
+    const knownIds = new Set((existing ?? []).map((row: { provider_id: string | null }) => row.provider_id).filter(Boolean));
+
+    const rows = emails.flatMap((email: any) => {
+      const id = typeof email?.id === "string" ? email.id : null;
+      if (!id || knownIds.has(id)) return [];
+      const to = Array.isArray(email?.to) ? email.to[0] : email?.to;
+      const recipientDomain = typeof to === "string" && to.includes("@")
+        ? to.split("@").pop()?.toLowerCase().slice(0, 253) ?? null
+        : null;
+      const from = typeof email?.from === "string" ? email.from : "";
+      const category: EmailCategory = /marketing@/i.test(from) ? "marketing"
+        : /support@/i.test(from) ? "support"
+        : /security@/i.test(from) ? "security"
+        : /staff@/i.test(from) ? "staff"
+        : "notifications";
+      return [{
+        category,
+        source: "external",
+        recipient_domain: recipientDomain,
+        subject: typeof email?.subject === "string" ? email.subject.slice(0, 240) : "",
+        status: "sent",
+        provider_id: id,
+        created_at: typeof email?.created_at === "string" ? email.created_at : new Date().toISOString(),
+      }];
+    });
+    if (rows.length) {
+      const { error } = await admin.from("platform_email_log").insert(rows);
+      if (error) console.error("[email-center] Could not import provider-accepted emails:", error.message);
+    }
+  } catch (error) {
+    // The local mail log remains usable if Resend history is temporarily unavailable.
+    console.error("[email-center] Provider email reconciliation failed:", error);
+  }
+}
+
 async function loadDomains() {
   const payload = await resendRequest("/domains?limit=100");
   const domains = Array.isArray(payload?.data) ? payload.data : [];
@@ -81,6 +140,7 @@ export async function GET() {
 
   try {
     const admin = createAdminClient();
+    await syncRecentProviderEmails(admin);
     const [settingsResult, domains, usagePayload, sentTotal, sentToday, sentMonth, failedMonth, skippedMonth, recentResult, ...categoryCounts] =
       await Promise.all([
         admin.from("platform_email_settings").select("category_enabled,sender_from,updated_at").eq("id", true).maybeSingle(),
