@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import {
   ArrowUpRight,
   Bell,
   CheckSquare,
+  LogOut,
   CircleDollarSign,
   Compass,
   FileText,
@@ -36,6 +38,14 @@ export function FounderShell({
   responsibilities,
 }: FounderShellProps) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  async function handleSignOut() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.replace("/owners/login");
+    router.refresh();
+  }
   const visibleItems = NAV_ITEMS.filter((item) => capabilities.includes(item.capability));
 
   return (
