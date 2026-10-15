@@ -173,6 +173,25 @@ When Kimi's output arrives:
 
 Until these are confirmed, implement only reversible UI foundations and read-only work that does not widen permissions.
 
-## 11. Verification status
+## 11. Implementation progress — 2026-10-15
 
-This document records a plan based on source files inspected in GitHub and the read-only database discovery above. No owner route, database schema, permission, deployment, or production behavior has been changed. The code changes and security tests described above remain pending.
+A first application-code foundation has been committed on branch `feature/cofounder-workspace-foundation`:
+
+- Added `src/lib/founders/capabilities.ts` with an explicit founder capability/responsibility allowlist, separate from `StaffRole`.
+- Added `src/lib/founders/authz.ts` with a server-only `requireFounder()` guard. It resolves the current Supabase user, checks an active `owner_memberships` row, checks required capabilities, and fails closed if the query/schema/membership is unavailable.
+- Added a separate `/owners` route group with an owner workspace shell and capability-protected overview, decisions, approvals, finance, and technology pages. Modules show explicit “not connected” states rather than fabricated data.
+- Added safe access and forbidden states outside the existing staff admin shell.
+- Added `_migrations/2026-10-15_cofounder_workspace_foundation.sql` defining the founder membership table, allowed responsibility/capability values, default-pending activation, RLS limited to self-read and Super Admin management, and an append-only audit trail for membership changes.
+- Adjusted `AppChrome` only for the new access/forbidden routes. Existing admin routes and `StaffRole` definitions were not changed.
+
+**Follow-up implementation on this branch:** Added `/owners/login` using the existing Supabase Auth credentials, with a separate `owner_memberships` status check; updated the access page to use owner login; added domain-scoped decision/approval read views and a second migration defining domain-filtered RLS, approval self-review prevention, and governance audit rows. Added `docs/OWNER_ACCESS_BOUNDARIES.md` to the public web and both vendor repositories on separate security branches. The existing vendor-admin DAL already requires `profiles.role` to be `admin` or `staff`, a non-null `vendor_id`, and an active vendor; owner membership does not satisfy those checks.
+
+**Follow-up implementation:** Added the Super Admin-only `/owner-accounts` panel for up to three owner accounts, username aliases, recovery email, initial/reset password, membership status, responsibility domains, and capabilities. Owner passwords are managed only by Supabase Auth and never stored in owner tables. Added live settlement/pricing reporting, GitHub repository/workflow metadata support, real decision creation, and approval request/review flows. Added strategy and operations domain registers and a dedicated owner sign-out control.
+
+**Database state:** The three owner migrations were applied to the connected Supabase project after a successful transaction-wrapped syntax test. The hardening migration moves security-definer owner helper functions into the non-exposed `private` schema. Post-migration read-only checks confirm the owner tables exist and currently contain zero owner memberships, zero decisions, and zero approval requests. Existing settlement data remains untouched.
+
+**Still not done:** No owner accounts have been provisioned because the Super Admin panel is not yet deployed and the three owners' contact emails/usernames/passwords have not been entered. Kimi's actual dashboard UI code was not included in the uploaded file; the upload contains the implementation blueprint text, so that UI has not been integrated. GitHub runtime health needs `GITHUB_TOKEN` or `GITHUB_PERSONAL_ACCESS_TOKEN` configured in the server environment. Production lint/build/typecheck and authorization regression tests remain pending. This is not yet a production-ready release.
+
+## 12. Verification status
+
+GitHub accepted the source commits. Automated lint/build/typecheck and database migration tests have not run in this environment: outbound GitHub access from the execution container was unavailable, and the repository has no dedicated test script in `package.json`. The migration and source code require review and CI evidence before merge or deployment. No live database schema, permission, deployment, or production behavior has been changed.

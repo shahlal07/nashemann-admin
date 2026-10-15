@@ -64,9 +64,11 @@ export function EmailCenterClient() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const load = useCallback(async (showLoading = true) => {
+    if (showLoading) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const response = await fetch("/api/platform/email", { cache: "no-store" });
       const result = await response.json();
@@ -79,7 +81,8 @@ export function EmailCenterClient() {
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- load(false) awaits the network before changing state.
+  useEffect(() => { void load(false); }, [load]);
 
   async function saveSettings() {
     if (!data) return;

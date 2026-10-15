@@ -1,3 +1,14 @@
+## 2026-10-15 — Co-Founder workspace implementation foundation
+
+- **Task:** BRAIN-011; implementation branch `feature/cofounder-workspace-foundation`.
+- **Repository:** `shahlal07/nashemann-admin`.
+- **Change:** Added separate founder capability types and a fail-closed Supabase membership guard; introduced an isolated `/owners` route group, responsive workspace shell, protected read-only module placeholders, access and forbidden states; updated `AppChrome` only for the new access-state routes.
+- **Database source:** Added `_migrations/2026-10-15_cofounder_workspace_foundation.sql` with owner membership, explicit allowlists, RLS, Super Admin-only membership writes, and a trigger-backed membership audit table. **Migration has not been applied to the connected Supabase project.**
+- **Preserved:** existing staff roles and staff authorization helpers; no live memberships or founder permissions were created; no financial records or pricing were changed.
+- **Verification:** GitHub accepted source commits. Automated lint/build/typecheck/SQL migration tests were not run. An attempted local clone failed because the execution container could not resolve github.com; `package.json` has no dedicated test script.
+- **Limitations:** Kimi UI not yet received; dashboard uses clearly labeled placeholders; approval/decision writes, Super Admin provisioning UI, live data adapters, and end-to-end tests remain pending.
+- **Next:** review the branch, run CI and SQL migration validation, confirm founder permissions, then merge/deploy only after approval.
+
 # Shared Project Changelog
 
 Record meaningful changes newest first: date, task, repos, summary, PR/commit, tests/evidence, risks and next action.
@@ -25,3 +36,21 @@ Record meaningful changes newest first: date, task, repos, summary, PR/commit, t
 - **Change:** Added shared entry point, repository map, status ledger, master task backlog, architecture discovery, decisions, finance guardrails, release checklist and owner workflow.
 - **Verification:** Documentation commits acknowledged by GitHub. Application code, integrations and deployment settings were not audited as part of creating this brain.
 - **Next:** Audit all four active repositories and replace unknown status with evidence-backed findings.
+
+
+## 2026-10-15 — Owner login and domain isolation follow-up
+- Added a dedicated `/owners/login` page using the existing Supabase Auth session, with a separate active owner-membership check; staff login remains unchanged.
+- Added a proposed owner-domain migration for RLS-scoped decisions/approvals, non-self-review checks, and domain-scoped governance audit events.
+- Connected the decisions and approvals pages to RLS-filtered read queries with fail-closed unavailable states.
+- Added owner access boundary docs in draft PRs across the other three active repositories.
+- No production schema, membership, credentials, or deployment state changed. Lint/build/typecheck and SQL tests remain unrun.
+
+
+## 2026-10-15 — Super Admin owner provisioning and live domain data
+- Added the Super Admin-only Owner Accounts panel to provision/manage up to three owners with username aliases, recovery email, initial/reset passwords, active/pending/suspended status, responsibility domains, and capabilities.
+- Owner passwords are managed only by Supabase Auth; they are never stored in owner membership rows. Suspension and password reset attempt to revoke existing sessions.
+- Replaced owner finance placeholders with real Supabase settlement and platform-pricing reads, including visible billing-data quality warnings and no invented profit/reserve totals.
+- Added real decision creation, approval request/review flows, strategy and operations registers, and live GitHub repository/workflow health integration when a server-side token is configured.
+- Added domain-specific RLS for finance, strategy, technology, operations, decisions, approvals, and governance audit; moved security-definer owner helper functions to the non-exposed `private` schema.
+- Applied three owner migrations to the connected Supabase project after a transaction-wrapped syntax test. Confirmed owner tables exist and are currently empty. Existing billing rows were not changed.
+- App lint/build/typecheck and end-to-end authorization tests remain pending. The uploaded attachment was blueprint text rather than Kimi's UI source, so that UI still needs to be supplied and integrated.

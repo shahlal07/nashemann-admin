@@ -24,6 +24,7 @@ import {
   UserCircle,
   Wallet,
   Mail,
+  ShieldCheck,
 } from "lucide-react";
 
 export type NavItem = {
@@ -104,6 +105,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: "Website Content", href: "/website", icon: Globe },
       { label: "Platform Settings", href: "/settings", icon: Settings },
       { label: "Staff", href: "/staff", icon: Users },
+      { label: "Owner Accounts", href: "/owner-accounts", icon: ShieldCheck, superAdminOnly: true },
       { label: "Audit Log", href: "/audit-log", icon: ScrollText },
     ],
   },
