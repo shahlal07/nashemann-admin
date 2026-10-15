@@ -33,3 +33,10 @@ These links come from prior project notes; check live status before relying on t
 
 ## Required fields for new tasks
 Task ID, priority, owner role, target repo(s), scope/non-goals, dependencies/risks, acceptance criteria, tests required, issue/branch/PR links, status, last update and next action.
+## BRAIN-011 implementation update — 2026-10-15
+
+- **Implementation branch:** `feature/cofounder-workspace-foundation`
+- **Files added:** `src/lib/founders/capabilities.ts`, `src/lib/founders/authz.ts`, `src/components/FounderShell.tsx`, owner workspace routes under `src/app/owners/`, and `_migrations/2026-10-15_cofounder_workspace_foundation.sql`.
+- **Security model:** distinct from staff roles; active membership required; capability checks server-side; migration defaults memberships to pending; only existing Super Admin may provision/change memberships; membership changes are audited by trigger.
+- **Not done:** migration not applied; no founders provisioned; no Kimi UI integrated; no decision/approval mutations; no live data adapters; tests not run.
+- **Review requirement:** source and SQL need review and automated CI before merge. Do not deploy or apply migration based on source commits alone.
