@@ -6,9 +6,10 @@ import { getRepositoryHealth } from "@/lib/founders/github-health";
 const MODULES = [
   { href: "/owners/decisions", title: "Company decisions", description: "Documented decisions and the reasoning behind them.", capability: "governance.read", icon: FileText },
   { href: "/owners/approvals", title: "Approvals", description: "Requests that require founder review.", capability: "approvals.read", icon: CheckSquare },
-  { href: "/owners/finance", title: "Finance & governance", description: "Live billing records and financial reconciliation signals.", capability: "finance.read", icon: CircleDollarSign },
-  { href: "/owners/technology", title: "Product & technology", description: "Live repository and workflow information.", capability: "technology.read", icon: Workflow },
-  { href: "/owners/strategy", title: "Business & strategy", description: "Strategy decisions stored in the live decision register.", capability: "strategy.read", icon: Compass },
+  { href: "/owners/finance", title: "Finance & governance", description: "Live billing records and financial reconciliation signals.", capability: "finance.read", responsibility: "finance_governance", icon: CircleDollarSign },
+  { href: "/owners/technology", title: "Product & technology", description: "Live repository and workflow information.", capability: "technology.read", responsibility: "product_technology", icon: Workflow },
+  { href: "/owners/strategy", title: "Business & strategy", description: "Strategy decisions stored in the live decision register.", capability: "strategy.read", responsibility: "business_strategy", icon: Compass },
+  { href: "/owners/operations", title: "Operations", description: "Operational decisions and founder approvals in your assigned domain.", capability: "governance.read", responsibility: "operations", icon: Activity },
 ] as const;
 
 const DOMAIN_LABELS: Record<string, string> = {
@@ -24,7 +25,7 @@ export const dynamic = "force-dynamic";
 export default async function FounderOverviewPage() {
   const { supabase, user, membership } = await requireFounder("workspace.read");
   const can = (capability: string) => membership.capabilities.includes(capability as (typeof membership.capabilities)[number]);
-  const visibleModules = MODULES.filter((item) => can(item.capability));
+  const visibleModules = MODULES.filter((item) => can(item.capability) && (!("responsibility" in item) || membership.responsibilities.includes(item.responsibility as (typeof membership.responsibilities)[number])));
 
   const [decisionResult, approvalResult, settlementResult] = await Promise.all([
     can("governance.read")
@@ -38,7 +39,7 @@ export default async function FounderOverviewPage() {
       : Promise.resolve({ count: null, error: null }),
   ]);
 
-  const repositoryHealth = can("technology.read") ? await getRepositoryHealth() : null;
+  const repositoryHealth = can("technology.read") && membership.responsibilities.includes("product_technology") ? await getRepositoryHealth() : null;
   const countLabel = (result: { count: number | null; error: unknown }) =>
     result.error ? "Unavailable" : result.count === null ? "—" : result.count.toLocaleString("en-PK");
 
