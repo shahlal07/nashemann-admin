@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import { Mail, KeyRound, Globe, Users, AlertCircle } from "lucide-react";
+import { Mail, KeyRound, Users, AlertCircle, ShieldCheck } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { createClient } from "@/lib/supabase/client";
 import { formatDate } from "@/lib/utils";
+import { updatePlatformAccountCredentialsAction } from "./actions";
 
 type PlatformAccount = {
   id: string;
@@ -25,9 +25,11 @@ export default function VendorAccountsPage() {
   const [accounts, setAccounts] = useState<PlatformAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [newEmail, setNewEmail] = useState("");
-  const [resetSentId, setResetSentId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPassword, setEditPassword] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -36,51 +38,44 @@ export default function VendorAccountsPage() {
       .from("platform_accounts")
       .select("id, name, email, provider, created_at")
       .order("created_at", { ascending: false })
-      .then(({ data }) => {
+      .then(({ data, error: queryError }) => {
+        if (queryError) setError("Couldn't load platform accounts. Please refresh or check your access.");
         setAccounts((data as PlatformAccount[]) ?? []);
         setLoading(false);
       });
   }, []);
 
-  function startEdit(a: PlatformAccount) {
-    setEditingId(a.id);
-    setNewEmail(a.email);
+  function startEdit(account: PlatformAccount) {
+    setEditingId(account.id);
+    setEditName(account.name);
+    setEditEmail(account.email);
+    setEditPassword("");
     setError(null);
+    setSavedId(null);
   }
 
-  async function saveEmail(id: string) {
-    setBusyId(id);
-    setError(null);
-    const supabase = createClient();
-    const { data, error: invokeError } = await supabase.functions.invoke("update-account-email", {
-      body: { accountId: id, newEmail },
-    });
-
-    setBusyId(null);
-    if (invokeError || !data) {
-      const message =
-        "context" in invokeError && invokeError.context instanceof Response
-          ? ((await invokeError.context.json().catch(() => null)) as { error?: string } | null)?.error
-          : undefined;
-      setError(`Couldn't update email: ${message ?? invokeError?.message ?? "unknown error"}`);
-      return;
-    }
-    setAccounts((prev) => prev.map((a) => (a.id === id ? (data as PlatformAccount) : a)));
-    setEditingId(null);
-  }
-
-  async function sendReset(account: PlatformAccount) {
+  async function saveCredentials(account: PlatformAccount) {
     setBusyId(account.id);
     setError(null);
-    const supabase = createClient();
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(account.email);
+    const result = await updatePlatformAccountCredentialsAction({
+      accountId: account.id,
+      name: editName,
+      email: editEmail,
+      password: editPassword,
+    });
     setBusyId(null);
-    if (resetError) {
-      setError(`Couldn't send reset email: ${resetError.message}`);
+    if (!result.ok) {
+      setError(result.error);
       return;
     }
-    setResetSentId(account.id);
-    setTimeout(() => setResetSentId(null), 2500);
+    setAccounts((previous) =>
+      previous.map((item) =>
+        item.id === account.id ? { ...item, name: editName.trim(), email: editEmail.trim().toLowerCase() } : item
+      )
+    );
+    setEditingId(null);
+    setEditPassword("");
+    setSavedId(account.id);
   }
 
   return (
@@ -91,15 +86,13 @@ export default function VendorAccountsPage() {
       />
 
       {error && (
-        <div className="mb-4 flex items-start gap-2 rounded-[var(--radius-sm)] border border-[rgba(251,113,133,0.3)] bg-[var(--danger-bg)] px-3.5 py-2.5 text-sm text-[var(--danger)]">
+        <div role="alert" className="mb-4 flex items-start gap-2 rounded-[var(--radius-sm)] border border-[rgba(251,113,133,0.3)] bg-[var(--danger-bg)] px-3.5 py-2.5 text-sm text-[var(--danger)]">
           <AlertCircle size={15} className="mt-0.5 shrink-0" /> {error}
         </div>
       )}
 
       <p className="mb-4 text-xs text-[var(--text-faint)]">
-        Editing the email here changes the account&apos;s sign-in credential via Supabase Auth and keeps
-        Nashemann&apos;s support record in sync. &quot;Send reset&quot; sends a real password-reset email via Supabase
-        Auth.
+        Super Admin can change the sign-in email and set a new password directly. Leave the password blank to keep the existing password. Changes are applied to Supabase Auth immediately; no reset email is required.
       </p>
 
       <Card>
@@ -109,47 +102,50 @@ export default function VendorAccountsPage() {
           </p>
         ) : (
           <div className="divide-y divide-[var(--border)]">
-            {accounts.map((a) => (
-              <div key={a.id} className="flex flex-wrap items-center justify-between gap-3 py-3.5 first:pt-0 last:pb-0">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text)]">
-                    {a.name.split(" ").map((p) => p[0]).join("").slice(0, 2)}
+            {accounts.map((account) => (
+              <div key={account.id} className="flex flex-wrap items-start justify-between gap-3 py-4 first:pt-0 last:pb-0">
+                <div className="flex min-w-0 flex-1 items-start gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text)]">
+                    {account.name.split(" ").map((part) => part[0]).join("").slice(0, 2)}
                   </div>
-                  <div>
-                    <p className="flex items-center gap-1.5 text-sm font-medium text-[var(--text)]">
-                      {a.name}
-                      {a.provider === "google" && <Globe size={12} className="text-[var(--text-faint)]" />}
-                    </p>
-                    {editingId === a.id ? (
-                      <div className="mt-1 flex items-center gap-2">
-                        <input value={newEmail} onChange={(e) => setNewEmail(e.target.value)} className={`${inputClass} w-56 py-1.5 text-xs`} />
-                        <Button size="sm" variant="primary" onClick={() => saveEmail(a.id)} disabled={busyId === a.id}>
-                          Save
-                        </Button>
-                        <Button size="sm" variant="secondary" onClick={() => setEditingId(null)}>
-                          Cancel
-                        </Button>
+                  <div className="min-w-0 flex-1">
+                    {editingId === account.id ? (
+                      <div className="grid max-w-xl gap-2 sm:grid-cols-2">
+                        <label className="text-xs text-[var(--text-muted)]">Display name
+                          <input value={editName} onChange={(event) => setEditName(event.target.value)} className={inputClass} autoComplete="name" />
+                        </label>
+                        <label className="text-xs text-[var(--text-muted)]">Sign-in email
+                          <input type="email" value={editEmail} onChange={(event) => setEditEmail(event.target.value)} className={inputClass} autoComplete="email" />
+                        </label>
+                        <label className="text-xs text-[var(--text-muted)] sm:col-span-2">New password (optional)
+                          <input type="password" value={editPassword} onChange={(event) => setEditPassword(event.target.value)} className={inputClass} minLength={8} autoComplete="new-password" placeholder="Leave blank to keep current password" />
+                        </label>
+                        <p className="text-xs text-[var(--text-faint)] sm:col-span-2">Use at least 8 characters. The new password is never displayed again after saving.</p>
+                        <div className="flex gap-2 sm:col-span-2">
+                          <Button size="sm" variant="primary" onClick={() => saveCredentials(account)} disabled={busyId === account.id}>
+                            {busyId === account.id ? "Saving…" : "Save credentials"}
+                          </Button>
+                          <Button size="sm" variant="secondary" onClick={() => setEditingId(null)} disabled={busyId === account.id}>Cancel</Button>
+                        </div>
                       </div>
                     ) : (
-                      <p className="text-xs text-[var(--text-faint)]">{a.email}</p>
+                      <>
+                        <p className="flex items-center gap-1.5 text-sm font-medium text-[var(--text)]">
+                          {account.name}
+                          {account.provider === "google" && <ShieldCheck size={12} className="text-[var(--text-faint)]" />}
+                        </p>
+                        <p className="break-all text-xs text-[var(--text-faint)]">{account.email}</p>
+                        {savedId === account.id && <p className="mt-1 text-xs font-medium text-[var(--success)]">Credentials updated successfully.</p>}
+                      </>
                     )}
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Badge tone="neutral">Joined {formatDate(a.created_at)}</Badge>
-                  {editingId !== a.id && (
-                    <Button size="sm" variant="secondary" onClick={() => startEdit(a)}>
-                      <Mail size={12} /> Change email
-                    </Button>
-                  )}
-                  {resetSentId === a.id ? (
-                    <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs font-semibold text-[var(--success)]">
-                      Reset link sent
-                    </motion.span>
-                  ) : (
-                    <Button size="sm" variant="secondary" onClick={() => sendReset(a)} disabled={busyId === a.id}>
-                      <KeyRound size={12} /> Send reset
+                  <Badge tone="neutral">Joined {formatDate(account.created_at)}</Badge>
+                  {editingId !== account.id && (
+                    <Button size="sm" variant="secondary" onClick={() => startEdit(account)}>
+                      <KeyRound size={12} /> Edit credentials
                     </Button>
                   )}
                 </div>
