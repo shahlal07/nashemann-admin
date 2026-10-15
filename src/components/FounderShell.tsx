@@ -118,6 +118,9 @@ export function FounderShell({
             <span className="grid size-9 place-items-center rounded-full border border-[var(--border)] text-[var(--text-muted)]" title="Notifications are not connected yet">
               <Bell size={16} />
             </span>
+            <button type="button" onClick={handleSignOut} className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] hover:bg-[var(--surface-hover)]" aria-label="Sign out of owner workspace">
+              <LogOut size={15} /><span className="hidden sm:inline">Sign out</span>
+            </button>
           </div>
         </header>
 
