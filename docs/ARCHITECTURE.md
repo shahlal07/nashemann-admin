@@ -3,7 +3,7 @@
 ## Confidence
 The actual architecture is not yet fully verified by this brain. Treat this as a discovery checklist, not a claim that a particular integration is active.
 
-## Boundaries to map
+## Initial code evidence — 2026-10-15\n- `nashemann-web/src/proxy.ts` states vendor storefronts are served by the `vendor-storefronts` deployment and intentionally returns 404 for vendor hostnames routed to the platform site. `nashemann-web/src/app/page.tsx` renders a platform marketing page. Do not treat this repository as the customer shopping app without further evidence.\n- `vendor-storefronts/src/app/checkout/actions.ts` creates orders from database-resolved product units. A draft fix in [vendor-storefronts PR #7](https://github.com/shahlal07/vendor-storefronts/pull/7) now checks resolved units against the request-host tenant as well as validating the submitted cart. This is not yet merged or test-verified.\n- The contract from platform marketing/domain links to storefront routes, and the authoritative customer order-history surface, remain unverified.\n\n## Boundaries to map
 1. Customer browser → nashemann-web → catalog/cart/checkout/order services.
 2. Vendor customer journey → vendor-storefronts → catalog and checkout/order handoff.
 3. Vendor operator → vendor-admins → vendor-scoped products, inventory and orders.
