@@ -198,8 +198,8 @@ function OwnerEditor({ owner }: { owner: OwnerAccountRow }) {
     setSuccess(null);
     startSave(async () => {
       try {
-        await updateOwnerAction(owner.user_id, values);
-        setSuccess("Owner account updated.");
+        const result = await updateOwnerAction(owner.user_id, values);
+        setSuccess(result.warning ? `Owner account updated, but session revocation needs attention: ${result.warning}` : "Owner account updated.");
         router.refresh();
       } catch (saveError) {
         setError(saveError instanceof Error ? saveError.message : "Could not update owner account.");
