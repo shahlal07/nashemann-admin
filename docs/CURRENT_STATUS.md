@@ -15,7 +15,7 @@ Last updated: 2026-10-15
 
 | Area | Status | Next step |
 |---|---|---|
-| Customer browsing/cart/checkout | Unknown / not end-to-end verified | nashemann-web homepage currently renders platform marketing sections; trace actual customer checkout/order-history contract and test it |
+| Customer browsing/cart/checkout | Storefront checkout/order-history routes exist; end-to-end flow and RLS unverified | `vendor-storefronts` contains `/checkout`, `/account/orders`, and `/track`; `nashemann-web` homepage is a vendor-acquisition landing page. Verify host-to-product-to-order flow and test order ownership policies |
 | Storefront routing/catalog isolation | Checkout application guard added; database isolation unverified | [vendor-storefronts PR #7](https://github.com/shahlal07/vendor-storefronts/pull/7) validates all submitted lines and checks unit vendor against current host. Verify RLS with separate vendor identities and test host routing in staging |
 | Vendor onboarding and fulfilment | Unknown | Audit vendor-admins end-to-end |
 | Admin authorization and audit trail | Unknown | Audit nashemann-admin privileged actions |
