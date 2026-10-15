@@ -6,9 +6,9 @@ export default async function FounderFinancePage() {
 
   return (
     <section className="mx-auto max-w-3xl">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">Finance & governance</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-violet-deep)]">Finance & governance</p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight">Financial visibility</h1>
-      <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
+      <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
         Financial reporting will distinguish marketplace GMV, platform revenue,
         vendor settlement liabilities, expenses, reserves, and distributable profit.
       </p>
