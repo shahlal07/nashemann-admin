@@ -27,13 +27,13 @@ alter table public.owner_memberships
 
 -- SECURITY DEFINER helpers avoid recursive RLS checks on owner_memberships.
 -- Both helpers are bound to auth.uid() and cannot inspect another user's scope.
-create or replace function public.has_owner_capability(p_capability text)
+create or replace function private.has_owner_capability(p_capability text)
 returns boolean
 language sql
 stable
 security definer
-set search_path = public, pg_temp
-as $$
+set search_path = public, private, pg_temp
+as $
   select exists (
     select 1
     from public.owner_memberships m
@@ -43,12 +43,12 @@ as $$
   );
 $$;
 
-create or replace function public.has_owner_domain_access(p_domain text)
+create or replace function private.has_owner_domain_access(p_domain text)
 returns boolean
 language sql
 stable
 security definer
-set search_path = public, pg_temp
+set search_path = public, private, pg_temp
 as $$
   select p_domain = any(array[
       'shared_governance',
@@ -66,10 +66,11 @@ as $$
     );
 $$;
 
-revoke all on function public.has_owner_capability(text) from public, anon;
-revoke all on function public.has_owner_domain_access(text) from public, anon;
-grant execute on function public.has_owner_capability(text) to authenticated;
-grant execute on function public.has_owner_domain_access(text) to authenticated;
+revoke all on function private.has_owner_capability(text) from public, anon;
+revoke all on function private.has_owner_domain_access(text) from public, anon;
+grant execute on function private.has_owner_capability(text) to authenticated;
+grant execute on function private.has_owner_domain_access(text) to authenticated;
+grant usage on schema private to authenticated;
 
 create table if not exists public.owner_decisions (
   id uuid primary key default gen_random_uuid(),
@@ -96,22 +97,22 @@ drop policy if exists owner_decisions_select_domain on public.owner_decisions;
 create policy owner_decisions_select_domain on public.owner_decisions
   for select to authenticated
   using (
-    public.has_owner_domain_access(domain)
+    private.has_owner_domain_access(domain)
     and (
-      public.has_owner_capability('governance.read')
-      or (domain = 'product_technology' and public.has_owner_capability('technology.read'))
-      or (domain = 'business_strategy' and public.has_owner_capability('strategy.read'))
+      private.has_owner_capability('governance.read')
+      or (domain = 'product_technology' and private.has_owner_capability('technology.read'))
+      or (domain = 'business_strategy' and private.has_owner_capability('strategy.read'))
     )
   );
 drop policy if exists owner_decisions_insert_domain on public.owner_decisions;
 create policy owner_decisions_insert_domain on public.owner_decisions
   for insert to authenticated
   with check (
-    public.has_owner_domain_access(domain)
+    private.has_owner_domain_access(domain)
     and (
-      public.has_owner_capability('governance.manage')
-      or (domain = 'product_technology' and public.has_owner_capability('technology.manage'))
-      or (domain = 'business_strategy' and public.has_owner_capability('strategy.manage'))
+      private.has_owner_capability('governance.manage')
+      or (domain = 'product_technology' and private.has_owner_capability('technology.manage'))
+      or (domain = 'business_strategy' and private.has_owner_capability('strategy.manage'))
     )
     and created_by = auth.uid()
   );
@@ -119,19 +120,19 @@ drop policy if exists owner_decisions_update_domain on public.owner_decisions;
 create policy owner_decisions_update_domain on public.owner_decisions
   for update to authenticated
   using (
-    public.has_owner_domain_access(domain)
+    private.has_owner_domain_access(domain)
     and (
-      public.has_owner_capability('governance.manage')
-      or (domain = 'product_technology' and public.has_owner_capability('technology.manage'))
-      or (domain = 'business_strategy' and public.has_owner_capability('strategy.manage'))
+      private.has_owner_capability('governance.manage')
+      or (domain = 'product_technology' and private.has_owner_capability('technology.manage'))
+      or (domain = 'business_strategy' and private.has_owner_capability('strategy.manage'))
     )
   )
   with check (
-    public.has_owner_domain_access(domain)
+    private.has_owner_domain_access(domain)
     and (
-      public.has_owner_capability('governance.manage')
-      or (domain = 'product_technology' and public.has_owner_capability('technology.manage'))
-      or (domain = 'business_strategy' and public.has_owner_capability('strategy.manage'))
+      private.has_owner_capability('governance.manage')
+      or (domain = 'product_technology' and private.has_owner_capability('technology.manage'))
+      or (domain = 'business_strategy' and private.has_owner_capability('strategy.manage'))
     )
   );
 revoke all on public.owner_decisions from anon;
@@ -171,15 +172,15 @@ drop policy if exists owner_approvals_select_domain on public.owner_approvals;
 create policy owner_approvals_select_domain on public.owner_approvals
   for select to authenticated
   using (
-    public.has_owner_capability('approvals.read')
-    and public.has_owner_domain_access(domain)
+    private.has_owner_capability('approvals.read')
+    and private.has_owner_domain_access(domain)
   );
 drop policy if exists owner_approvals_insert_domain on public.owner_approvals;
 create policy owner_approvals_insert_domain on public.owner_approvals
   for insert to authenticated
   with check (
-    public.has_owner_capability('approvals.request')
-    and public.has_owner_domain_access(domain)
+    private.has_owner_capability('approvals.request')
+    and private.has_owner_domain_access(domain)
     and requested_by = auth.uid()
     and status = 'pending'
     and reviewed_by is null
@@ -189,14 +190,14 @@ drop policy if exists owner_approvals_review_domain on public.owner_approvals;
 create policy owner_approvals_review_domain on public.owner_approvals
   for update to authenticated
   using (
-    public.has_owner_capability('approvals.review')
-    and public.has_owner_domain_access(domain)
+    private.has_owner_capability('approvals.review')
+    and private.has_owner_domain_access(domain)
     and requested_by <> auth.uid()
     and status = 'pending'
   )
   with check (
-    public.has_owner_capability('approvals.review')
-    and public.has_owner_domain_access(domain)
+    private.has_owner_capability('approvals.review')
+    and private.has_owner_domain_access(domain)
     and requested_by <> auth.uid()
     and reviewed_by = auth.uid()
     and status in ('approved', 'rejected')
@@ -266,8 +267,8 @@ create policy owner_governance_audit_read_authorized on public.owner_governance_
   using (
     public.is_super_admin()
     or (
-      public.has_owner_capability('audit.read')
-      and public.has_owner_domain_access(domain)
+      private.has_owner_capability('audit.read')
+      and private.has_owner_domain_access(domain)
     )
   );
 revoke all on public.owner_governance_audit from anon, authenticated;
@@ -330,8 +331,8 @@ create policy owner_finance_read_settlements
   on public.settlements
   for select to authenticated
   using (
-    public.has_owner_capability('finance.read')
-    and public.has_owner_domain_access('finance_governance')
+    private.has_owner_capability('finance.read')
+    and private.has_owner_domain_access('finance_governance')
   );
 
 drop policy if exists owner_finance_read_settlement_payments on public.settlement_payments;
@@ -339,8 +340,8 @@ create policy owner_finance_read_settlement_payments
   on public.settlement_payments
   for select to authenticated
   using (
-    public.has_owner_capability('finance.read')
-    and public.has_owner_domain_access('finance_governance')
+    private.has_owner_capability('finance.read')
+    and private.has_owner_domain_access('finance_governance')
     and exists (
       select 1 from public.settlements s
       where s.id = settlement_payments.settlement_id
@@ -352,6 +353,6 @@ create policy owner_finance_read_platform_pricing
   on public.platform_pricing
   for select to authenticated
   using (
-    public.has_owner_capability('finance.read')
-    and public.has_owner_domain_access('finance_governance')
+    private.has_owner_capability('finance.read')
+    and private.has_owner_domain_access('finance_governance')
   );
