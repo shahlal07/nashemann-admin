@@ -43,7 +43,7 @@ async function loadEmailPolicy(): Promise<EmailPolicy> {
     };
   } catch (error) {
     console.error("[email] Could not load email policy; using safe defaults:", error);
-    return { categoryEnabled: { ...DEFAULT_ENABLED }, senderFrom: { ...DEFAULT_SENDERS } };
+    return { categoryEnabled: { notifications: false, marketing: false, support: false, security: false, staff: false }, senderFrom: { ...DEFAULT_SENDERS } };
   }
 }
 
