@@ -62,10 +62,7 @@ as $$
       from public.owner_memberships m
       where m.user_id = auth.uid()
         and m.status = 'active'
-        and (
-          m.responsibilities @> array[p_domain]::text[]
-          or m.responsibilities @> array['shared_governance']::text[]
-        )
+        and m.responsibilities @> array[p_domain]::text[]
     );
 $$;
 
@@ -262,12 +259,12 @@ as $$
 begin
   if tg_op = 'INSERT' then
     insert into public.owner_governance_audit(entity_type, entity_id, actor_user_id, action, new_record)
-    values (tg_table_name = 'owner_decisions' and 'decision' or 'approval', new.id, auth.uid(), tg_op, to_jsonb(new));
+    values (case when tg_table_name = 'owner_decisions' then 'decision' else 'approval' end, new.id, auth.uid(), tg_op, to_jsonb(new));
     return new;
   end if;
 
   insert into public.owner_governance_audit(entity_type, entity_id, actor_user_id, action, old_record, new_record)
-  values (tg_table_name = 'owner_decisions' and 'decision' or 'approval', new.id, auth.uid(), tg_op, to_jsonb(old), to_jsonb(new));
+  values (case when tg_table_name = 'owner_decisions' then 'decision' else 'approval' end, new.id, auth.uid(), tg_op, to_jsonb(old), to_jsonb(new));
   return new;
 end;
 $$;
