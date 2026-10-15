@@ -47,11 +47,11 @@ async function loadDomains() {
   return Array.isArray(payload?.data) ? payload.data : [];
 }
 
-async function recordAudit(userId: string, action: string, detail: string) {
+async function recordAudit(actor: string, action: string, detail: string) {
   const admin = createAdminClient();
   await admin.from("audit_log").insert({
     action,
-    actor: userId,
+    actor,
     entity: "Email Control Center",
     detail,
   });
@@ -148,7 +148,7 @@ export async function POST(request: Request) {
         updated_by: auth.user.id,
       });
       if (error) throw new Error(error.message);
-      await recordAudit(auth.user.id, "email_settings_updated", "Updated email category switches and sender addresses.");
+      await recordAudit(auth.staffProfile?.name ?? auth.user.email ?? auth.user.id, "email_settings_updated", "Updated email category switches and sender addresses.");
       return NextResponse.json({ success: true });
     }
 
@@ -161,7 +161,7 @@ export async function POST(request: Request) {
         method: "POST",
         body: JSON.stringify({ name, region: "us-east-1" }),
       });
-      await recordAudit(auth.user.id, "email_domain_added", `Added sending domain ${name}; DNS verification is pending.`);
+      await recordAudit(auth.staffProfile?.name ?? auth.user.email ?? auth.user.id, "email_domain_added", `Added sending domain ${name}; DNS verification is pending.`);
       return NextResponse.json({ success: true, domain: payload });
     }
 
@@ -169,7 +169,7 @@ export async function POST(request: Request) {
       const domainId = typeof body.domainId === "string" ? body.domainId : "";
       if (!/^[0-9a-f-]{20,}$/i.test(domainId)) return jsonError("Invalid domain ID.");
       const payload = await resendRequest(`/domains/${encodeURIComponent(domainId)}/verify`, { method: "POST", body: "{}" });
-      await recordAudit(auth.user.id, "email_domain_verification_requested", `Requested verification for domain ID ${domainId}.`);
+      await recordAudit(auth.staffProfile?.name ?? auth.user.email ?? auth.user.id, "email_domain_verification_requested", `Requested verification for domain ID ${domainId}.`);
       return NextResponse.json({ success: true, domain: payload });
     }
 
@@ -185,7 +185,7 @@ export async function POST(request: Request) {
         return jsonError("This domain is assigned to a sender category. Choose another sender before removing it.");
       }
       await resendRequest(`/domains/${encodeURIComponent(domainId)}`, { method: "DELETE" });
-      await recordAudit(auth.user.id, "email_domain_removed", `Removed sending domain ${String(target.name)}.`);
+      await recordAudit(auth.staffProfile?.name ?? auth.user.email ?? auth.user.id, "email_domain_removed", `Removed sending domain ${String(target.name)}.`);
       return NextResponse.json({ success: true });
     }
 
