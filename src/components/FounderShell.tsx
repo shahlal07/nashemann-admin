@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   Activity,
@@ -49,7 +49,6 @@ export function FounderShell({ children, displayName, capabilities, responsibili
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  useEffect(() => setMobileOpen(false), [pathname]);
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -74,6 +73,7 @@ export function FounderShell({ children, displayName, capabilities, responsibili
             key={href}
             href={href}
             aria-current={active ? "page" : undefined}
+            onClick={() => setMobileOpen(false)}
             className={[
               "group flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm transition-all duration-200",
               active
