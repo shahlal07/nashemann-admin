@@ -239,7 +239,7 @@ export async function updateVendorAdminAction(vendorId: string, vendorName: stri
   if (!resolved.ok) return { error: resolved.error };
   const { row: currentRow, user: target } = resolved;
   const cleanName = input.name.trim();
-  const cleanEmail = input.email.trim().toLowerCase();
+  const cleanEmail = input.email.trim().toLowerCase() || (target.email ?? currentRow.email).trim().toLowerCase();
   const previousEmail = input.previousEmail?.trim().toLowerCase() ?? currentRow.email.toLowerCase();
   const password = input.password?.trim();
   if (!cleanName || !cleanEmail) return { error: "Name and email are required." };
