@@ -25,29 +25,25 @@ export async function ownerLoginAction(formData: FormData) {
     const { data: membership, error: membershipError } = await admin
       .from("owner_memberships")
       .select("user_id, status")
-      .ilike("username", username)
+      .eq("username", username)
       .maybeSingle();
 
-    if (membershipError || !membership) redirect("/owners/login?error=invalid");
-
-    membershipStatus = membership.status;
-    const { data: authRecord, error: authRecordError } =
-      await admin.auth.admin.getUserById(membership.user_id);
-
-    if (authRecordError || !authRecord.user?.email) {
-      redirect("/owners/login?error=invalid");
+    if (!membershipError && membership) {
+      membershipStatus = membership.status;
+      const { data: authRecord, error: authRecordError } =
+        await admin.auth.admin.getUserById(membership.user_id);
+      if (!authRecordError) authEmail = authRecord.user?.email ?? null;
     }
-    authEmail = authRecord.user.email;
-  } catch (error) {
-    // Next.js redirect throws a special control-flow error. Re-throw it rather
-    // than converting a redirect into a generic error response.
-    if (error instanceof Error && error.message === "NEXT_REDIRECT") throw error;
+  } catch {
     redirect("/owners/login?error=unavailable");
   }
 
+  // Deliberately use the same response for unknown username and wrong password.
+  if (!authEmail) redirect("/owners/login?error=invalid");
+
   const supabase = await createClient();
   const { error: signInError } = await supabase.auth.signInWithPassword({
-    email: authEmail!,
+    email: authEmail,
     password,
   });
 
