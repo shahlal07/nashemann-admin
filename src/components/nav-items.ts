@@ -104,6 +104,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: "Website Content", href: "/website", icon: Globe },
       { label: "Platform Settings", href: "/settings", icon: Settings },
       { label: "Staff", href: "/staff", icon: Users },
+      { label: "Founder Access", href: "/owner-management", icon: Users, superAdminOnly: true },
       { label: "Audit Log", href: "/audit-log", icon: ScrollText },
     ],
   },
