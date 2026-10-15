@@ -1,0 +1,138 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { KeyRound, ShieldCheck, UserPlus } from "lucide-react";
+import { createOwnerAccountAction } from "./actions";
+
+const inputClass = "w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-3.5 py-2.5 text-sm text-[var(--text)] outline-none focus:border-[var(--accent-violet)] accent-ring";
+const labelClass = "mb-1.5 block text-xs font-medium text-[var(--text-muted)]";
+
+const RESPONSIBILITIES = [
+  { value: "finance_governance", label: "Finance & Governance" },
+  { value: "product_technology", label: "Product & Technology" },
+  { value: "business_strategy", label: "Business & Strategy" },
+  { value: "shared_governance", label: "Shared Founder Governance" },
+];
+const CAPABILITIES = [
+  { value: "governance.read", label: "Read governance decisions" },
+  { value: "governance.manage", label: "Create/manage governance decisions" },
+  { value: "approvals.read", label: "Read approval requests" },
+  { value: "approvals.request", label: "Request approvals" },
+  { value: "approvals.review", label: "Review other founders' approvals" },
+  { value: "finance.read", label: "Read finance/settlement records" },
+  { value: "technology.read", label: "Read technology work" },
+  { value: "technology.manage", label: "Manage technology decisions" },
+  { value: "strategy.read", label: "Read business strategy" },
+  { value: "strategy.manage", label: "Manage business strategy" },
+  { value: "audit.read", label: "Read governance audit history" },
+];
+
+export type OwnerManagementRow = {
+  userId: string;
+  username: string;
+  displayName: string;
+  status: string;
+  responsibilities: string[];
+  capabilities: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export function OwnerManagementClient({ initialOwners }: { initialOwners: OwnerManagementRow[] }) {
+  const [owners, setOwners] = useState(initialOwners);
+  const [open, setOpen] = useState(initialOwners.length === 0);
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [password, setPassword] = useState("");
+  const [responsibilities, setResponsibilities] = useState<string[]>([]);
+  const [capabilities, setCapabilities] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [createdNotice, setCreatedNotice] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function toggleValue(value: string, checked: boolean, setter: (next: string[]) => void, current: string[]) {
+    setter(checked ? [...current, value] : current.filter((item) => item !== value));
+  }
+
+  function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setCreatedNotice(null);
+    startTransition(async () => {
+      try {
+        const created = await createOwnerAccountAction({ username, email, displayName, password, responsibilities, capabilities });
+        setOwners((current) => [...current, {
+          userId: "created-" + created.username,
+          username: created.username,
+          displayName: created.displayName,
+          status: "active",
+          responsibilities,
+          capabilities,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }]);
+        setCreatedNotice("Owner account created. Share the login details securely; the password is not stored or displayed again here.");
+        setUsername("");
+        setEmail("");
+        setDisplayName("");
+        setPassword("");
+        setResponsibilities([]);
+        setCapabilities([]);
+        setOpen(false);
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : "Could not create owner account.");
+      }
+    });
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-violet)]">Super Admin only</p>
+          <h1 className="mt-2 font-display text-2xl font-semibold text-[var(--text)] sm:text-3xl">Founder access</h1>
+          <p className="mt-2 max-w-2xl text-sm text-[var(--text-muted)]">Create individual Supabase Auth accounts and assign least-privilege founder responsibilities. Owner access does not grant staff or Super Admin access.</p>
+        </div>
+        <button type="button" onClick={() => setOpen((value) => !value)} className="accent-ring inline-flex items-center gap-2 rounded-lg bg-[var(--accent-gradient)] px-4 py-2.5 text-sm font-semibold text-black">
+          <UserPlus size={16} /> {open ? "Close form" : "Create owner"}
+        </button>
+      </div>
+
+      <div className="flex items-start gap-3 rounded-xl border border-[var(--border)] p-4 text-sm text-[var(--text-muted)]">
+        <ShieldCheck size={19} className="mt-0.5 shrink-0 text-[var(--accent-violet)]" />
+        <p>Passwords are sent only to Supabase Auth over the server-side admin API; they are not written to the owner membership table or audit record. Use a unique strong password and share it through a secure channel.</p>
+      </div>
+
+      {createdNotice && <div role="status" className="rounded-lg border border-[var(--border)] p-3 text-sm text-[var(--text-muted)]">{createdNotice}</div>}
+      {error && <div role="alert" className="rounded-lg border border-[var(--danger)] p-3 text-sm text-[var(--danger)]">{error}</div>}
+
+      {open && <form onSubmit={submit} className="glass-panel space-y-5 rounded-[var(--radius-lg)] p-5 sm:p-6">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label><span className={labelClass}>Username</span><input required minLength={3} maxLength={32} value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="off" className={inputClass} placeholder="founder.tech" /></label>
+          <label><span className={labelClass}>Login email</span><input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" className={inputClass} placeholder="founder@nashemann.store" /></label>
+          <label><span className={labelClass}>Display name</span><input required minLength={2} maxLength={80} value={displayName} onChange={(e) => setDisplayName(e.target.value)} className={inputClass} /></label>
+          <label><span className={labelClass}>Initial password (12+ characters)</span><input required minLength={12} maxLength={128} type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" className={inputClass} /></label>
+        </div>
+
+        <fieldset>
+          <legend className="mb-3 text-sm font-semibold text-[var(--text)]">Responsibilities</legend>
+          <div className="grid gap-2 sm:grid-cols-2">{RESPONSIBILITIES.map((item) => <label key={item.value} className="flex items-center gap-2 rounded-lg border border-[var(--border)] p-3 text-sm text-[var(--text-muted)]"><input type="checkbox" checked={responsibilities.includes(item.value)} onChange={(e) => toggleValue(item.value, e.target.checked, setResponsibilities, responsibilities)} />{item.label}</label>)}</div>
+        </fieldset>
+
+        <fieldset>
+          <legend className="mb-3 text-sm font-semibold text-[var(--text)]">Capabilities</legend>
+          <div className="grid gap-2 sm:grid-cols-2">{CAPABILITIES.map((item) => <label key={item.value} className="flex items-start gap-2 rounded-lg border border-[var(--border)] p-3 text-sm text-[var(--text-muted)]"><input className="mt-0.5" type="checkbox" checked={capabilities.includes(item.value)} onChange={(e) => toggleValue(item.value, e.target.checked, setCapabilities, capabilities)} />{item.label}</label>)}</div>
+        </fieldset>
+
+        <div className="flex flex-wrap gap-2"><button disabled={pending} type="submit" className="accent-ring inline-flex items-center gap-2 rounded-lg bg-[var(--accent-gradient)] px-4 py-2.5 text-sm font-semibold text-black disabled:opacity-60"><KeyRound size={15} />{pending ? "Creating account…" : "Create owner account"}</button><p className="self-center text-xs text-[var(--text-faint)]">Account creation is server-authorized and rolls back Auth creation if membership setup fails.</p></div>
+      </form>}
+
+      <section className="glass-panel rounded-[var(--radius-lg)] p-5 sm:p-6">
+        <h2 className="font-display text-lg font-semibold text-[var(--text)]">Owner accounts</h2>
+        <p className="mt-1 text-sm text-[var(--text-muted)]">Live membership records from Supabase. {owners.length} account(s) currently visible.</p>
+        {owners.length === 0 ? <p className="mt-4 rounded-lg border border-dashed border-[var(--border)] p-5 text-sm text-[var(--text-muted)]">No founder memberships are configured yet.</p> : <div className="mt-4 divide-y divide-[var(--border)]">{owners.map((owner) => <div key={owner.userId} className="py-4 first:pt-0 last:pb-0"><div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-medium text-[var(--text)]">{owner.displayName || owner.username}</p><p className="text-xs text-[var(--text-faint)]">@{owner.username}</p></div><span className="rounded-full border border-[var(--border)] px-2.5 py-1 text-xs text-[var(--text-muted)]">{owner.status}</span></div><p className="mt-2 text-xs text-[var(--text-muted)]">Responsibilities: {owner.responsibilities.join(", ").replaceAll("_", " ") || "None assigned"}</p><p className="mt-1 text-xs text-[var(--text-muted)]">Capabilities: {owner.capabilities.join(", ") || "None assigned"}</p></div>)}</div>}
+      </section>
+    </div>
+  );
+}
