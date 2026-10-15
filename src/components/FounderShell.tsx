@@ -10,7 +10,6 @@ import {
   Compass,
   FileText,
   LayoutDashboard,
-  ArrowLeft,
   ShieldCheck,
   Workflow,
 } from "lucide-react";
@@ -92,9 +91,6 @@ export function FounderShell({
             </span>
             <ShieldCheck size={16} className="text-[var(--text-muted)]" aria-label="Authorized membership" />
           </div>
-          <Link href="/" className="mt-3 flex items-center gap-2 px-3 py-2 text-xs text-[var(--text-muted)] hover:text-[var(--text)]">
-            <ArrowLeft size={14} /> Back to platform
-          </Link>
         </div>
       </aside>
 
