@@ -101,7 +101,7 @@ export async function createOwnerAction(input: OwnerInput) {
   await writeOwnerAudit(supabase, actor, "owner_account_created", clean.username, `Created owner account; status=${clean.status}; domains=${clean.responsibilities.join(", ")}`);
   revalidatePath("/owner-accounts");
   revalidatePath("/owners");
-  return { ok: true, warning: sessionRevocationWarning };
+  return { ok: true };
 }
 
 export async function updateOwnerAction(userId: string, input: OwnerInput) {
@@ -119,7 +119,7 @@ export async function updateOwnerAction(userId: string, input: OwnerInput) {
   const { data: duplicate, error: duplicateError } = await admin
     .from("owner_memberships")
     .select("user_id")
-    .ilike("username", clean.username)
+    .eq("username", clean.username)
     .neq("user_id", userId)
     .maybeSingle();
   if (duplicateError) throw new Error(duplicateError.message);
@@ -179,5 +179,5 @@ export async function updateOwnerAction(userId: string, input: OwnerInput) {
   await writeOwnerAudit(supabase, actor, "owner_account_updated", clean.username, sessionRevocationWarning ? `${auditDetail}; session revocation warning: ${sessionRevocationWarning}` : auditDetail);
   revalidatePath("/owner-accounts");
   revalidatePath("/owners");
-  return { ok: true };
+  return { ok: true, warning: sessionRevocationWarning };
 }
