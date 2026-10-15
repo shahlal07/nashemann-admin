@@ -121,3 +121,14 @@ The live Supabase security advisor reports:
 3. Keep the confirmed database concurrency controls, but add safe-environment tests for parallel payments, duplicate submission review, and invalid settlement transitions.
 4. Review the Supabase security-advisor findings with Product & Technology; prioritize any authorization bypass or exposed private data.
 5. Reconcile the SQL migration source in GitHub with the live Supabase migration history so future changes are reproducible.
+
+
+### Critical source-record mismatch — hold historical collection pending reconciliation
+
+A separate read-only aggregate of the connected project's current `public.orders` table returned **25 order rows total**, of which **24 currently have status cancelled** and only **1 currently matches the billing function's present eligibility filter**. The table's oldest order timestamp is 2026-07-23 and newest is 2026-10-08.
+
+The July settlement rows, however, snapshot 41 orders / Rs. 121,000 gross for the Per Order vendor and 58 orders / Rs. 274,000 gross for the Monthly vendor. A month/vendor join against the current `public.orders` rows did not reproduce those counts or gross totals. The current table therefore cannot presently substantiate the historical settlement snapshots.
+
+This does **not** establish whether orders were deleted, whether the settlement snapshots came from another source/environment, or whether historical data was deliberately cleaned. It does establish that the source evidence available in the connected project is insufficient to validate these invoices.
+
+**Control decision:** Do not bulk-recalculate, rewrite, or automatically collect the July/August historical amounts until the team identifies the authoritative order ledger/snapshot, explains the count/GMV discrepancy, and records a founder-approved disposition. Preserve existing invoices/payments while investigating. Confirm the connected Supabase project's intended environment before calling these rows production records.
