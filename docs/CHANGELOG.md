@@ -44,3 +44,13 @@ Record meaningful changes newest first: date, task, repos, summary, PR/commit, t
 - Connected the decisions and approvals pages to RLS-filtered read queries with fail-closed unavailable states.
 - Added owner access boundary docs in draft PRs across the other three active repositories.
 - No production schema, membership, credentials, or deployment state changed. Lint/build/typecheck and SQL tests remain unrun.
+
+
+## 2026-10-15 — Super Admin owner provisioning and live domain data
+- Added the Super Admin-only Owner Accounts panel to provision/manage up to three owners with username aliases, recovery email, initial/reset passwords, active/pending/suspended status, responsibility domains, and capabilities.
+- Owner passwords are managed only by Supabase Auth; they are never stored in owner membership rows. Suspension and password reset attempt to revoke existing sessions.
+- Replaced owner finance placeholders with real Supabase settlement and platform-pricing reads, including visible billing-data quality warnings and no invented profit/reserve totals.
+- Added real decision creation, approval request/review flows, strategy and operations registers, and live GitHub repository/workflow health integration when a server-side token is configured.
+- Added domain-specific RLS for finance, strategy, technology, operations, decisions, approvals, and governance audit; moved security-definer owner helper functions to the non-exposed `private` schema.
+- Applied three owner migrations to the connected Supabase project after a transaction-wrapped syntax test. Confirmed owner tables exist and are currently empty. Existing billing rows were not changed.
+- App lint/build/typecheck and end-to-end authorization tests remain pending. The uploaded attachment was blueprint text rather than Kimi's UI source, so that UI still needs to be supplied and integrated.
