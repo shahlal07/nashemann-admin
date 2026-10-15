@@ -1,7 +1,8 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/api/notifications/send"];\nconst OWNER_PATHS = ["/owner-login", "/owners"];
+const PUBLIC_PATHS = ["/login", "/api/notifications/send"];
+const OWNER_PATHS = ["/owner-login", "/owners"];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -30,7 +31,8 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const pathname = request.nextUrl.pathname;
-  const isPublicPath = PUBLIC_PATHS.includes(pathname);\n  const isOwnerPath = OWNER_PATHS.some((path) => pathname === path || (path === "/owners" && pathname.startsWith("/owners/")));
+  const isPublicPath = PUBLIC_PATHS.includes(pathname);
+  const isOwnerPath = OWNER_PATHS.some((path) => pathname === path || (path === "/owners" && pathname.startsWith("/owners/")));
 
   let isStaff = false;
   if (user) {
@@ -42,7 +44,12 @@ export async function updateSession(request: NextRequest) {
     isStaff = !!staff;
   }
 
-  // Founder routes have their own server-side membership/capability guard.\n  // Do not send founders through the staff_profiles gate; that would make the\n  // dedicated owner login and workspace unreachable.\n  if (isOwnerPath) return supabaseResponse;\n\n  if (!isStaff && !isPublicPath) {
+  // Founder routes have their own server-side membership/capability guard.
+  // Do not send founders through the staff_profiles gate; that would make the
+  // dedicated owner login and workspace unreachable.
+  if (isOwnerPath) return supabaseResponse;
+
+  if (!isStaff && !isPublicPath) {
     const loginUrl = new URL("/login", request.url);
     return NextResponse.redirect(loginUrl);
   }
