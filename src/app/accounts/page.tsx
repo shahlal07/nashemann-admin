@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Mail, KeyRound, Users, AlertCircle, ShieldCheck } from "lucide-react";
+import { KeyRound, Users, AlertCircle, ShieldCheck } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
