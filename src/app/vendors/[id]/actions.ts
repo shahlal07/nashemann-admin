@@ -239,12 +239,15 @@ export async function updateVendorAdminAction(vendorId: string, vendorName: stri
   if (!resolved.ok) return { error: resolved.error };
   const { row: currentRow, user: target } = resolved;
   const cleanName = input.name.trim();
-  const cleanEmail = input.email.trim().toLowerCase() || (target.email ?? currentRow.email).trim().toLowerCase();
+  const enteredEmail = input.email.trim().toLowerCase();
+  const cleanEmail = enteredEmail || (target.email ?? currentRow.email).trim().toLowerCase();
   const previousEmail = input.previousEmail?.trim().toLowerCase() ?? currentRow.email.toLowerCase();
   const password = input.password?.trim();
   if (!cleanName || !cleanEmail) return { error: "Name and email are required." };
   const authUpdate: { email?: string; password?: string; user_metadata?: Record<string, unknown>; email_confirm?: boolean } = { user_metadata: { ...(target.user_metadata ?? {}), name: cleanName, vendor_id: vendorId } };
-  if (cleanEmail !== (target.email ?? "").toLowerCase()) { authUpdate.email = cleanEmail; authUpdate.email_confirm = true; }
+  // A blank email means "keep the current login email". Do not resend a possibly
+  // legacy/malformed stored email to Supabase Auth; update only fields requested.
+  if (enteredEmail && cleanEmail !== (target.email ?? "").trim().toLowerCase()) { authUpdate.email = cleanEmail; authUpdate.email_confirm = true; }
   if (password) authUpdate.password = password;
   const { error: updateError } = await admin.auth.admin.updateUserById(target.id, authUpdate);
   if (updateError) return { error: updateError.message };
