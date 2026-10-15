@@ -173,6 +173,27 @@ When Kimi's output arrives:
 
 Until these are confirmed, implement only reversible UI foundations and read-only work that does not widen permissions.
 
-## 11. Verification status
+## 11. Verification status and implementation update (2026-10-15)
 
-This document records a plan based on source files inspected in GitHub and the read-only database discovery above. No owner route, database schema, permission, deployment, or production behavior has been changed. The code changes and security tests described above remain pending.
+The earlier targeted discovery statement in section 4 is superseded by a broader live query performed on 2026-10-15: the active Supabase project contains `owner_memberships`, `owner_approvals`, `owner_decisions`, `owner_governance_audit`, and `owner_membership_audit`, plus `private.has_owner_capability(text)` and `private.has_owner_domain_access(text)`. RLS policies exist for these tables and for owner-scoped reads of settlements and settlement payments. This shows that the initial table-name search was incomplete; do not create duplicate schema.
+
+Live row counts at the time of this check were zero for owner memberships, decisions, approvals, and both owner audit tables. The owner workspace is therefore not yet usable by founders until authorized memberships are provisioned.
+
+Implementation branch: `finance/BRAIN-011-owner-workspace-foundation`.
+
+Initial code slice on this branch:
+- Adds a distinct owner login using Supabase Auth, requiring an active `owner_memberships` record.
+- Adds server-side `requireOwner` membership resolution; it never trusts a client-supplied role.
+- Adds a separate founder shell and an overview reading decisions, approvals, and active memberships through the signed-in user's RLS-bound client. Empty states are based on real rows, not demo fixtures.
+- Adds a Super Admin-only founder access page and server action to create an Auth user, insert an active membership with explicitly selected responsibilities/capabilities, and attempt compensating Auth-user deletion if membership insertion fails.
+- Adds the Founder Access navigation item restricted in the UI to Super Admin; the route itself is also guarded by `requireSuperAdmin()`.
+
+Safety and verification notes:
+- No production schema or role migration was applied.
+- No owner account was created, and no password was saved to the database or repository.
+- The branch has not yet been linted, typechecked, built, or exercised against a preview deployment. The PR/CI result is required before merge or production release.
+- The provisioning action depends on `SUPABASE_SERVICE_ROLE_KEY` being configured server-side. Verify deployment environment and confirm the live RLS/trigger behavior in preview before creating real founder accounts.
+- The initial password is set by Super Admin in the form and is not shown again after successful submission; deliver it out-of-band securely. Consider adding a forced password-change/reset flow before broad rollout.
+- Approval quorum/self-approval rules, account suspension UX, membership updates/revocation UI, end-to-end authorization tests, and real finance reconciliation remain outstanding.
+
+This is an implementation in progress, not a production-ready or deployed feature.
