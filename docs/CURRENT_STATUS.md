@@ -47,3 +47,13 @@ Date, repo(s), task/issue/PR, finding/change, test evidence, remaining risk, res
 - **Data:** owner pages do not show invented metrics; finance and technology integrations are explicitly pending.
 - **Tests:** not run. Container network could not resolve GitHub, and package.json has no test script. Lint/build/typecheck and SQL migration validation are required before merge.
 - **Next:** review code, establish CI evidence, confirm founder permission matrix, and integrate the Kimi dashboard output when available.
+
+
+## Owner login and domain-isolation follow-up — 2026-10-15
+
+- **Dedicated login:** `/owners/login` uses the existing Supabase Auth credentials and then independently checks the signed-in user's active owner membership. The staff login remains unchanged.
+- **Domain security:** proposed SQL migration `_migrations/2026-10-15_owner_domain_isolation.sql` adds domain-scoped RLS for decisions and approvals, prohibits self-review of approval requests, and scopes governance audit records to the relevant domain. Membership audit visibility is Super Admin-only.
+- **Owner pages:** decision and approval pages query the proposed tables through RLS and show an unavailable state rather than fallback data if the migration/schema is missing.
+- **Other active repositories:** draft boundary PRs: `nashemann-web` PR #7, `vendor-storefronts` PR #8, and `vendor-admins` PR #8. The vendor-admin DAL already requires a vendor `admin/staff` profile, `vendor_id`, and active vendor; owner membership does not satisfy it.
+- **Not activated:** no SQL migration has been applied, no owner memberships or credentials have been created, no Kimi UI has been integrated, and finance/technology data adapters plus Super Admin provisioning UI remain pending.
+- **Verification:** no lint/build/typecheck or SQL integration tests have run. Vercel PR deployment attempts reported the daily deployment API limit; no workflow runs were returned for the latest GitHub head commit.
