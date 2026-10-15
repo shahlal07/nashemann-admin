@@ -2,7 +2,7 @@ import "server-only";
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { FounderCapability, FounderMembership } from "./capabilities";
+import type { FounderCapability, FounderMembership, FounderResponsibility } from "./capabilities";
 
 /**
  * Resolve an active founder from the authenticated Supabase user.
@@ -10,7 +10,7 @@ import type { FounderCapability, FounderMembership } from "./capabilities";
  * to a staff role. Missing schema, failed reads, inactive memberships, and
  * unknown membership records all fail closed.
  */
-export async function requireFounder(requiredCapability?: FounderCapability) {
+export async function requireFounder(requiredCapability?: FounderCapability, requiredDomain?: FounderResponsibility) {
   const supabase = await createClient();
   const {
     data: { user },
