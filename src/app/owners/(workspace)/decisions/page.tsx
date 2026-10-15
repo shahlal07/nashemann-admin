@@ -6,9 +6,9 @@ export default async function FounderDecisionsPage() {
 
   return (
     <section className="mx-auto max-w-3xl">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">Governance</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-violet-deep)]">Governance</p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight">Company decisions</h1>
-      <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
+      <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
         The decision register will hold the approved decision, rationale, accountable owner,
         date, and linked actions.
       </p>
