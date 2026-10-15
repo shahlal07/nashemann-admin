@@ -2,6 +2,15 @@
 
 Record meaningful changes newest first: date, task, repos, summary, PR/commit, tests/evidence, risks and next action.
 
+## 2026-10-15 — Co-Founder Platform integration plan
+- **Task:** BRAIN-011.
+- **Repositories:** Cross-repository planning; initial implementation target proposed as shahlal07/nashemann-admin.
+- **Change:** Added `docs/COFOUNDER_PLATFORM_INTEGRATION.md` on branch `product/cofounder-platform-alignment`; documented repository boundaries, current authz clues, proposed owner authorization boundary, rollout, acceptance criteria, and open founder decisions. Opened [nashemann-admin #15](https://github.com/shahlal07/nashemann-admin/issues/15).
+- **Evidence:** Inspected package manifests, `nashemann-admin/src/app/layout.tsx`, `src/components/AppChrome.tsx`, `src/lib/authz.ts`, `src/lib/roles.ts`, current architecture/task docs, and customer web layout. Repository directory checks confirmed the vendor apps have their own structure and should not be assumed to share identical paths.
+- **Verification:** Documentation-only changes. No application code, schema, roles, RLS policies, or production settings changed. Lint/build/tests were not run because no application code was changed in this planning step.
+- **Risks/open items:** Owner identity/responsibility matrix, approval rules, source-of-truth financial data, and exact database/deployment relationships remain to be verified.
+- **Next:** Review Kimi's UI output against the actual admin code; audit schema/RLS and confirm founder permission matrix before implementation.
+
 ## 2026-10-15 — Project brain initialized
 - **Repository:** shahlal07/nashemann-admin.
 - **Change:** Added shared entry point, repository map, status ledger, master task backlog, architecture discovery, decisions, finance guardrails, release checklist and owner workflow.
