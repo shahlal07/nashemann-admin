@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { AdminShell } from "./AdminShell";
 import { ToastProvider } from "./ui/Toast";
 
-const CHROME_LESS_PATHS = ["/login"];
+const CHROME_LESS_PATHS = ["/login", "/owners/access", "/owners/forbidden"];
 
 export function AppChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
