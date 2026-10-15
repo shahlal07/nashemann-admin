@@ -81,6 +81,7 @@ export function EmailCenterClient() {
     }
   }, []);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- load(false) awaits the network before changing state.
   useEffect(() => { void load(false); }, [load]);
 
   async function saveSettings() {
