@@ -183,7 +183,7 @@ export default function OwnerLoginPage() {
                 disabled={submitting}
                 whileHover={reduceMotion || submitting ? undefined : { y: -1 }}
                 whileTap={reduceMotion || submitting ? undefined : { scale: 0.99 }}
-                className="group flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent-gradient)] px-5 text-sm font-semibold text-[#100d1b] shadow-[0_10px_30px_rgba(139,107,255,.18)] transition disabled:cursor-not-allowed disabled:opacity-60"
+                style={{ background: "var(--accent-gradient)" }}\n                className="group flex h-12 w-full items-center justify-center gap-2 rounded-xl px-5 text-sm font-semibold text-[#100d1b] shadow-[0_10px_30px_rgba(139,107,255,.18)] transition disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submitting ? "Verifying access…" : "Continue to workspace"}
                 {!submitting && <ArrowUpRight size={17} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />}
