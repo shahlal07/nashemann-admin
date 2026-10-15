@@ -69,7 +69,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     label: "Marketing & Social",
     items: [
-      { label: "Email Control Center", href: "/marketing/email", icon: Mail, superAdminOnly: true },
+      { label: "Email Control Center", href: "/marketing/email", icon: Mail },
       { label: "Announcements", href: "/announcements", icon: Radio },
       {
         label: "Influencers",
