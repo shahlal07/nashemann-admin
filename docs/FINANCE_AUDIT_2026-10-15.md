@@ -69,3 +69,55 @@ In `src/app/settlements/actions.ts`:
 ## Next checkpoint
 
 Do not mark BRAIN-007, BRAIN-008, or BRAIN-009 Done until the source SQL, source-ledger reconciliation, authorization boundaries, and regression tests are verified. No pricing or eligibility rule is changed by this audit.
+
+
+## Live Supabase read-only verification — 2026-10-15
+
+The connected Supabase project named **new nashemann** was inspected using read-only schema/function/policy queries and Supabase advisors. No rows were changed and no billing function was executed.
+
+### Commercial configuration
+
+- Live `platform_pricing` reports `per_order_fee = Rs. 20` and `monthly_fee = Rs. 5,999`, matching the standing commercial baseline.
+- Live `platform_settings` reports a 10-day billing grace period, matching the documented default.
+- This verifies configured values only; it does not prove every invoice was calculated correctly or that funds were collected.
+
+### Settlement aggregates observed
+
+These are live database aggregates at the audit time, not a complete bank reconciliation:
+
+| Invoice month | Current vendor plan | Status | Count | Orders recorded | Gross revenue | Platform fee | Amount paid | Nominal balance |
+|---|---|---|---:|---:|---:|---:|---:|---:|
+| 2026-08 | Per Order | Pending | 1 | 0 | Rs. 0 | Rs. 0 | Rs. 0 | Rs. 0 |
+| 2026-08 | Monthly | Pending | 2 | 0 | Rs. 0 | Rs. 0 | Rs. 0 | Rs. 0 |
+| 2026-07 | Per Order | Partially paid | 1 | 41 | Rs. 121,000 | Rs. 615 | Rs. 300 | Rs. 315 |
+| 2026-07 | Monthly | Paid | 1 | 58 | Rs. 274,000 | Rs. 7,000 | Rs. 7,000 | Rs. 0 |
+
+- The three August settlements have null plan snapshots, zero orders/gross revenue and zero fees, including two vendors whose current plan is Monthly. This is a **legacy invoice review exception**, not a confirmed amount due. The current billing function inserts missing invoices and does not rewrite existing vendor/month rows, so these records need investigation before collection or correction.
+- The July Monthly invoice is Rs. 7,000 while the current configured monthly rate is Rs. 5,999. It is marked paid in the settlement table, but this is not proof of the bank receipt or proof that the legacy invoice used the correct historical rate. Review its invoice/payment evidence and preserve the immutable history; do not silently rewrite or reclaim funds.
+- The July Per Order invoice has a recorded nominal remaining balance of Rs. 315. Reconcile its 41 eligible-order records and fee snapshots against the payment evidence before treating the amount as collectible.
+- The aggregate query found no settlement rows where recorded payments exceed fee plus adjustments, and no rows marked paid with a nominal outstanding balance. This is a limited consistency check, not a concurrency proof.
+
+### Live database safeguards confirmed
+
+- `settlements` has a unique constraint on `(vendor_id, month)`.
+- `settlement_payments.vendor_payment_submission_id` is unique, preventing one vendor submission from being applied twice.
+- `enforce_settlement_payment_limit()` takes a transaction-scoped advisory lock keyed by settlement ID, locks the settlement row, rejects non-positive payments, prevents moving an existing payment between settlements, and blocks payments that exceed fee plus adjustments or apply to waived/reversed settlements.
+- `review_vendor_payment_submission()` locks the submission, requires Super Admin, rejects repeat review, locks the matching vendor settlement, checks payable status/balance, inserts the payment, marks the submission reviewed, and writes an audit row in the same database transaction.
+- The settlement/payment RLS policies inspected require finance/super-admin checks for financial reads/writes and scope vendor reads to the vendor's own records. These policy expressions still require role-based integration tests.
+- `generate_monthly_settlements()` is executable by authenticated users but checks `is_finance_staff()` in its function body; `review_vendor_payment_submission()` checks `is_super_admin()`. These checks should remain covered by unauthorized-role regression tests.
+
+### Additional security-advisor findings
+
+The live Supabase security advisor reports:
+- One **ERROR**: `public.public_business_settings` is a security-definer view. Review whether it can be changed to `security_invoker` or otherwise restricted without breaking the public storefront contract.
+- **19** security-definer functions executable by `anon` and **52** executable by `authenticated` were flagged by the advisor. This is a review queue, not proof that every function is exploitable; inspect each function's authorization checks and intended public use, then revoke unnecessary execute grants.
+- Five tables with RLS enabled but no policies were flagged, including `platform_email_log` and `platform_email_settings`. Those two may be intentionally service-role-only; verify grants and server-only access rather than adding broad policies.
+- The advisor also reports multiple permissive policies for some tables. Review the relevant finance/security policies for unintended union-of-policy access.
+
+### Updated priority
+
+1. Create a legacy-invoice exception register for the three zero-fee August invoices and the Rs. 7,000 July Monthly invoice; trace original invoice/payment evidence and document a founder-approved disposition before any collection or rewrite.
+2. Reconcile July Per Order's Rs. 615 invoice against order-level fee snapshots and Rs. 300 recorded payments.
+3. Keep the confirmed database concurrency controls, but add safe-environment tests for parallel payments, duplicate submission review, and invalid settlement transitions.
+4. Review the Supabase security-advisor findings with Product & Technology; prioritize any authorization bypass or exposed private data.
+5. Reconcile the SQL migration source in GitHub with the live Supabase migration history so future changes are reproducible.
