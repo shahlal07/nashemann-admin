@@ -118,7 +118,7 @@ async function sendMail(params: {
     if (!res.ok) {
       const body = await res.text().catch(() => "");
       console.error(`[email] Resend rejected "${params.subject}": ${res.status} ${body}`);
-      await recordEmailEvent({ category, source, to: params.to, subject: params.subject, status: "failed", errorMessage: `Resend HTTP ${res.status}: ${body}` });
+      await recordEmailEvent({ category, source, to: params.to, subject: params.subject, status: "failed", errorMessage: `Resend HTTP ${res.status}` });
       return false;
     }
     const payload = await res.json().catch(() => ({}));
