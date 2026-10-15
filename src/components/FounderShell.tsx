@@ -22,6 +22,7 @@ const NAV_ITEMS = [
   { href: "/owners/approvals", label: "Approvals", icon: CheckSquare, capability: "approvals.read" },
   { href: "/owners/finance", label: "Finance", icon: CircleDollarSign, capability: "finance.read" },
   { href: "/owners/technology", label: "Product & technology", icon: Workflow, capability: "technology.read" },
+  { href: "/owners/strategy", label: "Business & strategy", icon: Compass, capability: "strategy.read" },
 ] as const;
 
 type FounderShellProps = {
