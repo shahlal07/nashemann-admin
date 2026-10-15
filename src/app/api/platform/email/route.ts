@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const RESEND_API = "https://api.resend.com";
-const CATEGORIES = ["notifications", "support", "security", "staff"] as const;
+const CATEGORIES = ["notifications", "marketing", "support", "security", "staff"] as const;
 type EmailCategory = (typeof CATEGORIES)[number];
 type JsonObject = Record<string, unknown>;
 
@@ -80,8 +80,8 @@ export async function GET() {
 
     if (settingsResult.error) throw new Error(settingsResult.error.message);
     if (recentResult.error) throw new Error(recentResult.error.message);
-    const enabledDefaults = { notifications: true, support: true, security: true, staff: true };
-    const senderDefaults = { notifications: "", support: "", security: "", staff: "" };
+    const enabledDefaults = { notifications: true, marketing: true, support: true, security: true, staff: true };
+    const senderDefaults = { notifications: "", marketing: "", support: "", security: "", staff: "" };
 
     return NextResponse.json({
       settings: {
@@ -128,7 +128,7 @@ export async function POST(request: Request) {
       const verifiedDomains = new Set(
         domains.filter((domain: any) => domain.status === "verified").map((domain: any) => String(domain.name).toLowerCase())
       );
-      const normalizedSenders: Record<EmailCategory, string> = { notifications: "", support: "", security: "", staff: "" };
+      const normalizedSenders: Record<EmailCategory, string> = { notifications: "", marketing: "", support: "", security: "", staff: "" };
       for (const category of CATEGORIES) {
         const email = String(senderFrom[category]).trim().toLowerCase();
         if (!email) continue;
