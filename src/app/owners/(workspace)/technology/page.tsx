@@ -1,5 +1,6 @@
 import { Activity, AlertTriangle, GitBranch, GitCommit, Workflow } from "lucide-react";
 import { requireFounder } from "@/lib/founders/authz";
+import { DecisionCreateForm } from "../decisions/DecisionCreateForm";
 import { getRepositoryHealth } from "@/lib/founders/github-health";
 
 export const dynamic = "force-dynamic";
@@ -10,8 +11,17 @@ function formatDate(value: string | null) {
 }
 
 export default async function FounderTechnologyPage() {
-  await requireFounder("technology.read");
-  const health = await getRepositoryHealth();
+  const { supabase, membership } = await requireFounder("technology.read");
+  const [health, decisionResult] = await Promise.all([
+    getRepositoryHealth(),
+    (supabase.from("owner_decisions") as any)
+      .select("id, title, summary, status, created_at")
+      .eq("domain", "product_technology")
+      .order("created_at", { ascending: false })
+      .limit(50),
+  ]);
+  const techDecisions = decisionResult.data ?? [];
+  const canCreateDecision = membership.responsibilities.includes("product_technology") && membership.capabilities.includes("technology.manage");
 
   return (
     <section className="mx-auto max-w-6xl space-y-7">
@@ -85,6 +95,27 @@ export default async function FounderTechnologyPage() {
           </article>
         ))}
       </div>
+
+      <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6">
+        <h2 className="font-semibold">Product & technology decisions</h2>
+        <p className="mt-1 text-sm text-[var(--text-muted)]">Live records for the product-technology domain.</p>
+        {canCreateDecision && <DecisionCreateForm domains={["product_technology"]} />}
+        {decisionResult.error ? (
+          <p className="mt-4 text-sm text-[var(--text-muted)]">Decision records are unavailable until the reviewed domain migration is deployed.</p>
+        ) : techDecisions.length === 0 ? (
+          <p className="mt-4 text-sm text-[var(--text-muted)]">No product-technology decisions have been recorded.</p>
+        ) : (
+          <div className="mt-4 space-y-3">
+            {techDecisions.map((decision: { id: string; title: string; summary: string | null; status: string; created_at: string }) => (
+              <article key={decision.id} className="rounded-xl border border-[var(--border)] p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-medium">{decision.title}</h3><span className="rounded-full border border-[var(--border)] px-2 py-1 text-xs">{decision.status}</span></div>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[var(--text-muted)]">{decision.summary || "No rationale recorded."}</p>
+                <p className="mt-2 text-xs text-[var(--text-faint)]">{new Date(decision.created_at).toLocaleDateString()}</p>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
 
       <p className="flex items-start gap-2 text-xs leading-5 text-[var(--text-muted)]"><Activity size={14} className="mt-0.5 shrink-0" /> Repository status is sourced from GitHub at request time. It does not imply a production deployment is healthy; deployment-provider integration must be configured separately before deployment status can be reported.</p>
     </section>
