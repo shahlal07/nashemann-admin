@@ -7,6 +7,7 @@ export const runtime = "nodejs";
 
 const RESEND_API = "https://api.resend.com";
 const CATEGORIES = ["notifications", "marketing", "support", "security", "staff"] as const;
+const SOURCES = ["nashemann-admin", "nashemann-web", "vendor-admins", "vendor-storefronts", "external"] as const;
 type EmailCategory = (typeof CATEGORIES)[number];
 type JsonObject = Record<string, unknown>;
 
@@ -89,6 +90,9 @@ export async function GET() {
 
     if (settingsResult.error) throw new Error(settingsResult.error.message);
     if (recentResult.error) throw new Error(recentResult.error.message);
+    const sourceCounts = await Promise.all(SOURCES.map((source) =>
+      admin.from("platform_email_log").select("id", { count: "exact", head: true }).eq("status", "sent").eq("source", source)
+    ));
     const enabledDefaults = { notifications: true, marketing: true, support: true, security: true, staff: true };
     const senderDefaults = { notifications: "", marketing: "", support: "", security: "", staff: "" };
 
@@ -106,6 +110,7 @@ export async function GET() {
         failedMonth: failedMonth.count ?? 0,
         skippedMonth: skippedMonth.count ?? 0,
         byCategory: Object.fromEntries(CATEGORIES.map((category, index) => [category, categoryCounts[index]?.count ?? 0])),
+        bySource: Object.fromEntries(SOURCES.map((source, index) => [source, sourceCounts[index]?.count ?? 0])),
       },
       recent: recentResult.data ?? [],
     });
