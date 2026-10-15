@@ -21,10 +21,10 @@ const NAV_ITEMS = [
   { href: "/owners", label: "Overview", icon: LayoutDashboard, capability: "workspace.read" },
   { href: "/owners/decisions", label: "Decisions", icon: FileText, capability: "governance.read" },
   { href: "/owners/approvals", label: "Approvals", icon: CheckSquare, capability: "approvals.read" },
-  { href: "/owners/finance", label: "Finance", icon: CircleDollarSign, capability: "finance.read" },
-  { href: "/owners/technology", label: "Product & technology", icon: Workflow, capability: "technology.read" },
-  { href: "/owners/strategy", label: "Business & strategy", icon: Compass, capability: "strategy.read" },
-  { href: "/owners/operations", label: "Operations", icon: Activity, capability: "governance.read" },
+  { href: "/owners/finance", label: "Finance", icon: CircleDollarSign, capability: "finance.read", responsibility: "finance_governance" },
+  { href: "/owners/technology", label: "Product & technology", icon: Workflow, capability: "technology.read", responsibility: "product_technology" },
+  { href: "/owners/strategy", label: "Business & strategy", icon: Compass, capability: "strategy.read", responsibility: "business_strategy" },
+  { href: "/owners/operations", label: "Operations", icon: Activity, capability: "governance.read", responsibility: "operations" },
 ] as const;
 
 type FounderShellProps = {
@@ -49,7 +49,7 @@ export function FounderShell({
     router.replace("/owners/login");
     router.refresh();
   }
-  const visibleItems = NAV_ITEMS.filter((item) => capabilities.includes(item.capability));
+  const visibleItems = NAV_ITEMS.filter((item) => capabilities.includes(item.capability) && (!("responsibility" in item) || responsibilities.includes(item.responsibility)));
 
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
