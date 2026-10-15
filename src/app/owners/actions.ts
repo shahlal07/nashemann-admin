@@ -64,10 +64,20 @@ export async function updateOwnerDecisionAction(input: {
   if (summary.length > 5000) throw new Error("Summary must be 5,000 characters or fewer.");
   if (!["proposed", "approved", "rejected", "archived"].includes(input.status)) throw new Error("Invalid decision status.");
 
-  const { supabase } = await requireFounder("governance.manage");
+  const { supabase: readClient } = await requireFounder();
+  const { data: existing, error: readError } = await (readClient.from("owner_decisions") as any)
+    .select("domain")
+    .eq("id", id)
+    .maybeSingle();
+  if (readError || !existing) throw new Error(readError?.message ?? "Decision not found or outside your assigned domain.");
+
+  const domain = cleanDomain(existing.domain);
+  const { supabase, membership } = await requireFounder(managementCapability(domain), domain);
+  if (!membership.responsibilities.includes(domain)) throw new Error("Your owner membership is not assigned to this domain.");
   const { error } = await (supabase.from("owner_decisions") as any)
     .update({ title, summary: summary || null, status: input.status })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("domain", domain);
   if (error) throw new Error(error.message);
 
   revalidatePath("/owners");
