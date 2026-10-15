@@ -121,9 +121,8 @@ function ApprovalCard({
   const [success, setSuccess] = useState<string | null>(null);
   const mayReview = canReview && approval.status === "pending" && approval.requested_by !== currentUserId;
 
-  function handleReview(event: FormEvent<HTMLFormElement>, status: "approved" | "rejected") {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
+  function submitReview(formElement: HTMLFormElement, status: "approved" | "rejected") {
+    const form = new FormData(formElement);
     const reason = String(form.get("reason") ?? "");
     setError(null);
     setSuccess(null);
@@ -147,7 +146,7 @@ function ApprovalCard({
       <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--text-muted)]">{approval.description || "No description provided."}</p>
       {approval.decision_reason && <p className="mt-3 rounded-xl bg-[var(--surface-hover)] p-3 text-sm"><span className="font-medium">Review reason: </span>{approval.decision_reason}</p>}
       {mayReview && (
-        <form className="mt-5 space-y-3" onSubmit={(event) => handleReview(event, "approved")}>
+        <form className="mt-5 space-y-3" onSubmit={(event) => { event.preventDefault(); submitReview(event.currentTarget, "approved"); }}>
           <label className="block"><span className="mb-1.5 block text-xs font-medium text-[var(--text-muted)]">Review reason (required)</span><textarea name="reason" required minLength={3} maxLength={2000} rows={2} className={inputClass} placeholder="Record the rationale for the decision…" /></label>
           {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
           {success && <p role="status" className="text-sm text-emerald-700">{success}</p>}
@@ -156,7 +155,7 @@ function ApprovalCard({
             <button type="button" disabled={busy} onClick={(event) => {
               const form = event.currentTarget.form;
               if (!form?.reportValidity()) return;
-              handleReview({ preventDefault: () => {}, currentTarget: form } as FormEvent<HTMLFormElement>, "rejected");
+              submitReview(form, "rejected");
             }} className="rounded-lg border border-red-500/30 px-4 py-2 text-xs font-semibold text-red-600 disabled:opacity-60">Reject request</button>
           </div>
         </form>
