@@ -29,7 +29,7 @@ type EmailRow = {
 type Payload = {
   settings: { categoryEnabled: Record<Category, boolean>; senderFrom: Record<Category, string>; updatedAt: string | null };
   domains: Domain[];
-  metrics: { sentTotal: number; sentToday: number; sentMonth: number; failedMonth: number; skippedMonth: number; byCategory: Record<Category, number> };
+  metrics: { sentTotal: number; sentToday: number; sentMonth: number; failedMonth: number; skippedMonth: number; byCategory: Record<Category, number>; bySource: Record<string, number> };
   recent: EmailRow[];
 };
 
@@ -170,6 +170,24 @@ export function EmailCenterClient() {
           </Card>
         ))}
       </div>
+
+      <Card>
+        <CardHeader title="Accepted sends by app" description="All logged sends since this control center was enabled, grouped by the app that requested them." />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+          {[
+            ["Super Admin", "nashemann-admin"],
+            ["Platform website", "nashemann-web"],
+            ["Vendor admin", "vendor-admins"],
+            ["Storefront", "vendor-storefronts"],
+            ["Other / unidentified", "external"],
+          ].map(([label, source]) => (
+            <div key={source} className="rounded-xl border border-[var(--border)] p-3">
+              <p className="text-xs text-[var(--text-muted)]">{label}</p>
+              <p className="mt-2 font-display text-xl font-semibold text-[var(--text)]">{loading ? "—" : Number(metrics?.bySource?.[source] ?? 0).toLocaleString()}</p>
+            </div>
+          ))}
+        </div>
+      </Card>
 
       <Card>
         <CardHeader title="Email categories" description="Turning a category off blocks new sends across all apps using the central mailer. Security and support can be controlled independently." />
