@@ -12,6 +12,7 @@ Record meaningful changes newest first: date, task, repos, summary, PR/commit, t
 - **Live configuration:** Rs. 20 per-order fee; Rs. 5,999 monthly fee; 10-day grace period.
 - **Legacy exceptions:** three August zero-fee invoices with null plan snapshots and no orders; July Monthly invoice Rs. 7,000 marked paid; July Per Order invoice Rs. 615 with Rs. 300 recorded paid. These require source-evidence review before collection or correction.
 - **Database controls observed:** payment advisory lock/balance trigger; unique vendor/month settlement; unique payment-submission linkage; Super Admin check in submission-review RPC.
+- **Critical reconciliation exception:** connected orders table has 25 rows total (24 cancelled; one currently eligible), which does not substantiate July settlement snapshots of 41 orders/Rs.121,000 and 58 orders/Rs.274,000. Historical source ledger/environment is unknown; hold collection and bulk rewrites until reconciled.
 - **Security follow-up:** Supabase advisor flagged a security-definer view error and broader function/RLS notices; audit by function and access intent.
 - **Next:** trace original order/invoice/payment evidence, add guarded state-transition tests, reconcile SQL migration source with live migration history, and keep BRAIN tasks open until evidence is complete.
 
