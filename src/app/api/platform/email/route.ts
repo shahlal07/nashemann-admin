@@ -101,9 +101,12 @@ export async function GET() {
     if (recentResult.error) throw new Error(recentResult.error.message);
     const usage = usagePayload?.data ?? usagePayload;
     const quota = {
-      emailsUsed: typeof usage?.emails?.used === "number" ? usage.emails.used : null,
-      emailsLimit: typeof usage?.emails?.limit === "number" ? usage.emails.limit : null,
-      emailsResetsAt: typeof usage?.emails?.resets_at === "string" ? usage.emails.resets_at : null,
+      emailsUsed: typeof usage?.emails?.monthly?.used === "number" ? usage.emails.monthly.used : null,
+      emailsLimit: typeof usage?.emails?.monthly?.limit === "number" ? usage.emails.monthly.limit : null,
+      emailsResetsAt: typeof usage?.emails?.monthly?.resets_at === "string" ? usage.emails.monthly.resets_at : null,
+      emailsDailyUsed: typeof usage?.emails?.daily?.used === "number" ? usage.emails.daily.used : null,
+      emailsDailyLimit: typeof usage?.emails?.daily?.limit === "number" ? usage.emails.daily.limit : null,
+      emailsDailyResetsAt: typeof usage?.emails?.daily?.resets_at === "string" ? usage.emails.daily.resets_at : null,
       domainsUsed: typeof usage?.domains?.used === "number" ? usage.domains.used : null,
       domainsLimit: typeof usage?.domains?.limit === "number" ? usage.domains.limit : null,
     };
