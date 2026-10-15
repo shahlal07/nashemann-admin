@@ -34,7 +34,7 @@ export default async function FounderOverviewPage() {
     can("approvals.read")
       ? (supabase.from("owner_approvals") as any).select("id", { count: "exact", head: true }).eq("status", "pending")
       : Promise.resolve({ count: null, error: null }),
-    can("finance.read")
+    (can("finance.read") && membership.responsibilities.includes("finance_governance"))
       ? (supabase.from("settlements") as any).select("id", { count: "exact", head: true })
       : Promise.resolve({ count: null, error: null }),
   ]);
