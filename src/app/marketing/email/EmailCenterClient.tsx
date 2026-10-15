@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, CircleAlert, Copy, Mail, Plus, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
+import { CheckCircle2, CircleAlert, Copy, Plus, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -161,7 +161,7 @@ export function EmailCenterClient() {
           ["Accepted sends", metrics?.sentTotal],
           ["Accepted today (UTC)", metrics?.sentToday],
           ["Accepted this month (UTC)", metrics?.sentMonth],
-          ["Failed this month", metrics?.failedMonth],
+          ["Failed (30 days)", metrics?.failedMonth],
           ["Skipped in 30 days", metrics?.skippedMonth],
         ].map(([label, value]) => (
           <Card key={String(label)} className="!p-4">
