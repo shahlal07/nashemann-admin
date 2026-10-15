@@ -8,8 +8,12 @@ Record meaningful changes newest first: date, task, repos, summary, PR/commit, t
 - **Change:** Added `docs/FINANCE_AUDIT_2026-10-15.md`; documented code-level findings for billing cron, settlement actions, payment review, role gates, audit log and billing policy. Updated current status and master task tracker to reflect active audit work.
 - **Evidence:** Read `docs/vendor-billing.md`, `src/app/api/cron/vendor-billing/route.ts`, `src/app/settlements/actions.ts`, `src/app/settlements/page.tsx`, `src/app/settlements/submissions/page.tsx`, `src/app/settlements/billing-settings/page.tsx`, `src/app/audit-log/page.tsx`, `src/lib/authz.ts`, `src/lib/auth.ts`, `src/lib/roles.ts`, and `package.json`.
 - **Findings:** Server actions for waiver/reversal lack explicit reason/state/affected-row validation in the reviewed code; payment audit-log insert errors are not checked. Described billing RPC/trigger definitions are not present in the reviewed `_migrations/` listing, so database-level safeguards remain unverified.
-- **Verification:** Documentation change only; no lint/build/test, production database query, live financial operation, or production smoke test was performed.
-- **Next:** Review authoritative Supabase function/trigger/RLS definitions, add safe database-backed regression tests, and produce a source-ledger reconciliation before marking finance tasks Done.
+- **Verification:** Read-only Supabase schema/function/trigger/RLS queries and aggregate settlement checks were performed against the connected project. No rows were changed and no live financial operation was executed. Lint/build/tests and HTTP smoke tests were not run.
+- **Live configuration:** Rs. 20 per-order fee; Rs. 5,999 monthly fee; 10-day grace period.
+- **Legacy exceptions:** three August zero-fee invoices with null plan snapshots and no orders; July Monthly invoice Rs. 7,000 marked paid; July Per Order invoice Rs. 615 with Rs. 300 recorded paid. These require source-evidence review before collection or correction.
+- **Database controls observed:** payment advisory lock/balance trigger; unique vendor/month settlement; unique payment-submission linkage; Super Admin check in submission-review RPC.
+- **Security follow-up:** Supabase advisor flagged a security-definer view error and broader function/RLS notices; audit by function and access intent.
+- **Next:** trace original order/invoice/payment evidence, add guarded state-transition tests, reconcile SQL migration source with live migration history, and keep BRAIN tasks open until evidence is complete.
 
 ## 2026-10-15 — Project brain initialized
 - **Repository:** shahlal07/nashemann-admin.
