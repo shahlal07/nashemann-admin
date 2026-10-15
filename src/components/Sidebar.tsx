@@ -54,26 +54,44 @@ export function Sidebar({ mobile = false, onNavigate }: { mobile?: boolean; onNa
   // Client-side role fetch purely to hide nav entries the viewer can't use --
   // the real gate is server-side (is_finance_staff() redirects + RLS).
   const [role, setRole] = useState<StaffRole | null>(null);
+  const [roleResolved, setRoleResolved] = useState(false);
   useEffect(() => {
     let active = true;
     (async () => {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase.from("staff_profiles").select("role").eq("id", user.id).maybeSingle();
-      if (active && data) setRole(data.role as StaffRole);
+      try {
+        const supabase = createClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) {
+          if (active) setRoleResolved(true);
+          return;
+        }
+        const { data, error } = await supabase.from("staff_profiles").select("role").eq("id", user.id).maybeSingle();
+        if (!active) return;
+        if (!error && data?.role) {
+          setRole(data.role as StaffRole);
+          setRoleResolved(true);
+        }
+        // On a transient auth/profile read failure, keep privileged links visible
+        // rather than silently hiding them. The page/API still enforce server auth.
+      } catch {
+        // Preserve navigation on client-side auth/network failures; server guards remain authoritative.
+      }
     })();
     return () => {
       active = false;
     };
   }, []);
 
-  const canSeeFinance = role ? FINANCE_ROLES.includes(role) : true; // default open while loading to avoid a layout flash
+  const canSeeFinance = role ? FINANCE_ROLES.includes(role) : true;
   const visibleSections = NAV_SECTIONS.map((s) => ({
     ...s,
-    items: s.items.filter((item) => (!item.financeOnly || canSeeFinance) && (!item.superAdminOnly || role === "super_admin")),
+    items: s.items.filter(
+      (item) =>
+        (!item.financeOnly || canSeeFinance) &&
+        (!item.superAdminOnly || !roleResolved || role === "super_admin"),
+    ),
   })).filter((s) => s.items.length > 0);
 
   // Sections start collapsed except whichever one contains the current page.
