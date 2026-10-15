@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Supabase schema types are not generated in this repository yet; query boundaries are guarded by server authorization and database RLS. */
 import { createClient } from "@supabase/supabase-js";
 
 let adminClient: ReturnType<typeof createClient<any>> | null = null;
