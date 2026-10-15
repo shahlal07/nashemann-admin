@@ -197,7 +197,6 @@ drop trigger if exists owner_membership_updated_at_trigger on public.owner_membe
 create trigger owner_membership_updated_at_trigger
 before update on public.owner_memberships
 for each row execute function public.touch_owner_membership_updated_at();
-);
 
 alter table public.owner_memberships enable row level security;
 
