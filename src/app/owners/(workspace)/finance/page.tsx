@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Supabase schema types are not generated in this repository yet; query boundaries are guarded by server authorization and database RLS. */
 import { CircleDollarSign, AlertTriangle, ReceiptText, Wallet } from "lucide-react";
 import { requireFounder } from "@/lib/founders/authz";
 import { createAdminClient } from "@/lib/supabase/admin";
