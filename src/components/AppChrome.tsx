@@ -9,7 +9,7 @@ const CHROME_LESS_PATHS = ["/login", "/owners/login", "/owners/access", "/owners
 export function AppChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  if (CHROME_LESS_PATHS.includes(pathname)) {
+  if (CHROME_LESS_PATHS.includes(pathname) || pathname.startsWith("/owners")) {
     return <ToastProvider>{children}</ToastProvider>;
   }
 
