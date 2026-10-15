@@ -36,3 +36,11 @@ Record meaningful changes newest first: date, task, repos, summary, PR/commit, t
 - **Change:** Added shared entry point, repository map, status ledger, master task backlog, architecture discovery, decisions, finance guardrails, release checklist and owner workflow.
 - **Verification:** Documentation commits acknowledged by GitHub. Application code, integrations and deployment settings were not audited as part of creating this brain.
 - **Next:** Audit all four active repositories and replace unknown status with evidence-backed findings.
+
+
+## 2026-10-15 — Owner login and domain isolation follow-up
+- Added a dedicated `/owners/login` page using the existing Supabase Auth session, with a separate active owner-membership check; staff login remains unchanged.
+- Added a proposed owner-domain migration for RLS-scoped decisions/approvals, non-self-review checks, and domain-scoped governance audit events.
+- Connected the decisions and approvals pages to RLS-filtered read queries with fail-closed unavailable states.
+- Added owner access boundary docs in draft PRs across the other three active repositories.
+- No production schema, membership, credentials, or deployment state changed. Lint/build/typecheck and SQL tests remain unrun.
