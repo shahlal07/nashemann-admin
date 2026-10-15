@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Activity, ArrowRight, CheckSquare, CircleDollarSign, FileText, Workflow } from "lucide-react";
+import { Activity, ArrowRight, CheckSquare, CircleDollarSign, Compass, FileText, Workflow } from "lucide-react";
 import { requireFounder } from "@/lib/founders/authz";
 import { getRepositoryHealth } from "@/lib/founders/github-health";
 
@@ -8,6 +8,7 @@ const MODULES = [
   { href: "/owners/approvals", title: "Approvals", description: "Requests that require founder review.", capability: "approvals.read", icon: CheckSquare },
   { href: "/owners/finance", title: "Finance & governance", description: "Live billing records and financial reconciliation signals.", capability: "finance.read", icon: CircleDollarSign },
   { href: "/owners/technology", title: "Product & technology", description: "Live repository and workflow information.", capability: "technology.read", icon: Workflow },
+  { href: "/owners/strategy", title: "Business & strategy", description: "Strategy decisions stored in the live decision register.", capability: "strategy.read", icon: Compass },
 ] as const;
 
 const DOMAIN_LABELS: Record<string, string> = {
