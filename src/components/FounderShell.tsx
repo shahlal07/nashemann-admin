@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   ArrowUpRight,
+  Activity,
   Bell,
   CheckSquare,
   LogOut,
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
   { href: "/owners/finance", label: "Finance", icon: CircleDollarSign, capability: "finance.read" },
   { href: "/owners/technology", label: "Product & technology", icon: Workflow, capability: "technology.read" },
   { href: "/owners/strategy", label: "Business & strategy", icon: Compass, capability: "strategy.read" },
+  { href: "/owners/operations", label: "Operations", icon: Activity, capability: "governance.read" },
 ] as const;
 
 type FounderShellProps = {
