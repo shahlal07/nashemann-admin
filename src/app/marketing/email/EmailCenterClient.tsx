@@ -29,7 +29,7 @@ type EmailRow = {
 type Payload = {
   settings: { categoryEnabled: Record<Category, boolean>; senderFrom: Record<Category, string>; updatedAt: string | null };
   domains: Domain[];
-  quota: { emailsUsed: number | null; emailsLimit: number | null; emailsResetsAt: string | null; domainsUsed: number | null; domainsLimit: number | null };
+  quota: { emailsUsed: number | null; emailsLimit: number | null; emailsResetsAt: string | null; emailsDailyUsed: number | null; emailsDailyLimit: number | null; emailsDailyResetsAt: string | null; domainsUsed: number | null; domainsLimit: number | null };
   metrics: { sentTotal: number; sentToday: number; sentMonth: number; failedMonth: number; skippedMonth: number; byCategory: Record<Category, number>; bySource: Record<string, number> };
   recent: EmailRow[];
 };
@@ -174,13 +174,20 @@ export function EmailCenterClient() {
 
       <Card>
         <CardHeader title="Resend account quota" description="Live provider usage across this Resend account, including any sends not recorded by this panel." />
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-[var(--border)] p-4">
             <p className="text-xs text-[var(--text-muted)]">Monthly emails used</p>
             <p className="mt-2 font-display text-2xl font-semibold text-[var(--text)]">
               {loading ? "—" : data?.quota?.emailsUsed == null ? "Unavailable" : `${data.quota.emailsUsed.toLocaleString()} / ${data.quota.emailsLimit?.toLocaleString() ?? "—"}`}
             </p>
             {data?.quota?.emailsResetsAt && <p className="mt-1 text-xs text-[var(--text-faint)]">Quota resets: {new Date(data.quota.emailsResetsAt).toLocaleString()}</p>}
+          </div>
+          <div className="rounded-xl border border-[var(--border)] p-4">
+            <p className="text-xs text-[var(--text-muted)]">Daily emails used</p>
+            <p className="mt-2 font-display text-2xl font-semibold text-[var(--text)]">
+              {loading ? "—" : data?.quota?.emailsDailyUsed == null ? "Unavailable" : `${data.quota.emailsDailyUsed.toLocaleString()} / ${data.quota.emailsDailyLimit?.toLocaleString() ?? "—"}`}
+            </p>
+            {data?.quota?.emailsDailyResetsAt && <p className="mt-1 text-xs text-[var(--text-faint)]">Daily reset: {new Date(data.quota.emailsDailyResetsAt).toLocaleString()}</p>}
           </div>
           <div className="rounded-xl border border-[var(--border)] p-4">
             <p className="text-xs text-[var(--text-muted)]">Sending domains used</p>
