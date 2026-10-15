@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { requireSuperAdmin } from "@/lib/authz";
 import { createClient } from "@/lib/supabase/server";
 import { OwnerManagementClient, type OwnerManagementRow } from "./OwnerManagementClient";
