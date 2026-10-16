@@ -14,17 +14,17 @@ Use this shared view for cross-repository priorities. Detailed technical discuss
 | BRAIN-008 | P0 | Audit settlement/reconciliation idempotency, concurrency and auditability | Admin + relevant code | Finance + Tech | Ready |
 | BRAIN-009 | P1 | Verify privileged admin actions are authorized and logged | nashemann-admin | Finance + Tech | Ready |
 | BRAIN-010 | P1 | Verify CI/build/test/release/rollback evidence | All four | Product & Technology | Ready |
-| BRAIN-011 | P1 | Design and integrate role-based Co-Founder / Owner Platform while preserving Super Admin | All four; initial target nashemann-admin | Product & Technology + Finance/Governance | In progress |
+| BRAIN-011 | P1 | Deploy role-based Co-Founder / Owner Platform while preserving Super Admin; finish authenticated acceptance tests | nashemann-admin (initial release) | Product & Technology + Finance/Governance | In review |
 
 ## BRAIN-011 — Co-Founder Platform
 - Plan: [docs/COFOUNDER_PLATFORM_INTEGRATION.md](COFOUNDER_PLATFORM_INTEGRATION.md)
-- Issue: [nashemann-admin #15](https://github.com/shahlal07/nashemann-admin/issues/15)
-- Planning branch: `product/cofounder-platform-alignment`
-- Implementation branch: `finance/BRAIN-011-owner-workspace-foundation`
-- Live schema discovery: owner membership/decision/approval/audit tables and owner capability/domain functions exist in Supabase; current owner membership count is 0.
-- Implemented on branch: separate owner login and shell, server-side active-membership guard, RLS-backed live overview, and Super Admin-only account provisioning with selected capabilities and rollback attempt if membership insertion fails.
-- Not yet verified: lint/typecheck/build, preview auth tests, provisioning against live RLS/triggers, account suspension/revocation, approval quorum rules, or deployment. Do not merge or deploy until CI/preview evidence is reviewed.
-- Acceptance includes confirmed founder responsibilities and approval rules, server-side owner authorization, unchanged Super Admin behavior, preserved tenant isolation, auditability, and actual test evidence.
+- PR: [#20 — Fix founder access and deploy cofounder workspace](https://github.com/shahlal07/nashemann-admin/pull/20) (merged).
+- Production: `master` commit `7fdb17d8ab36ad447ffb2974972fb7dd91d11feb`; Vercel deployment is READY and aliases `https://superadmin.nashemann.store`.
+- Included: separate owner login/shell, server-side active-membership guard, live overview backed by Supabase RLS, Super Admin-only founder provisioning, explicit duplicate-email confirmation, owner credential editing, and login-email display.
+- Build verification: Vercel build succeeded; TypeScript completed; static generation passed 31/31; route table includes `/owner-login`, `/owner-management`, and `/owners`.
+- Not yet accepted as end-to-end complete: test authenticated owner login, create/update credentials, duplicate-email path, inactive membership, direct unauthorized route/API attempts, and RLS with real sessions. No owner accounts were created during this release; previously observed owner membership count was zero.
+- Safety note: provision only the intended founder identities and confirm responsibilities/capabilities. Existing staff/admin and vendor-linked identities are rejected. Do not treat this one release as evidence that the other marketplace/security/finance tasks are complete.
+- Remaining approval-rule decisions: owner responsibility assignments, approval quorum/self-approval rules, account suspension/revocation lifecycle, and whole-platform tests.
 
 ## Previously reported repo issues — verify live status
 - [nashemann-web #5](https://github.com/shahlal07/nashemann-web/issues/5) — customer order journey.
