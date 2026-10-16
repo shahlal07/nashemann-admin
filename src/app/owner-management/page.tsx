@@ -1,6 +1,7 @@
 import { requireSuperAdmin } from "@/lib/authz";
 import { createClient } from "@/lib/supabase/server";
-import { OwnerManagementClient, type OwnerManagementRow } from "./OwnerManagementClient";
+import OwnerManagementIsland from "./OwnerManagementIsland";
+import type { OwnerManagementRow } from "./OwnerManagementClient";
 
 export const dynamic = "force-dynamic";
 
@@ -27,5 +28,5 @@ export default async function OwnerManagementPage() {
     updatedAt: row.updated_at,
   }));
 
-  return <OwnerManagementClient initialOwners={owners} />;
+  return <OwnerManagementIsland initialOwners={owners} />;
 }
