@@ -1,5 +1,6 @@
 import { requireSuperAdmin } from "@/lib/authz";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import OwnerManagementIsland from "./OwnerManagementIsland";
 import type { OwnerManagementRow } from "./OwnerManagementClient";
 
@@ -17,15 +18,20 @@ export default async function OwnerManagementPage() {
     return <div className="rounded-xl border border-[var(--border)] p-5 text-sm text-[var(--danger)]">Could not load owner memberships. Check database permissions and try again.</div>;
   }
 
-  const owners: OwnerManagementRow[] = (data ?? []).map((row) => ({
-    userId: row.user_id,
-    username: row.username ?? "",
-    displayName: row.display_name ?? "",
-    status: row.status,
-    responsibilities: row.responsibilities ?? [],
-    capabilities: row.capabilities ?? [],
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+  const admin = createAdminClient();
+  const owners: OwnerManagementRow[] = await Promise.all((data ?? []).map(async (row) => {
+    const { data: authData, error: authError } = await admin.auth.admin.getUserById(row.user_id);
+    return {
+      userId: row.user_id,
+      username: row.username ?? "",
+      email: authError ? "" : authData.user?.email ?? "",
+      displayName: row.display_name ?? "",
+      status: row.status,
+      responsibilities: row.responsibilities ?? [],
+      capabilities: row.capabilities ?? [],
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
   }));
 
   return <OwnerManagementIsland initialOwners={owners} />;
