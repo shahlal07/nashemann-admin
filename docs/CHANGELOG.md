@@ -2,6 +2,15 @@
 
 Record meaningful changes newest first: date, task, repos, summary, PR/commit, tests/evidence, risks and next action.
 
+## 2026-10-17 — Co-Founder workspace production release (BRAIN-011)
+- **Repository:** `shahlal07/nashemann-admin`; PR [#20](https://github.com/shahlal07/nashemann-admin/pull/20), merged to `master`.
+- **Production commit:** `7fdb17d8ab36ad447ffb2974972fb7dd91d11feb`; Vercel deployment `dpl_9F2zRYxKio9ownym8pWHePBt8iSU` is READY and aliases `https://superadmin.nashemann.store`.
+- **Change:** Added the separate owner sign-in, protected owner overview/shell, Super Admin-only founder access panel, duplicate-email handling for explicitly confirmed existing founder identities, existing owner credential edits, and actual login-email display from Supabase Auth. Existing staff/admin and vendor-linked identities are blocked by the provisioning flow.
+- **Build evidence:** Vercel reports compiled successfully, TypeScript finished, static generation completed 31/31, and route listing includes `/owner-login`, `/owner-management`, `/owners`.
+- **Runtime finding addressed:** Historical production error on `/owner-management`: “A user with this email address has already been registered.” The updated action now recognizes duplicate email, resolves it through the Auth Admin API after explicit confirmation, and handles existing founder membership instead of blindly returning the raw duplicate error.
+- **Remaining verification:** Authenticated end-to-end owner login/provisioning/password-change/RLS/unauthorized-user tests have not been run through a real signed-in browser session. Live schema discovery reported zero owner memberships before provisioning; no founder account was created by this release. Confirm founder identities/responsibilities and test the flow before relying on it for all owners.
+- **Remaining app scope:** BRAIN-001 through BRAIN-010 (whole marketplace, tenant isolation, fulfillment and finance integrity) remain to be audited; this release does not certify the whole platform production-ready.
+
 ## 2026-10-15 — Co-Founder Platform live schema discovery
 - **Task:** BRAIN-011; issue #15; draft PR #16.
 - **Repository / service:** `nashemann-admin` documentation branch and connected Supabase project `eznxsosvsgkhexbjoolh`.
