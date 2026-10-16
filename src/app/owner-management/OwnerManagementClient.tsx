@@ -49,6 +49,7 @@ export function OwnerManagementClient({ initialOwners }: { initialOwners: OwnerM
   const [responsibilities, setResponsibilities] = useState<string[]>([]);
   const [capabilities, setCapabilities] = useState<string[]>([]);
   const [updateExistingAccount, setUpdateExistingAccount] = useState(false);
+  const [editingExistingOwner, setEditingExistingOwner] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdNotice, setCreatedNotice] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -58,6 +59,7 @@ export function OwnerManagementClient({ initialOwners }: { initialOwners: OwnerM
   }
 
   function loadOwner(owner: OwnerManagementRow) {
+    setEditingExistingOwner(true);
     setUsername(owner.username);
     setEmail(owner.email);
     setDisplayName(owner.displayName);
@@ -115,6 +117,7 @@ export function OwnerManagementClient({ initialOwners }: { initialOwners: OwnerM
         setResponsibilities([]);
         setCapabilities([]);
         setUpdateExistingAccount(false);
+        setEditingExistingOwner(false);
         setOpen(false);
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : "Could not save owner account.");
@@ -130,7 +133,7 @@ export function OwnerManagementClient({ initialOwners }: { initialOwners: OwnerM
           <h1 className="mt-2 font-display text-2xl font-semibold text-[var(--text)] sm:text-3xl">Founder access</h1>
           <p className="mt-2 max-w-2xl text-sm text-[var(--text-muted)]">Create individual founder accounts or update a founder's login password, username, responsibilities, and capabilities from this panel.</p>
         </div>
-        <button type="button" onClick={() => setOpen((value) => !value)} className="accent-ring inline-flex items-center gap-2 rounded-lg bg-[var(--accent-gradient)] px-4 py-2.5 text-sm font-semibold text-black">
+        <button type="button" onClick={() => { if (open) { setOpen(false); } else { setEditingExistingOwner(false); setUsername(""); setEmail(""); setDisplayName(""); setPassword(""); setResponsibilities([]); setCapabilities([]); setUpdateExistingAccount(false); setError(null); setCreatedNotice(null); setOpen(true); } }} className="accent-ring inline-flex items-center gap-2 rounded-lg bg-[var(--accent-gradient)] px-4 py-2.5 text-sm font-semibold text-black">
           <UserPlus size={16} /> {open ? "Close form" : "Create / manage owner"}
         </button>
       </div>
@@ -146,7 +149,7 @@ export function OwnerManagementClient({ initialOwners }: { initialOwners: OwnerM
       {open && <form onSubmit={submit} className="glass-panel space-y-5 rounded-[var(--radius-lg)] p-5 sm:p-6">
         <div className="grid gap-4 sm:grid-cols-2">
           <label><span className={labelClass}>Username</span><input required minLength={3} maxLength={32} value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="off" className={inputClass} placeholder="founder.tech" /></label>
-          <label><span className={labelClass}>Login email</span><input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" className={inputClass} placeholder="founder@nashemann.store" /></label>
+          <label><span className={labelClass}>{editingExistingOwner ? "Login email (fixed for existing account)" : "Login email"}</span><input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" className={inputClass} placeholder="founder@nashemann.store" disabled={editingExistingOwner} /></label>
           <label><span className={labelClass}>Display name</span><input required minLength={2} maxLength={80} value={displayName} onChange={(e) => setDisplayName(e.target.value)} className={inputClass} /></label>
           <label><span className={labelClass}>New password (12+ characters)</span><input required minLength={12} maxLength={128} type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" className={inputClass} /></label>
         </div>
