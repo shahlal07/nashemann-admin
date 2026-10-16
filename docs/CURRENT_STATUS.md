@@ -1,6 +1,6 @@
 # Current Status
 
-Last updated: 2026-10-15
+Last updated: 2026-10-17
 
 **Verified** means supported by direct evidence. **In progress** means actively being worked. **Blocked** requires a documented blocker. **Unknown / not yet audited** means insufficient evidence; it does not mean broken or complete.
 
@@ -13,8 +13,10 @@ Last updated: 2026-10-15
 - [x] Draft cross-repository Co-Founder Platform integration plan; issue #15 opened.
 - [x] Broader read-only live Supabase discovery confirmed owner membership/decision/approval/audit tables and owner capability/domain helper functions. Earlier targeted name search was incomplete.
 - [x] Created initial owner-workspace implementation branch with separate owner login, server-side membership guard, RLS-backed live overview, and Super Admin-only owner provisioning.
-- [ ] Run lint, typecheck, build, auth/RLS tests, and preview smoke tests for the implementation branch.
-- [ ] Provision and verify the three founder memberships after the branch passes checks; no founder account has been created yet.
+- [x] Merged the co-founder workspace into `master` via PR #20; production deployment for commit `7fdb17d8ab36ad447ffb2974972fb7dd91d11feb` is READY on Vercel.
+- [x] Production build completed TypeScript checks and static generation (31/31 pages); Vercel route table includes `/owner-login`, `/owner-management`, and `/owners`.
+- [ ] Run authenticated smoke tests for owner sign-in, provisioning, password updates, RLS, and unauthorized identities; browser access could not be independently verified through the web inspection tool.
+- [ ] Provision and verify the three founder memberships. Live schema discovery recorded zero memberships before provisioning; no founder account has been created by this work.
 
 ## Application readiness — not yet verified
 
@@ -29,7 +31,7 @@ Last updated: 2026-10-15
 | Settlement and reconciliation | Unknown | Test idempotency, concurrency and audit history |
 | CI, build, releases and rollback | Unknown | Inspect workflow files and recent runs |
 | Domains and production deployments | Unknown | Verify provider dashboards and smoke tests |
-| Co-Founder / Owner Platform | Implementation branch in progress; not deployed | Validate branch in CI/preview, finish access-management lifecycle and authorization tests, confirm responsibilities/approval rules, then deploy |
+| Co-Founder / Owner Platform | Deployed to production; end-to-end auth not yet verified | Run authenticated tests for duplicate email, create/edit credentials, active membership, least-privilege access and RLS; provision founders after identities/responsibilities are confirmed |
 
 ## Immediate priorities
 1. Audit existing code and open work before rebuilding anything.
