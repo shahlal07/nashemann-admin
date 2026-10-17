@@ -5,7 +5,7 @@ Use this shared view for cross-repository priorities. Detailed technical discuss
 | ID | Priority | Task | Repo(s) | Accountable role | Status |
 |---|---|---|---|---|---|
 | BRAIN-001 | P0 | Audit code, issues/PRs and integrations across all four repos | All four | All owners, coordinated by Tech | Ready |
-| BRAIN-002 | P0 | Verify auth, authorization and tenant isolation; add regression tests | Relevant repos | Product & Technology | Ready |
+| BRAIN-002 | P0 | Verify auth, authorization and tenant isolation; add regression tests | Relevant repos | Product & Technology | In progress |
 | BRAIN-003 | P0 | Trace order lifecycle and guard against duplicate/lost/unauthorized transitions | All relevant repos | Tech + Operations | Ready |
 | BRAIN-004 | P1 | Validate vendor onboarding, product/inventory and fulfilment | vendor-admins | Marketplace & Operations | Ready |
 | BRAIN-005 | P1 | Validate browsing, cart/checkout and order confirmation | nashemann-web | Product & Technology | Ready |
@@ -15,6 +15,16 @@ Use this shared view for cross-repository priorities. Detailed technical discuss
 | BRAIN-009 | P1 | Verify privileged admin actions are authorized and logged | nashemann-admin | Finance + Tech | Ready |
 | BRAIN-010 | P1 | Verify CI/build/test/release/rollback evidence | All four | Product & Technology | Ready |
 | BRAIN-011 | P1 | Deploy role-based Co-Founder / Owner Platform while preserving Super Admin; finish authenticated acceptance tests | nashemann-admin (initial release) | Product & Technology + Finance/Governance | In review |
+
+## BRAIN-002 — Phase 1 security audit (2026-10-18)
+
+- **Live project verified:** Supabase project `new nashemann` (`eznxsosvsgkhexbjoolh`), ACTIVE_HEALTHY.
+- **RLS baseline:** Supabase reports RLS enabled on all 36 tables in the `public` schema. This is a positive baseline, not proof that policies are correct.
+- **Confirmed high-priority finding:** `public.find_orders_by_contact(text, uuid)` is a SECURITY DEFINER RPC executable by `anon` and `authenticated`; it returns `SETOF orders` when given only a contact (email/phone) and vendor ID. The vendor storefront used it for guest order history, exposing order rows with delivery/payment data to anyone who knew a contact value.
+- **Remediation in progress:** [vendor-storefronts PR #9](https://github.com/shahlal07/vendor-storefronts/pull/9) changes guest tracking to require both order number and checkout contact, removes the contact-only client call, and adds a migration revoking execute permission. Do not apply the migration until the new UI is deployed.
+- **Other findings to investigate, not blanket-fix:** Supabase security advisors flag `public.public_business_settings` as a SECURITY DEFINER view (ERROR); 19 SECURITY DEFINER RPCs executable by anon; 52 executable by authenticated users; and five RLS-enabled tables with no policies (three private rate-limit tables and two public-schema platform-email tables). Some RPCs are intentionally public or role-gated, so inspect authorization and call sites individually.
+- **Auth hardening:** Supabase reports leaked-password protection disabled. Confirm impact and change via the supported Auth configuration before closing the task.
+- **Verification still required:** authenticated/anonymous role tests, cross-vendor isolation, view access review, per-RPC authorization review, and post-deployment verification. No production database permissions have been changed by this audit yet.
 
 ## BRAIN-011 — Co-Founder Platform
 - Plan: [docs/COFOUNDER_PLATFORM_INTEGRATION.md](COFOUNDER_PLATFORM_INTEGRATION.md)
