@@ -26,7 +26,7 @@ Last updated: 2026-10-17
 | Storefront routing/catalog isolation | Unknown | Audit vendor-storefronts and cross-vendor tests |
 | Vendor onboarding and fulfilment | Unknown | Audit vendor-admins end-to-end |
 | Admin authorization and audit trail | Unknown | Audit nashemann-admin privileged actions |
-| Tenant isolation / row-level security | Unknown | Inspect policies and test separate vendor identities |
+| Tenant isolation / row-level security | RLS enabled on all 36 public tables; policy correctness and cross-vendor isolation still unverified | Review RPCs/views and test separate vendor identities |
 | Rs.20 eligible-order fee and subscription | Unknown | Trace implementation against approved policy |
 | Settlement and reconciliation | Unknown | Test idempotency, concurrency and audit history |
 | CI, build, releases and rollback | Unknown | Inspect workflow files and recent runs |
