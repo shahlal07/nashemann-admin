@@ -41,5 +41,13 @@ Last updated: 2026-10-17
 5. Define owner permissions without changing Super Admin behavior.
 6. Replace unknowns with dated findings, evidence and next actions.
 
+## 2026-10-15 — Local production-parity dev environment configured
+- **Repos:** all four (nashemann-web, nashemann-admin, vendor-storefronts, vendor-admins).
+- **Finding/change:** All four apps run locally on ports 3000–3003 with real Supabase credentials; `.env.local` populated (Vercel pull + Supabase CLI + old local clone); local-only provision/cron secrets wired for the admin↔vendor handshake; launcher scripts `dev-all.bat` / `dev-stop.bat` / `dev-check.bat`; docs `docs/LOCAL_DEVELOPMENT.md` and `docs/LOCAL_ENVIRONMENT_VARIABLES.md` added. Correct Vercel projects confirmed: nashemann-web, nashemann-admin, vendor-storefronts, vendor-admins (team kashif11); two mistakenly created empty projects `theaamghar-web`/`theaamghar-admin` deleted.
+- **Test evidence:** HTTP 200 on all four local ports (nashemann-admin `/` 307→`/login` 200 as designed); `npm run build` PASS ×4; vitest PASS 47/47 (vendor-storefronts) and 35/35 (vendor-admins); `tsc --noEmit` PASS (vendor-storefronts); lint run ×4 — only pre-existing issues (web 1 err, admin 16 errs, vendor-admins 4 errs, vendor-storefronts 0 errs).
+- **Remaining risk:** localhost redirect URLs not yet confirmed in Supabase Auth config (OAuth/email links/reset); email delivery not verified; Vercel `sensitive` var values unavailable via API (documented workaround); local provision/cron secrets intentionally differ from production.
+- **Responsible role:** Product & Technology.
+- **Next action:** Owner adds localhost redirect URLs in Supabase Dashboard → Authentication → URL Configuration, then signs in locally with a real account to confirm session flow.
+
 ## Update format
 Date, repo(s), task/issue/PR, finding/change, test evidence, remaining risk, responsible role, next action.

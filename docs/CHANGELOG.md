@@ -34,3 +34,11 @@ Record meaningful changes newest first: date, task, repos, summary, PR/commit, t
 - **Change:** Added shared entry point, repository map, status ledger, master task backlog, architecture discovery, decisions, finance guardrails, release checklist and owner workflow.
 - **Verification:** Documentation commits acknowledged by GitHub. Application code, integrations and deployment settings were not audited as part of creating this brain.
 - **Next:** Audit all four active repositories and replace unknown status with evidence-backed findings.
+
+## 2026-10-15 — Local development environment (all four repos)
+- **Task:** Local production-parity setup.
+- **Repos:** nashemann-web, nashemann-admin, vendor-storefronts, vendor-admins.
+- **Summary:** All four apps verified running on localhost:3000–3003 against the production Supabase project `eznxsosvsgkhexbjoolh`; env files repaired (Vercel `sensitive` vars return `[SENSITIVE]` on pull — real values sourced from Supabase CLI and the previous local clone); local-only provisioning/cron secrets set; launcher scripts added; `docs/LOCAL_DEVELOPMENT.md` + `docs/LOCAL_ENVIRONMENT_VARIABLES.md` written; empty mistakenly-created Vercel projects `theaamghar-web`/`theaamghar-admin` removed.
+- **Tests/evidence:** HTTP 200 ×4 locally; `npm run build` ×4 PASS; vitest 47/47 + 35/35 PASS; `tsc --noEmit` PASS (vendor-storefronts); lint ×4 (pre-existing issues only). No source code changed.
+- **Risks:** Supabase localhost redirect URLs unconfirmed; email sending unverified; production values of sensitive Vercel vars still unknown to local setup (by design).
+- **Next:** Owner confirms Supabase auth redirect URLs and performs a local sign-in.

@@ -2,87 +2,41 @@
 
 Last updated: 2026-10-15
 
-**WARNING:** Never commit actual secret values. This file documents variable names only.
+**Rule:** this file documents variable **names** and where to obtain them — never secret values.
 
-## Shared Variables (All Apps)
+## Where local values come from
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Public anon key (safe for browser) |
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes* | Service role key (server-side only) |
-| `GROQ_API_KEY` | Some | AI/automation features |
+1. **Supabase trio** (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`): `supabase projects api-keys --project-ref eznxsosvsgkhexbjoolh`.
+2. **Other Vercel vars:** `vercel env pull .env.local --environment production` per repo. Vars of type `sensitive` come back as the literal placeholder `[SENSITIVE]` and must be filled another way (previous local clone `E:\Claude\…\.env.local`, the Vercel dashboard, or a teammate).
+3. **Local-only synthetic values** (set during local setup, intentionally different from production):
+   - `VENDOR_PROVISION_SECRET` — same value in nashemann-admin and vendor-admins so the local handshake matches.
+   - `VENDOR_PROVISION_URL` — `http://localhost:3003` (nashemann-admin).
+   - `CRON_SECRET` (nashemann-admin) — local value for manual cron-endpoint tests.
+4. Real legacy credentials recovered from the old local clone: `GROQ_API_KEY`, `RESEND_API_KEY`, `CRON_SECRET` (vendor-storefronts), `GMAIL_USER`, `GMAIL_APP_PASSWORD`.
 
-## nashemann-web
+`.env*` is gitignored in all four repos (verified 2026-10-15).
 
-```
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-GROQ_API_KEY=
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-```
+## Variables by application
 
-## nashemann-admin
+### nashemann-web (port 3000)
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `GROQ_API_KEY`, `NEXT_PUBLIC_APP_URL` (= `http://localhost:3000`).
 
-```
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-GROQ_API_KEY=
-RESEND_API_KEY=
-VENDOR_PROVISION_SECRET=
-CRON_SECRET=
-NEXT_PUBLIC_APP_URL=http://localhost:3001
-```
+### nashemann-admin (port 3001)
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `GROQ_API_KEY`, `RESEND_API_KEY`, `CRON_SECRET`, `VENDOR_PROVISION_SECRET`, `VENDOR_PROVISION_URL`, `NEXT_PUBLIC_APP_URL` (= `http://localhost:3001`), optional `INTERNAL_PLATFORM_SECRET`, `CRON_SECRET`.
 
-## vendor-storefronts
+### vendor-storefronts (port 3002)
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (code also accepts `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`), `SUPABASE_SERVICE_ROLE_KEY`, `GROQ_API_KEY`, `CRON_SECRET`, `RESEND_API_KEY`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `NASHEMANN_MAILER_URL`, `ADMIN_ALERT_EMAIL`, `NEXT_PUBLIC_SITE_URL` (= `http://localhost:3002`), `NEXT_PUBLIC_ADMIN_URL` (= `http://localhost:3003`).
 
-```
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-GROQ_API_KEY=
-NEXT_PUBLIC_SITE_URL=http://localhost:3002
-NEXT_PUBLIC_ADMIN_URL=http://localhost:3003
-```
+### vendor-admins (port 3003)
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `GROQ_API_KEY`, `RESEND_API_KEY`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `NASHEMANN_MAILER_URL`, `NASHEMANN_PROVISIONING_SECRET` (or `VENDOR_PROVISION_SECRET`), `ADMIN_IP_ALLOWLIST`, `NEXT_PUBLIC_SITE_URL` (= `http://localhost:3003`).
 
-## vendor-admins
+## Cross-app contracts
 
-```
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-GROQ_API_KEY=
-NASHEMANN_PROVISIONING_SECRET=
-VENDOR_PROVISION_SECRET=
-NEXT_PUBLIC_SITE_URL=http://localhost:3003
-```
+- nashemann-admin → vendor-admins provisioning: header `x-nashemann-provisioning-secret` must equal `VENDOR_PROVISION_SECRET` on the sender and `NASHEMANN_PROVISIONING_SECRET ?? VENDOR_PROVISION_SECRET` on the receiver; target base URL from `VENDOR_PROVISION_URL`.
+- Cron endpoints require `Authorization: Bearer <CRON_SECRET>`.
 
-## Getting Credentials
+## Security notes
 
-### Supabase Keys
-
-1. Go to https://supabase.com/dashboard
-2. Select project: "new nashemann"
-3. Settings > API
-4. Copy:
-   - Project URL → `NEXT_PUBLIC_SUPABASE_URL`
-   - anon public key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - service_role key → `SUPABASE_SERVICE_ROLE_KEY` (keep secret!)
-
-### From Vercel
-
-```batch
-cd nashemann-admin
-vercel env pull .env.local --environment production
-```
-
-This downloads all production environment variables.
-
-## Security Notes
-
-1. **Never** commit `.env.local` files
-2. **Never** expose `SUPABASE_SERVICE_ROLE_KEY` in browser code
-3. **Never** share secrets in chat, documentation, or screenshots
-4. Use `.env.example` for documentation with placeholder values
+- Never put `SUPABASE_SERVICE_ROLE_KEY` in `NEXT_PUBLIC_*`, client code, Git, or logs.
+- Never disable RLS or bypass role checks to make local flows work.
+- Production values of Vercel `sensitive` vars are only available in the Vercel dashboard to authorized owners.
