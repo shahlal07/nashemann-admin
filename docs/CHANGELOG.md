@@ -1,8 +1,8 @@
 ## 2026-10-18 — Phase 1 security audit started
 
 - Verified the active Nashemann Supabase project and confirmed RLS is enabled on all 36 public tables.
-- Found guest order lookup returning full order rows based only on contact; opened [vendor-storefronts PR #9](https://github.com/shahlal07/vendor-storefronts/pull/9) requiring order number + contact and adding a privilege-revocation migration. CI passed for the PR commit.
-- Found the generic rate-limit SECURITY DEFINER RPC directly executable by anon/authenticated with caller-controlled keys and thresholds; opened [vendor-storefronts PR #10](https://github.com/shahlal07/vendor-storefronts/pull/10) and [vendor-admins PR #9](https://github.com/shahlal07/vendor-admins/pull/9). Coordinated database grant migration is not yet applied; wait until both application changes are deployed.
+- Found guest order lookup returning full order rows based only on contact; [vendor-storefronts PR #9](https://github.com/shahlal07/vendor-storefronts/pull/9) now moves lookup behind a server-side rate-limited action, resolves tenant from the request host, returns an allowlist of fields, and adds a migration revoking direct browser execution on both lookup RPCs. CI passed for the expanded PR commit.
+- Found the generic rate-limit SECURITY DEFINER RPC directly executable by anon/authenticated with caller-controlled keys and thresholds; opened [vendor-storefronts PR #10](https://github.com/shahlal07/vendor-storefronts/pull/10) and [vendor-admins PR #9](https://github.com/shahlal07/vendor-admins/pull/9). Storefronts CI passed after updating chat, newsletter, and bug-report call sites. The coordinated database grant migration is not yet applied; wait until both application changes are deployed.
 - Remaining: investigate the flagged SECURITY DEFINER view, review public RPCs individually, verify cross-vendor isolation with real identities, and enable leaked-password protection after checking current auth settings.
 - Status: findings confirmed; fixes in review; no live database permissions changed during this audit.
 
