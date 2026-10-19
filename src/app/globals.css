@@ -35,6 +35,11 @@
   --accent-gradient: linear-gradient(135deg, var(--accent-violet) 0%, #b478ff 45%, var(--accent-amber) 100%);
   --accent-gradient-soft: linear-gradient(135deg, rgba(139, 107, 255, 0.16), rgba(255, 176, 32, 0.12));
 
+  /* Founder workspace accents (from the V5 design reference):
+     Technology = violet, Finance = cyan, Marketing = pink. */
+  --accent-cyan: #22d3ee;
+  --accent-pink: #f472b6;
+
   /* Status */
   --success: #34d399;
   --success-bg: rgba(52, 211, 153, 0.12);
@@ -80,6 +85,10 @@
      --accent-violet-deep. */
   --accent-violet-deep: #6439ff;
   --accent-amber: #ba7800;
+  /* Workspace accents darkened for light-mode text contrast (same reasoning
+     as --accent-violet-deep above). */
+  --accent-cyan: #0b7c92;
+  --accent-pink: #c94994;
   --success: #1a7655;
   --warning: #866202;
   --danger: #d10623;
@@ -179,6 +188,28 @@ body {
 .accent-ring:focus-visible {
   outline: 2px solid var(--accent-violet);
   outline-offset: 2px;
+}
+
+/* Founder workspace panel — V5 card treatment: a 1px gradient hairline across
+   the top edge of the card. Requires the element to carry its own border/radius
+   classes; this only adds positioning + the ::before line. */
+.panel-hairline {
+  position: relative;
+  overflow: hidden;
+}
+.panel-hairline::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border-strong), transparent);
+}
+
+/* Visual dimming for read-only workspace previews. Edit affordances are never
+   rendered in preview mode — this is presentation only; authorization is
+   enforced server-side (server actions, route handlers, Supabase RLS). */
+.workspace-preview {
+  opacity: 0.82;
 }
 
 /* CSS-driven safety net for prefers-reduced-motion: covers ordinary

@@ -16,7 +16,8 @@ export async function requireFounder(capability: string, responsibility: string)
 
   if (authError || !authData.user) redirect("/login");
 
-  const { data, error } = await (supabase.from("owner_memberships") as any)
+  const { data, error } = await supabase
+    .from("owner_memberships")
     .select("user_id, username, display_name, status, responsibilities, capabilities")
     .eq("user_id", authData.user.id)
     .maybeSingle();

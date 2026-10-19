@@ -8,7 +8,14 @@ import {
   Users,
 } from "lucide-react";
 import { Reveal } from "@/components/owner/Reveal";
+import { WorkspaceCard } from "@/components/owners/workspace-ui";
 import { requireOwner } from "@/lib/owner-authz";
+import {
+  FOUNDER_WORKSPACES,
+  WORKSPACE_KEYS,
+  getWorkspaceAccess,
+  type WorkspaceKey,
+} from "@/lib/founders/workspaces";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +64,20 @@ function SectionHeading({
   );
 }
 
+type MembershipSummary = {
+  user_id: string;
+  display_name: string | null;
+  username: string | null;
+  status: string;
+  responsibilities: string[] | null;
+};
+
+function findWorkspaceOwner(memberships: MembershipSummary[], key: WorkspaceKey): string | null {
+  const owner = memberships.find((row) => row.responsibilities?.includes(FOUNDER_WORKSPACES[key].responsibility));
+  if (!owner) return null;
+  return owner.display_name || owner.username || "Founder";
+}
+
 export default async function OwnersOverviewPage() {
   const { supabase, membership, user } = await requireOwner();
   const canReadGovernance = membership.capabilities.includes("governance.read");
@@ -69,11 +90,12 @@ export default async function OwnersOverviewPage() {
     canReadApprovals
       ? supabase.from("owner_approvals").select("id, title, description, domain, status, requested_at").eq("status", "pending").order("requested_at", { ascending: false }).limit(5)
       : Promise.resolve({ data: [], error: null }),
-    supabase.from("owner_memberships").select("user_id, status").eq("status", "active"),
+    supabase.from("owner_memberships").select("user_id, display_name, username, status, responsibilities").eq("status", "active"),
   ]);
 
   const decisions = decisionsResult.data ?? [];
   const approvals = approvalsResult.data ?? [];
+  const memberships = (ownersResult.data ?? []) as unknown as MembershipSummary[];
   const dataWarnings = [decisionsResult.error, approvalsResult.error, ownersResult.error].filter(Boolean).length;
   const displayName = membership.display_name || membership.username || user.email?.split("@")[0] || "Founder";
 
@@ -107,6 +129,34 @@ export default async function OwnersOverviewPage() {
             Access scoped to your role
           </div>
         </div>
+      </Reveal>
+
+      <Reveal delay={0.03}>
+        <section aria-label="Founder workspaces">
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="font-display text-lg font-semibold tracking-[-0.025em] text-[var(--text)]">Your workspaces</h2>
+              <p className="mt-1.5 text-sm leading-6 text-[var(--text-muted)]">
+                One company, three owner workspaces. Open your own to edit; the other two are available as read-only
+                previews.
+              </p>
+            </div>
+            <span className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1 text-[11px] font-medium text-[var(--text-muted)]">
+              Technology · Finance · Marketing
+            </span>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {WORKSPACE_KEYS.map((key, index) => (
+              <Reveal key={key} delay={0.04 + index * 0.05}>
+                <WorkspaceCard
+                  workspaceKey={key}
+                  ownerName={ownersResult.error ? null : findWorkspaceOwner(memberships, key)}
+                  access={getWorkspaceAccess(membership, key)}
+                />
+              </Reveal>
+            ))}
+          </div>
+        </section>
       </Reveal>
 
       {dataWarnings > 0 && (
