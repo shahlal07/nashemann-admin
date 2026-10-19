@@ -80,6 +80,15 @@ export default async function OwnersOverviewPage() {
   return (
     <div className="space-y-8 pb-8">
       <Reveal>
+        <a href="/owners/features" className="group flex flex-col justify-between gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] sm:flex-row sm:items-center">
+          <div>
+            <p className="font-semibold text-[var(--text)]">Platform Feature Requests</p>
+            <p className="mt-1 text-sm text-[var(--text-muted)]">Review shared proposals for Technology, Finance, Marketing, or the whole panel.</p>
+          </div>
+          <span className="inline-flex items-center gap-2 text-sm font-medium text-[var(--accent-violet-deep)]">Open register <ArrowUpRight size={16} className="transition group-hover:translate-x-0.5" /></span>
+        </a>
+      </Reveal>
+      <Reveal>
         <div className="flex flex-col justify-between gap-5 border-b border-[var(--border)] pb-7 sm:flex-row sm:items-end">
           <div className="max-w-2xl">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
