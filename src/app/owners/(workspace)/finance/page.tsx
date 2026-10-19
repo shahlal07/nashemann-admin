@@ -1,6 +1,17 @@
-import { CircleDollarSign, AlertTriangle, ReceiptText, Wallet } from "lucide-react";
-import { requireFounder } from "@/lib/founders/authz";
+import { AlertTriangle, Wallet } from "lucide-react";
+import { requireOwner } from "@/lib/owner-authz";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  EmptyPanel,
+  PageStat,
+  PanelCard,
+  SoftNote,
+  StatusPill,
+  WarningPanel,
+  WorkspaceHero,
+  WorkspacePage,
+} from "@/components/owners/workspace-ui";
+import { getWorkspaceAccess } from "@/lib/founders/workspaces";
 
 export const dynamic = "force-dynamic";
 
@@ -25,14 +36,18 @@ const money = (value: number) =>
   new Intl.NumberFormat("en-PK", { style: "currency", currency: "PKR", maximumFractionDigits: 0 }).format(value);
 
 export default async function FounderFinancePage() {
-  const { supabase } = await requireFounder("finance.read", "finance_governance");
+  const { supabase, membership } = await requireOwner();
+  const access = getWorkspaceAccess(membership, "finance");
+  const isFinanceOwner = access.isOwner;
 
   const [settlementResult, pricingResult] = await Promise.all([
-    (supabase.from("settlements") as any)
+    supabase
+      .from("settlements")
       .select("id, vendor_id, month, orders_count, gross_revenue, platform_fee, amount_paid, adjustment_total, status, plan_snapshot, unit_fee, fee_rate_mixed, due_date, updated_at")
       .order("month", { ascending: false })
       .limit(200),
-    (supabase.from("platform_pricing") as any)
+    supabase
+      .from("platform_pricing")
       .select("per_order_fee, monthly_fee, monthly_break_even_orders")
       .eq("id", true)
       .maybeSingle(),
@@ -40,15 +55,18 @@ export default async function FounderFinancePage() {
 
   if (settlementResult.error || pricingResult.error) {
     return (
-      <section className="mx-auto max-w-5xl">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-violet-deep)]">Finance & governance</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Financial visibility</h1>
-        <div className="mt-8 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-6">
-          <AlertTriangle size={22} />
-          <h2 className="mt-3 font-semibold">Live finance data is unavailable</h2>
-          <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">The owner finance RLS migration may not be deployed, or the connected schema is unavailable. No mock balances are substituted.</p>
-        </div>
-      </section>
+      <WorkspacePage workspaceKey="finance" access={access} viewerLabel={membership.display_name || membership.username || "founder"}>
+        <WorkspaceHero
+          crumb="Finance workspace · CASH · CONTROLS · REPORTING"
+          title="Know where every"
+          accentTitle="rupee goes."
+          description="Read-only reporting from the connected Supabase billing records for the finance-governance domain."
+        />
+        <WarningPanel
+          title="Live finance data is unavailable"
+          message="The owner finance RLS migration may not be deployed, or the connected schema is unavailable. No mock balances are substituted."
+        />
+      </WorkspacePage>
     );
   }
 
@@ -56,13 +74,15 @@ export default async function FounderFinancePage() {
   const pricing = pricingResult.data as { per_order_fee: number | string; monthly_fee: number | string; monthly_break_even_orders: number } | null;
   const vendorIds = [...new Set(settlements.map((row) => row.vendor_id))];
 
-  // This is a server-only, sanitized lookup after the caller has passed the
-  // finance capability check. It returns vendor labels only, not contact data.
-  const admin = createAdminClient();
-  const { data: vendors } = vendorIds.length
-    ? await admin.from("vendors").select("id, name, slug").in("id", vendorIds)
-    : { data: [] as { id: string; name: string; slug: string }[] };
-  const vendorNames = new Map((vendors ?? []).map((vendor: { id: string; name: string; slug: string }) => [vendor.id, vendor.name || vendor.slug]));
+  // Server-only, sanitized vendor labels. Resolved with the service-role client
+  // ONLY for the finance-workspace owner: founders previewing this workspace
+  // see the ledger without vendor identity enrichment.
+  let vendorNames = new Map<string, string>();
+  if (isFinanceOwner && vendorIds.length) {
+    const admin = createAdminClient();
+    const { data: vendors } = await admin.from("vendors").select("id, name, slug").in("id", vendorIds);
+    vendorNames = new Map(((vendors ?? []) as { id: string; name: string; slug: string }[]).map((vendor) => [vendor.id, vendor.name || vendor.slug]));
+  }
 
   const billedFees = settlements.reduce((sum, row) => sum + Number(row.platform_fee || 0) + Number(row.adjustment_total || 0), 0);
   const cashCollected = settlements.reduce((sum, row) => sum + Number(row.amount_paid || 0), 0);
@@ -71,54 +91,63 @@ export default async function FounderFinancePage() {
   const anomalyCount = settlements.filter((row) => !row.plan_snapshot || (row.status === "pending" && Number(row.orders_count) === 0)).length;
 
   return (
-    <section className="mx-auto max-w-6xl space-y-8">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-violet-deep)]">Finance & governance</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Financial visibility</h1>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">
-          Read-only reporting from the connected Supabase billing records. Settlement gross revenue is historical billing volume, not a substitute for a verified all-time marketplace GMV ledger.
-        </p>
-      </div>
+    <WorkspacePage workspaceKey="finance" access={access} viewerLabel={membership.display_name || membership.username || "founder"}>
+      <WorkspaceHero
+        crumb="Finance workspace · CASH · CONTROLS · REPORTING"
+        title="Know where every"
+        accentTitle="rupee goes."
+        description="Read-only reporting from the connected Supabase billing records. Settlement gross revenue is historical billing volume, not a substitute for a verified all-time marketplace GMV ledger."
+      />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric icon={<ReceiptText size={18} />} label="Fees billed in settlement records" value={money(billedFees)} />
-        <Metric icon={<Wallet size={18} />} label="Cash recorded as collected" value={money(cashCollected)} />
-        <Metric icon={<CircleDollarSign size={18} />} label="Outstanding settlement balance" value={money(outstanding)} />
-        <Metric icon={<ReceiptText size={18} />} label="Gross volume in settlement records" value={money(billedGross)} />
+        <PageStat label="Fees billed in settlement records" value={money(billedFees)} foot="FROM LIVE RECORDS" />
+        <PageStat label="Cash recorded as collected" value={money(cashCollected)} foot="FROM LIVE RECORDS" />
+        <PageStat label="Outstanding settlement balance" value={money(outstanding)} foot="CHECK BEFORE APPROVAL" />
+        <PageStat label="Gross volume in settlement records" value={money(billedGross)} foot="NOT VERIFIED GMV" />
       </div>
 
-      <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6">
-        <h2 className="font-semibold">Current platform pricing configuration</h2>
+      {!isFinanceOwner && (
+        <SoftNote>
+          Read-only preview: vendor identity labels are resolved only for the finance owner and are hidden in this
+          preview. All figures shown are limited to what your account&apos;s row-level security permits.
+        </SoftNote>
+      )}
+
+      <PanelCard
+        title="Current platform pricing configuration"
+        badge={<StatusPill tone={access.canEdit ? "violet" : "neutral"}>{access.canEdit ? "Editable when connected" : "Read-only"}</StatusPill>}
+      >
         {pricing ? (
-          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-3">
             <div><p className="text-xs text-[var(--text-muted)]">Eligible order fee</p><p className="mt-1 text-xl font-semibold">{money(Number(pricing.per_order_fee))}</p></div>
             <div><p className="text-xs text-[var(--text-muted)]">Monthly subscription</p><p className="mt-1 text-xl font-semibold">{money(Number(pricing.monthly_fee))}</p></div>
             <div><p className="text-xs text-[var(--text-muted)]">Monthly break-even orders</p><p className="mt-1 text-xl font-semibold">{Number(pricing.monthly_break_even_orders).toLocaleString("en-PK")}</p></div>
           </div>
-        ) : <p className="mt-3 text-sm text-[var(--text-muted)]">No pricing configuration row is available.</p>}
-      </section>
+        ) : <p className="mt-1 text-sm text-[var(--text-muted)]">No pricing configuration row is available.</p>}
+      </PanelCard>
 
       {anomalyCount > 0 && (
-        <section className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5">
-          <div className="flex items-start gap-3">
-            <AlertTriangle size={20} className="mt-0.5 shrink-0" />
-            <div>
-              <h2 className="font-semibold">Billing records need reconciliation</h2>
-              <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
-                {anomalyCount} settlement record(s) have a missing plan snapshot or are pending with zero orders. Historical records are displayed as stored; this page does not recalculate, collect, waive, or reverse any fee.
-              </p>
-            </div>
+        <div className="flex items-start gap-3 rounded-xl border border-[rgba(251,191,36,.3)] bg-[var(--warning-bg)] p-5">
+          <AlertTriangle size={20} className="mt-0.5 shrink-0 text-[var(--warning)]" />
+          <div>
+            <h2 className="text-sm font-semibold">Billing records need reconciliation</h2>
+            <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
+              {anomalyCount} settlement record(s) have a missing plan snapshot or are pending with zero orders.
+              Historical records are displayed as stored; this page does not recalculate, collect, waive, or reverse any fee.
+            </p>
           </div>
-        </section>
+        </div>
       )}
 
       <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
         <div className="border-b border-[var(--border)] p-5">
           <h2 className="font-semibold">Settlement ledger</h2>
-          <p className="mt-1 text-sm text-[var(--text-muted)]">Latest {settlements.length} settlement record(s) visible to your finance domain.</p>
+          <p className="mt-1 text-sm text-[var(--text-muted)]">Latest {settlements.length} settlement record(s) visible to this account.</p>
         </div>
         {settlements.length === 0 ? (
-          <p className="p-8 text-sm text-[var(--text-muted)]">No settlement records are visible for this account.</p>
+          <div className="p-6">
+            <EmptyPanel title="No settlement records visible" message="Settlement rows appear here once records exist and your account's access permits reading them." />
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-left text-sm">
@@ -131,7 +160,7 @@ export default async function FounderFinancePage() {
                   const balance = Math.max(0, fee - Number(row.amount_paid || 0));
                   return (
                     <tr key={row.id}>
-                      <td className="px-5 py-3 font-medium">{vendorNames.get(row.vendor_id) ?? "Vendor unavailable"}</td>
+                      <td className="px-5 py-3 font-medium">{vendorNames.get(row.vendor_id) ?? (isFinanceOwner ? "Vendor unavailable" : "Hidden in preview")}</td>
                       <td className="px-5 py-3">{new Date(row.month + "T00:00:00").toLocaleDateString("en-PK", { month: "short", year: "numeric" })}</td>
                       <td className="px-5 py-3">{row.plan_snapshot ?? "Missing snapshot"}</td>
                       <td className="px-5 py-3 text-right tabular-nums">{Number(row.orders_count).toLocaleString("en-PK")}</td>
@@ -149,19 +178,28 @@ export default async function FounderFinancePage() {
         )}
       </section>
 
-      <p className="text-xs leading-5 text-[var(--text-muted)]">
-        This view does not claim company profit, expenses, reserves, or founder distributions: no verified expense/reserve ledger is currently connected to this page. Vendor settlement funds are liabilities until reconciled and must not be counted as company profit.
-      </p>
-    </section>
-  );
-}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <PanelCard title="Finance controls">
+          <div className="space-y-3 text-sm">
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3"><span className="text-[var(--text-muted)]">Transaction records</span><StatusPill tone="good">Live ledger</StatusPill></div>
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3"><span className="text-[var(--text-muted)]">Approval workflow</span><StatusPill tone="warn">Governance approvals</StatusPill></div>
+            <div className="flex items-center justify-between gap-3"><span className="text-[var(--text-muted)]">Bank reconciliation</span><StatusPill>Not connected</StatusPill></div>
+          </div>
+        </PanelCard>
+        <PanelCard title="What this view does not claim">
+          <p className="text-xs leading-5 text-[var(--text-muted)]">
+            This view does not claim company profit, expenses, reserves, or founder distributions: no verified
+            expense/reserve ledger is currently connected to this page. Vendor settlement funds are liabilities until
+            reconciled and must not be counted as company profit.
+          </p>
+        </PanelCard>
+      </div>
 
-function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-      <span className="text-[var(--accent-violet-deep)]">{icon}</span>
-      <p className="mt-3 text-xs leading-5 text-[var(--text-muted)]">{label}</p>
-      <p className="mt-1 text-xl font-semibold tabular-nums">{value}</p>
-    </div>
+      <p className="flex items-start gap-2 text-xs leading-5 text-[var(--text-muted)]">
+        <Wallet size={14} className="mt-0.5 shrink-0" />
+        Expense tracking, profit modeling and founder distribution calculators will appear here once a verified ledger
+        source is connected. Sample numbers are never substituted for real records.
+      </p>
+    </WorkspacePage>
   );
 }

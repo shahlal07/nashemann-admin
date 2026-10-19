@@ -7,13 +7,47 @@ import { motion, useReducedMotion } from "framer-motion";
 import {
   ArrowUpRight,
   Check,
+  Cpu,
   LayoutDashboard,
   LogOut,
   ShieldCheck,
   Sparkles,
+  TrendingUp,
+  Wallet,
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { createClient } from "@/lib/supabase/client";
+
+type NavItem = {
+  label: string;
+  href: string;
+  icon: typeof LayoutDashboard;
+  exact?: boolean;
+};
+
+const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
+  {
+    label: "Workspace",
+    items: [{ label: "Overview", href: "/owners", icon: LayoutDashboard, exact: true }],
+  },
+  {
+    label: "Founder workspaces",
+    items: [
+      { label: "Technology", href: "/owners/technology", icon: Cpu },
+      { label: "Finance", href: "/owners/finance", icon: Wallet },
+      { label: "Marketing", href: "/owners/marketing", icon: TrendingUp },
+    ],
+  },
+  {
+    label: "Governance",
+    items: [{ label: "Feature register", href: "/owners/features", icon: Sparkles }],
+  },
+];
+
+function isNavItemActive(pathname: string, item: NavItem) {
+  if (item.exact) return pathname === item.href;
+  return pathname === item.href || pathname.startsWith(item.href + "/");
+}
 
 export function OwnerShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -74,18 +108,41 @@ export function OwnerShell({ children }: { children: React.ReactNode }) {
           className="min-w-0 lg:sticky lg:top-[100px] lg:h-fit"
         >
           <p className="mb-3 hidden px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-faint)] lg:block">Workspace</p>
-          <nav aria-label="Founder workspace" className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
-            <motion.div whileHover={reduceMotion ? undefined : { x: 2 }} whileTap={reduceMotion ? undefined : { scale: 0.99 }} className="shrink-0">
-              <Link
-                href="/owners"
-                aria-current={pathname === "/owners" ? "page" : undefined}
-                className={"accent-ring flex items-center gap-3 rounded-xl border px-3.5 py-3 text-sm font-medium transition " + (pathname === "/owners" ? "border-[rgba(139,107,255,.25)] bg-[var(--accent-gradient-soft)] text-[var(--text)] shadow-[0_8px_24px_rgba(139,107,255,.06)]" : "border-transparent text-[var(--text-muted)] hover:border-[var(--border)] hover:bg-[var(--surface)] hover:text-[var(--text)]")}
-              >
-                <LayoutDashboard size={17} className={pathname === "/owners" ? "text-[var(--accent-violet-deep)]" : ""} />
-                Overview
-                {pathname === "/owners" && <Check size={14} className="ml-auto hidden text-[var(--accent-violet-deep)] lg:block" />}
-              </Link>
-            </motion.div>
+          <nav aria-label="Founder workspace" className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:gap-4 lg:overflow-visible lg:pb-0">
+            {NAV_GROUPS.map((group) => (
+              <div key={group.label} className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-1">
+                <p className="mb-1 hidden px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-[var(--text-faint)] lg:block">
+                  {group.label}
+                </p>
+                {group.items.map((item) => {
+                  const active = isNavItemActive(pathname, item);
+                  const Icon = item.icon;
+                  return (
+                    <motion.div
+                      key={item.href}
+                      whileHover={reduceMotion ? undefined : { x: 2 }}
+                      whileTap={reduceMotion ? undefined : { scale: 0.99 }}
+                      className="shrink-0"
+                    >
+                      <Link
+                        href={item.href}
+                        aria-current={active ? "page" : undefined}
+                        className={
+                          "accent-ring flex items-center gap-3 rounded-xl border px-3.5 py-3 text-sm font-medium transition " +
+                          (active
+                            ? "border-[rgba(139,107,255,.25)] bg-[var(--accent-gradient-soft)] text-[var(--text)] shadow-[0_8px_24px_rgba(139,107,255,.06)]"
+                            : "border-transparent text-[var(--text-muted)] hover:border-[var(--border)] hover:bg-[var(--surface)] hover:text-[var(--text)]")
+                        }
+                      >
+                        <Icon size={17} className={active ? "text-[var(--accent-violet-deep)]" : ""} />
+                        <span className="whitespace-nowrap">{item.label}</span>
+                        {active && <Check size={14} className="ml-auto hidden text-[var(--accent-violet-deep)] lg:block" />}
+                      </Link>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            ))}
           </nav>
 
           <div className="mt-7 hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 lg:block">

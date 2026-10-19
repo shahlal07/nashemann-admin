@@ -1,20 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { ALLOWED_NEW_DECISION_STATUSES, canCreateDecisionInDomain } from "@/lib/founders/decision-rules";
 
 export const dynamic = "force-dynamic";
 
-const DOMAIN_RULES: Record<string, { capability: string; responsibility: string }> = {
-  product_technology: {
-    capability: "technology.manage",
-    responsibility: "product_technology",
-  },
-  business_strategy: {
-    capability: "strategy.manage",
-    responsibility: "business_strategy",
-  },
-};
-
-const ALLOWED_STATUSES = new Set(["proposed"]);
+const ALLOWED_STATUSES = ALLOWED_NEW_DECISION_STATUSES;
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -24,7 +14,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Please sign in to record a decision." }, { status: 401 });
   }
 
-  const { data: membership, error: membershipError } = await (supabase.from("owner_memberships") as any)
+  const { data: membership, error: membershipError } = await supabase
+    .from("owner_memberships")
     .select("user_id, status, responsibilities, capabilities")
     .eq("user_id", authData.user.id)
     .maybeSingle();
@@ -46,14 +37,8 @@ export async function POST(request: Request) {
 
   const payload = body as Record<string, unknown>;
   const domain = typeof payload.domain === "string" ? payload.domain : "";
-  const rule = DOMAIN_RULES[domain];
-  if (!rule) {
-    return NextResponse.json({ error: "You can only create decisions in the product-technology or business-strategy domain." }, { status: 400 });
-  }
-
-  if (!membership.responsibilities?.includes(rule.responsibility) ||
-      !membership.capabilities?.includes(rule.capability)) {
-    return NextResponse.json({ error: "Your account does not have permission to create decisions in this domain." }, { status: 403 });
+  if (!canCreateDecisionInDomain(membership, domain)) {
+    return NextResponse.json({ error: "You can only create decisions in the product-technology or business-strategy domain, and your account does not have permission for this domain." }, { status: 403 });
   }
 
   const title = typeof payload.title === "string" ? payload.title.trim() : "";
@@ -70,7 +55,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "New decisions must start as proposed. Approval and rejection are handled through governance review." }, { status: 400 });
   }
 
-  const { data, error } = await (supabase.from("owner_decisions") as any)
+  const { data, error } = await supabase
+    .from("owner_decisions")
     .insert({
       title,
       summary,

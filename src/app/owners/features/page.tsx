@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { ArrowLeft, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowLeft, Eye, ShieldCheck, Sparkles } from "lucide-react";
 import { requireOwner } from "@/lib/owner-authz";
+import { LiveCrumb, PreviewBanner } from "@/components/owners/workspace-ui";
+import { canManageFeatureRequests } from "@/lib/founders/workspaces";
 import { createFeatureRequest, updateFeatureRequestStatus } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +34,8 @@ export default async function OwnerFeaturesPage({
   searchParams: Promise<{ error?: string; saved?: string }>;
 }) {
   const { supabase, membership } = await requireOwner();
-  const canManage = membership.capabilities.includes("technology.manage");
+  const canManage = canManageFeatureRequests(membership);
+  const viewerLabel = membership.display_name || membership.username || "founder";
   const [{ data, error }, params] = await Promise.all([
     supabase
       .from("owner_feature_requests")
@@ -48,19 +51,38 @@ export default async function OwnerFeaturesPage({
         <ArrowLeft size={16} /> Executive overview
       </Link>
 
-      <header className="flex flex-col justify-between gap-4 border-b border-[var(--border)] pb-6 sm:flex-row sm:items-end">
+      <header className="panel-hairline flex flex-col justify-between gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 sm:flex-row sm:items-end">
         <div>
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-            <Sparkles size={13} /> Platform governance
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-solid)] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+            <Sparkles size={13} className="text-[var(--accent-violet-deep)]" /> Platform governance
           </div>
-          <h1 className="font-display text-3xl font-semibold tracking-[-0.05em] text-[var(--text)] sm:text-4xl">Feature requests</h1>
+          <LiveCrumb>Shared feature register · all workspaces</LiveCrumb>
+          <h1 className="mt-3 font-display text-3xl font-semibold tracking-[-0.05em] text-[var(--text)] sm:text-4xl">
+            One register. <span className="accent-text">Shared governance.</span>
+          </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-muted)]">A shared, database-backed register for features across Technology, Finance, Marketing, or the entire panel.</p>
         </div>
-        <div className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3.5 py-2.5 text-xs text-[var(--text-muted)]">
-          <ShieldCheck size={15} className="text-[var(--success)]" />
-          {canManage ? "Technology owner: manage access" : "Read-only preview"}
+        <div className="flex items-center gap-2 self-start rounded-xl border border-[var(--border)] bg-[var(--surface-solid)] px-3.5 py-2.5 text-xs text-[var(--text-muted)] sm:self-auto">
+          {canManage ? (
+            <>
+              <ShieldCheck size={15} className="text-[var(--success)]" />
+              Technology owner: manage access
+            </>
+          ) : (
+            <>
+              <Eye size={15} className="text-[var(--warning)]" />
+              Read-only preview
+            </>
+          )}
         </div>
       </header>
+
+      {!canManage && (
+        <PreviewBanner
+          workspaceLabel="the shared feature register"
+          viewerLabel={viewerLabel}
+        />
+      )}
 
       {params.error && (
         <div role="alert" className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--danger)]">
