@@ -1,3 +1,16 @@
+## 2026-10-22 — WA-01 checkout idempotency deployed and direct order inserts locked down
+
+- **Merged PR:** [vendor-storefronts #12](https://github.com/shahlal07/vendor-storefronts/pull/12), merge commit `ed79c82294cc77e454c558b268d7d056ee33e7c4`.
+- **Production:** Vercel deployment `vendor-storefronts-6iv2yvjyo-kashif11.vercel.app` reports READY. Post-merge GitHub Actions run [#39825747870](https://github.com/shahlal07/vendor-storefronts/actions/runs/39825747870) passed unit tests, route-type generation, TypeScript, ESLint and production build.
+- **App change:** checkout now submits an opaque UUIDv4 token scoped to current Supabase identity, writes it to the existing unique `orders.idempotency_key`, and returns the already-created order on duplicate/retried submissions without rerunning application-level coupon/email/address effects. Canonical insert uses the server-only client after current server-side validation.
+- **Production migration:** `20261022_lock_down_direct_order_insert` applied only after the app deployment reported READY. Verified direct anon/authenticated order INSERT privilege false, the customer INSERT policy absent, service_role INSERT true, and the unique idempotency index present.
+- **Security deployments:** storefront PR #9 guest lookup, storefront PR #10 generic rate limiter, and vendor-admins PR #9 server helper are merged and deployed. Two earlier production migrations deny anon/authenticated execution on order lookup/rate-limit RPCs; read-only privilege checks confirmed the intended grants.
+- **Stock migration:** conflicted combined PR #11 closed as superseded. Replacement [Draft PR #13](https://github.com/shahlal07/vendor-storefronts/pull/13) contains the stock function migration only and a database acceptance matrix. It remains Draft until non-production PostgreSQL tests cover concurrent last-unit requests, multi-line rollback, NULL/missing stock, wrong vendor/product, and legacy cancellation/refund restock.
+- **Cost gate:** a Supabase development branch costs USD $0.01344/hour according to the connected account. It has not been created; explicit user approval is required for that recurring charge. No production stock migration/inventory alteration has occurred.
+- **Current WA-01 status:** incomplete for production acceptance until stock database test evidence is recorded. Finance price discrepancy remains Rs 7,000 live versus Rs 5,999 in old notes; no fee/pricing or settlement logic changed. WhatsApp identity mapping and durable Meta event-to-order uniqueness remain later-phase gates.
+
+---
+
 ## 2026-10-22 — WA-01 security remediations deployed; order-integrity migration held for non-production test
 
 - **Merged app PRs:** [vendor-storefronts #9](https://github.com/shahlal07/vendor-storefronts/pull/9), [vendor-storefronts #10](https://github.com/shahlal07/vendor-storefronts/pull/10), [vendor-admins #9](https://github.com/shahlal07/vendor-admins/pull/9).
