@@ -16,7 +16,7 @@ Use this shared view for cross-repository priorities. Detailed technical discuss
 | BRAIN-010 | P1 | Verify CI/build/test/release/rollback evidence | All four | Product & Technology | Ready |
 | BRAIN-011 | P1 | Deploy role-based Co-Founder / Owner Platform while preserving Super Admin; finish authenticated acceptance tests | nashemann-admin (initial release) | Product & Technology + Finance/Governance | In review |
 | WA-00 | P0 | WhatsApp Commerce Phase 0 audit and architecture contract | All four active repos + live Supabase/Vercel | Product & Technology | Done |
-| WA-01 | P0 | Harden canonical order conversion, idempotency, stock concurrency, guest identity and fee-eligibility contract before adding WhatsApp orders | vendor-storefronts, vendor-admins, nashemann-admin | Product & Technology + Finance | Ready |
+| WA-01 | P0 | Harden canonical order conversion, idempotency, stock concurrency, guest identity and fee-eligibility contract before adding WhatsApp orders | vendor-storefronts, vendor-admins, nashemann-admin | Product & Technology + Finance | In progress |
 | WA-02 | P1 | Implement shared-number and vendor-owned-number registry/routing plus connection lifecycle | vendor-storefronts, vendor-admins, nashemann-admin | Product & Technology | Blocked on WA-01 design sign-off |
 | WA-03 | P1 | Implement official Meta Cloud API adapter, signature-verified durable webhooks and idempotent event processing | vendor-storefronts + shared backend | Product & Technology | Blocked on WA-01; live tests require Meta onboarding |
 | WA-04 | P1 | Implement conversation-to-order confirmation and channel attribution through canonical orders | vendor-storefronts, vendor-admins | Product & Technology + Operations | Blocked on WA-01 |
