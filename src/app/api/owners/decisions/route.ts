@@ -6,6 +6,45 @@ export const dynamic = "force-dynamic";
 
 const ALLOWED_STATUSES = ALLOWED_NEW_DECISION_STATUSES;
 
+async function readMembership(supabase: Awaited<ReturnType<typeof createClient>>) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { supabase, user: null, membership: null };
+
+  const { data: membership } = await supabase
+    .from("owner_memberships")
+    .select("user_id, status, responsibilities, capabilities")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  return { supabase, user, membership: membership ?? null };
+}
+
+/**
+ * Lists the decisions this founder can see. Row Level Security decides which
+ * domains are visible, so this only needs to be an authenticated owner.
+ */
+export async function GET() {
+  const { supabase, membership } = await readMembership(await createClient());
+  if (!membership || membership.status !== "active") {
+    return NextResponse.json({ error: "Active co-founder workspace access is required." }, { status: 403 });
+  }
+
+  const { data, error } = await supabase
+    .from("owner_decisions")
+    .select("id, title, summary, domain, status, created_by, created_at, updated_at")
+    .order("created_at", { ascending: false })
+    .limit(200);
+
+  if (error) {
+    console.error("Failed to list owner decisions:", error.message);
+    return NextResponse.json({ error: "Could not load decisions." }, { status: 500 });
+  }
+
+  return NextResponse.json({ decisions: data ?? [] });
+}
+
 export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: authData, error: authError } = await supabase.auth.getUser();

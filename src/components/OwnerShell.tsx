@@ -28,7 +28,10 @@ type NavItem = {
 const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: "Workspace",
-    items: [{ label: "Overview", href: "/owners", icon: LayoutDashboard, exact: true }],
+    items: [
+      { label: "Overview", href: "/owners", icon: LayoutDashboard, exact: true },
+      { label: "Founder workspace", href: "/owners/workspace", icon: Sparkles },
+    ],
   },
   {
     label: "Founder workspaces",

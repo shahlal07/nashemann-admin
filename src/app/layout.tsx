@@ -16,7 +16,7 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Nashemann — Platform",
+  title: "Nashemann - Platform",
   description: "The infrastructure behind independent online stores.",
 };
 

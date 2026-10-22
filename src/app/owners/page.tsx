@@ -5,6 +5,7 @@ import {
   Clock3,
   FileCheck2,
   ShieldAlert,
+  Sparkles,
   Users,
 } from "lucide-react";
 import { Reveal } from "@/components/owner/Reveal";
@@ -101,6 +102,28 @@ export default async function OwnersOverviewPage() {
 
   return (
     <div className="space-y-8 pb-8">
+      <Reveal>
+        <a
+          href="/owners/workspace"
+          className="group relative flex flex-col justify-between gap-4 overflow-hidden rounded-2xl border border-[rgba(139,107,255,.28)] bg-[linear-gradient(135deg,rgba(139,107,255,.15),rgba(56,189,248,.07)_55%,transparent)] p-5 transition hover:border-[rgba(139,107,255,.5)] sm:flex-row sm:items-center"
+        >
+          <div className="min-w-0">
+            <div className="mb-2.5 inline-flex items-center gap-2 rounded-full border border-[rgba(139,107,255,.3)] bg-[rgba(139,107,255,.12)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--accent-violet-deep)]">
+              <Sparkles size={11} />
+              Founder workspace
+            </div>
+            <p className="font-semibold text-[var(--text)]">Open the Nashemann Founder Workspace</p>
+            <p className="mt-1 text-sm leading-6 text-[var(--text-muted)]">
+              Technology, Finance and Marketing workspaces, pipeline, tasks, calendar, risks, decisions, owner chat,
+              reports, documents and feature governance — every page in one command surface.
+            </p>
+          </div>
+          <span className="inline-flex shrink-0 items-center gap-2 text-sm font-medium text-[var(--accent-violet-deep)]">
+            Launch workspace
+            <ArrowUpRight size={16} className="transition group-hover:translate-x-0.5" />
+          </span>
+        </a>
+      </Reveal>
       <Reveal>
         <a href="/owners/features" className="group flex flex-col justify-between gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] sm:flex-row sm:items-center">
           <div>
