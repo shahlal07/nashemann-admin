@@ -1,5 +1,16 @@
 # Current Status
 
+## 2026-10-22 — WA-01 security fixes deployed; canonical stock guard awaiting database validation
+
+- **Merged security PRs:** [vendor-storefronts #9](https://github.com/shahlal07/vendor-storefronts/pull/9) (guest order lookup hardening), [vendor-storefronts #10](https://github.com/shahlal07/vendor-storefronts/pull/10) (server-only rate limiting), and [vendor-admins #9](https://github.com/shahlal07/vendor-admins/pull/9) (admin rate-limit call sites). Storefront post-merge CI passed; both storefront production deployments and the vendor-admins production deployment report READY.
+- **Production DB permission migrations applied:** `20261022_revoke_guest_order_lookup_browser_exec` and `20261022_restrict_generic_rate_limit_browser_exec` on Supabase project `eznxsosvsgkhexbjoolh`. A read-only privilege check confirmed `anon` and `authenticated` cannot execute `find_orders_by_contact`, `find_order_by_number_and_contact`, or `check_and_record_rate_limit`; `service_role` retains execution. The three target functions no longer appear in the matching Supabase security-advisor findings. Other unrelated SECURITY DEFINER/view findings remain.
+- **WA-01 implementation PR:** [vendor-storefronts #11](https://github.com/shahlal07/vendor-storefronts/pull/11), branch `feature/wa-01-order-integrity`, remains Draft. Current branch commit `778218243c1967d32b516554dc2456a325ce8f9a` passed Vitest, Next.js route-type generation, TypeScript, ESLint and production build. Its Vercel preview is READY.
+- **Not yet deployed / not applied:** PR #11's checkout idempotency and service-role order insert changes, its migration denying direct order INSERTs, and the fail-closed stock function. They remain staged together in Draft while database transaction/concurrency behavior is tested away from production. No order/inventory/fee data was changed by these changes.
+- **Staging gate:** there is no active staging Supabase project in the connected account. Supabase quoted a development database branch at USD $0.01344/hour. Do not create it until the user explicitly approves this recurring cost; do not test stock concurrency on real production inventory.
+- **Fee/identity contract:** [WA-01 acceptance contract](https://github.com/shahlal07/vendor-storefronts/blob/feature/wa-01-order-integrity/docs/WA-01_ORDER_INTEGRITY.md) records that clicks/intents/drafts are never orders, confirmed channel orders use the canonical row/triggers, current pending-order settlement behavior is preserved, current runtime fees remain Rs 20/order and Rs 7,000/month, and the stale Rs 5,999/month baseline still requires Finance sign-off. Safe WhatsApp guest identity remains a WA-04 gate.
+- **Current status:** WA-01 engineering implementation in review; not complete for production sign-off. Do not unblock WA-02/WA-03/WA-04 until the stock migration has a successful non-production concurrency/rollback test and fee/identity decisions are recorded.
+
+
 ## 2026-10-22 — WA-01 implementation started
 
 - **Work branch:** [vendor-storefronts feature/wa-01-order-integrity](https://github.com/shahlal07/vendor-storefronts/tree/feature/wa-01-order-integrity).
