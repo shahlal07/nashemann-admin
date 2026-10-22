@@ -1,5 +1,15 @@
 # Current Status
 
+## 2026-10-22 — WhatsApp commerce Phase 0 audit complete (WA-00)
+
+- **Audit report:** [docs/WHATSAPP_COMMERCE_PHASE_0_AUDIT.md](WHATSAPP_COMMERCE_PHASE_0_AUDIT.md). Read-only audit of the four active repos, active Supabase schema/RLS/RPC grants, Vercel production deployment/environment metadata, and pending security PRs.
+- **Verified architecture:** vendor-storefronts is the canonical storefront/checkout; vendor-admins owns vendor order operations; nashemann-web and nashemann-admin are platform and super-admin/finance layers. Do not build a WhatsApp-specific order ledger.
+- **Current WhatsApp state:** product/support actions are plain WhatsApp link-outs. No Meta webhook/order attribution/session layer or META_/WHATSAPP_ variables were found in the four Vercel app configs.
+- **P0 build blockers:** current settlement generation treats pending orders as eligible; checkout does not populate the unique orders.idempotency_key (live query 28/28 null); stock trigger clamps stock to zero rather than aborting an oversold order; two relevant security remediations remain open (vendor-storefronts #9/#10 and vendor-admins #9).
+- **Finance mismatch:** active platform_pricing row says Rs 20/order and Rs 7,000/month; Project Brain baseline says Rs 20/order and Rs 5,999/month. Reconcile before changing or relying on recurring billing. No financial settings were changed.
+- **Phase 0 status:** complete for WhatsApp architecture/readiness; Phase 1 build, security deployments, tests and Meta live onboarding remain future execution gates. This does not close the broader all-app BRAIN-001–010 audit.
+
+
 Last updated: 2026-10-17
 
 **Verified** means supported by direct evidence. **In progress** means actively being worked. **Blocked** requires a documented blocker. **Unknown / not yet audited** means insufficient evidence; it does not mean broken or complete.
@@ -26,7 +36,7 @@ Last updated: 2026-10-17
 | Storefront routing/catalog isolation | Unknown | Audit vendor-storefronts and cross-vendor tests |
 | Vendor onboarding and fulfilment | Unknown | Audit vendor-admins end-to-end |
 | Admin authorization and audit trail | Unknown | Audit nashemann-admin privileged actions |
-| Tenant isolation / row-level security | RLS enabled on all 36 public tables; policy correctness and cross-vendor isolation still unverified | Review RPCs/views and test separate vendor identities |
+| Tenant isolation / row-level security | RLS enabled on all 86 public tables (verified 2026-10-22); policy correctness and cross-vendor isolation still unverified | Review RPCs/views and test separate vendor identities |
 | Security-definer RPCs | Two confirmed high-priority exposures have remediation PRs open; broader RPC/view review remains | Review each function's grants, call sites, and authorization guards |
 | Rs.20 eligible-order fee and subscription | Unknown | Trace implementation against approved policy |
 | Settlement and reconciliation | Unknown | Test idempotency, concurrency and audit history |
