@@ -1,3 +1,11 @@
+## 2026-10-22 — WA-01 stock-only migration isolated and app checks passed
+
+- Closed the conflicted combined [PR #11](https://github.com/shahlal07/vendor-storefronts/pull/11) after separating the already merged checkout code from the inventory SQL.
+- Created [Draft PR #13](https://github.com/shahlal07/vendor-storefronts/pull/13) from current main with only `20261022190000_fail_closed_order_stock.sql` and the WA-01 database acceptance contract. Current branch commit `aac979e33459437eeb0658f9566fa43584c8f716` passed GitHub Actions (Vitest, route types, TypeScript, ESLint, build); Vercel preview READY.
+- Stock migration remains unapplied in production. Connected Supabase has only the main branch, no staging branch; a test branch costs USD $0.01344/hour and requires explicit user approval. SQL tests still needed for concurrent last-item, multi-line rollback, NULL/missing stock, item/vendor mismatch, and cancellation/refund replay.
+
+---
+
 ## 2026-10-22 — WA-01 checkout idempotency deployed and direct order inserts locked down
 
 - **Merged PR:** [vendor-storefronts #12](https://github.com/shahlal07/vendor-storefronts/pull/12), merge commit `ed79c82294cc77e454c558b268d7d056ee33e7c4`.
