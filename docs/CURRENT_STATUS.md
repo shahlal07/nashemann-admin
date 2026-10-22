@@ -15,12 +15,12 @@
 - **Audit report:** [docs/WHATSAPP_COMMERCE_PHASE_0_AUDIT.md](WHATSAPP_COMMERCE_PHASE_0_AUDIT.md). Read-only audit of the four active repos, active Supabase schema/RLS/RPC grants, Vercel production deployment/environment metadata, and pending security PRs.
 - **Verified architecture:** vendor-storefronts is the canonical storefront/checkout; vendor-admins owns vendor order operations; nashemann-web and nashemann-admin are platform and super-admin/finance layers. Do not build a WhatsApp-specific order ledger.
 - **Current WhatsApp state:** product/support actions are plain WhatsApp link-outs. No Meta webhook/order attribution/session layer or META_/WHATSAPP_ variables were found in the four Vercel app configs.
-- **P0 build blockers:** current settlement generation treats pending orders as eligible; checkout does not populate the unique orders.idempotency_key (live query 28/28 null); stock trigger clamps stock to zero rather than aborting an oversold order; two relevant security remediations remain open (vendor-storefronts #9/#10 and vendor-admins #9).
+- **P0 findings at Phase 0 audit time (2026-10-22):** settlement generation included pending orders; checkout was not populating `orders.idempotency_key`; stock clamped to zero; lookup/rate-limit remediations were open. WA-01 remediation outcomes and current status are recorded at the top of this file; the existing settlement eligibility policy was deliberately preserved pending future Finance approval.
 - **Finance mismatch:** active platform_pricing row says Rs 20/order and Rs 7,000/month; Project Brain baseline says Rs 20/order and Rs 5,999/month. Reconcile before changing or relying on recurring billing. No financial settings were changed.
-- **Phase 0 status:** complete for WhatsApp architecture/readiness; Phase 1 build, security deployments, tests and Meta live onboarding remain future execution gates. This does not close the broader all-app BRAIN-001–010 audit.
+- **Phase 0 status:** architecture/readiness audit complete. WA-01 order-engine hardening is now complete (see top section). Meta live onboarding remains a later rollout gate, and this does not close the broader all-app BRAIN-001–010 audit.
 
 
-Last updated: 2026-10-17
+Last updated: 2026-10-22
 
 **Verified** means supported by direct evidence. **In progress** means actively being worked. **Blocked** requires a documented blocker. **Unknown / not yet audited** means insufficient evidence; it does not mean broken or complete.
 
