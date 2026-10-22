@@ -1,3 +1,15 @@
+## 2026-10-22 — WhatsApp Commerce Phase 0 complete (WA-00)
+
+- **Report:** [docs/WHATSAPP_COMMERCE_PHASE_0_AUDIT.md](WHATSAPP_COMMERCE_PHASE_0_AUDIT.md) — read-only trace across all four active repositories, active Supabase schema/RLS/RPC grants, Vercel deployment and environment metadata, order/settlement functions, and current Meta onboarding requirements.
+- **Confirmed path:** product/order WhatsApp CTAs are plain link-outs. No Meta webhook processor, connected-number registry or order source/session tracking is present in the current app code/config.
+- **Critical findings:** orders.idempotency_key is indexed but is not populated by checkout (live aggregate: 28/28 NULL); stock trigger can commit an oversold order because it clamps inventory to zero; billing currently counts pending orders as eligible; anonymous order lookup and generic rate-limit SECURITY DEFINER RPC fixes remain open and not yet applied to live DB.
+- **Finance:** live platform_pricing row currently gives Rs 20/order and Rs 7,000/month, while the shared policy doc says Rs 5,999/month. No price or financial row was changed.
+- **Infrastructure evidence:** active project eznxsosvsgkhexbjoolh has 86 RLS-enabled public tables; all four relevant Vercel projects have READY production deployments, which is deployment evidence only—not end-to-end acceptance. No Meta/WhatsApp env names were found. Meta OTP/account approval still gates a real send/receive test.
+- **Changes in this commit:** documentation only—audit report, current-status summary and phased task tracker. No application code, database objects/grants/policies, secrets, production orders or billing records changed. Local test commands were not run through the repository connector; only already-recorded remote CI/Vercel evidence was reviewed.
+- **Next:** WA-01—agree order-fee/identity semantics; fix idempotent order conversion and atomic stock; close and verify the two security remediations before adding live webhook processing.
+
+---
+
 ## 2026-10-18 — Phase 1 security audit started
 
 - Verified the active Nashemann Supabase project and confirmed RLS is enabled on all 36 public tables.
