@@ -1,3 +1,14 @@
+## 2026-10-22 — WA-01 security remediations deployed; order-integrity migration held for non-production test
+
+- **Merged app PRs:** [vendor-storefronts #9](https://github.com/shahlal07/vendor-storefronts/pull/9), [vendor-storefronts #10](https://github.com/shahlal07/vendor-storefronts/pull/10), [vendor-admins #9](https://github.com/shahlal07/vendor-admins/pull/9).
+- **Deployments:** storefront production deployments for merge commits `2a2bda10fc8070882633d1a6781a5bacf2a7d1a0` and `4fe09eeb240dcb030f9e2bf710acc5c316c39a72` report READY; vendor-admins production deployment for `c7311fb02b6ab3c72c5034bc256763c522aad688` reports READY. Storefront post-merge CI for rate-limit changes passed tests, route types, typecheck, lint and build. The vendor-admins repo did not run an independent Actions workflow for PR #9; its Vercel build/deployment is READY.
+- **Production DB migrations applied:** `20261022_revoke_guest_order_lookup_browser_exec` and `20261022_restrict_generic_rate_limit_browser_exec` after the corresponding application deployments were READY. Read-only verification confirms target functions deny execute to `anon`/`authenticated` and allow `service_role`. Supabase security-advisor findings for those target RPCs have cleared; the overall advisor still shows unrelated remaining findings.
+- **Order integrity PR:** [vendor-storefronts #11](https://github.com/shahlal07/vendor-storefronts/pull/11), Draft; branch `feature/wa-01-order-integrity`. Adds scoped checkout idempotency, server-only canonical order writes, a proposed orders INSERT permission lockdown and a fail-closed row-locked stock trigger. Includes [the WA-01 order/fee/identity acceptance contract](https://github.com/shahlal07/vendor-storefronts/blob/feature/wa-01-order-integrity/docs/WA-01_ORDER_INTEGRITY.md). CI passed commit `778218243c1967d32b516554dc2456a325ce8f9a` (tests, route-type generation, TypeScript, ESLint, production build); Vercel preview READY.
+- **Explicit no-change boundary:** did not apply PR #11's migration to production. No live orders, stock quantities, fee settings, settlements or customer records were altered by it. A separate Supabase validation branch is needed to test the transactional inventory cases; the account quote is USD $0.01344/hour and requires the user's explicit approval before creation.
+- **Outstanding gates:** database tests for concurrent last-unit orders, multi-line rollback, missing/NULL stock, legacy restock and cancellation/refund once-only semantics; written financial sign-off on the Rs 5,999 vs Rs 7,000 monthly price; WA-04 verified-phone/Auth identity; broader remaining advisor findings. Keep WA-01 In progress until these are addressed, then do not start live Meta webhook conversion before acceptance evidence.
+
+---
+
 ## 2026-10-22 — WA-01 first implementation slice opened for review
 
 - **Repository/branch:** `shahlal07/vendor-storefronts`, `feature/wa-01-order-integrity`.
