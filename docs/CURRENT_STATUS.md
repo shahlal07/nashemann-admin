@@ -1,5 +1,16 @@
 # Current Status
 
+## 2026-10-22 — WA-01 narrowed to one remaining database test gate
+
+- **Merged/deployed order engine:** [vendor-storefronts PR #12](https://github.com/shahlal07/vendor-storefronts/pull/12) merged as `ed79c82294cc77e454c558b268d7d056ee33e7c4`. Production deployment `vendor-storefronts-6iv2yvjyo-kashif11.vercel.app` is READY and post-merge GitHub Actions run [#39825747870](https://github.com/shahlal07/vendor-storefronts/actions/runs/39825747870) passed unit tests, route-type generation, TypeScript, ESLint and build. The deployed checkout uses a scoped per-checkout UUID idempotency key and writes the canonical order via the server-only client after validation.
+- **Production order-write security migration applied:** `20261022_lock_down_direct_order_insert`. Verified after application: anon and authenticated lack `INSERT` on `public.orders`, the customer INSERT policy is absent, service_role retains INSERT, and the existing unique idempotency index remains present.
+- **Production security RPC remediations:** storefront PR #9/#10 and vendor-admins PR #9 are merged/deployed; direct browser execution of contact-only/single-order lookup RPCs and generic rate-limit RPC is revoked, while `service_role` retains intended execution.
+- **Stock concurrency guard:** superseded conflicted PR #11 is closed. Replacement [Draft PR #13](https://github.com/shahlal07/vendor-storefronts/pull/13) is based on current main and contains only `20261022190000_fail_closed_order_stock.sql` plus its acceptance contract. SQL/code review and app CI are not a substitute for testing row-lock/transaction behavior.
+- **Remaining hard gate:** the connected Supabase account has no active staging project. A disposable validation branch is quoted at USD $0.01344/hour and needs explicit user approval before creation. Do not apply the stock migration to production or use real customer stock/orders as test fixtures.
+- **Finance/identity:** preserve live fee settings of Rs 20/order and Rs 7,000/month until Finance decides how to reconcile the old Rs 5,999 document. Current pending-order settlement eligibility remains unchanged. WhatsApp identity-to-Auth mapping and signed Meta event-to-order uniqueness still need future WA-04 work.
+- **Status:** WA-01 remains In progress; do not mark Done or unblock WA-02–WA-05 until the stock database acceptance matrix is passed and documented.
+
+
 ## 2026-10-22 — WA-01 security fixes deployed; canonical stock guard awaiting database validation
 
 - **Merged security PRs:** [vendor-storefronts #9](https://github.com/shahlal07/vendor-storefronts/pull/9) (guest order lookup hardening), [vendor-storefronts #10](https://github.com/shahlal07/vendor-storefronts/pull/10) (server-only rate limiting), and [vendor-admins #9](https://github.com/shahlal07/vendor-admins/pull/9) (admin rate-limit call sites). Storefront post-merge CI passed; both storefront production deployments and the vendor-admins production deployment report READY.
