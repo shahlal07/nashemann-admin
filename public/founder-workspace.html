@@ -800,6 +800,21 @@ const WORKSPACES = {
 };
 const PAGE_WORKSPACE = { tech:'technology', finance:'finance', profit:'finance', marketing:'marketing', sales:'marketing', pipeline:'marketing', vendors:'marketing', customers:'marketing' };
 
+/** Pages that belong to one workspace's domain and must not be viewed by other founders. */
+const DOMAIN_PAGES = {
+  technology: new Set(['tech']),
+  finance: new Set(['finance','profit']),
+  marketing: new Set(['marketing','sales','vendors','customers']),
+};
+
+/** Pages every active founder may see. */
+const SHARED_PAGES = new Set(['overview','pipeline','tasks','calendar','risks','team','chat','reports','documents','notifications','settings','features','founders','decisions']);
+
+function accessiblePages(workspace){
+  const own = DOMAIN_PAGES[workspace] || new Set();
+  return new Set([...SHARED_PAGES, ...own]);
+}
+
 function WorkspaceOptions({workspace,setWorkspace}){
   return html`<div class="workspace-switcher" role="group" aria-label="Choose workspace">
     ${Object.entries(WORKSPACES).map(([id,w])=>html`<button key=${id} type="button" class="workspace-option" data-workspace=${id} aria-pressed=${workspace===id} onClick=${()=>setWorkspace(id)}>
@@ -809,7 +824,7 @@ function WorkspaceOptions({workspace,setWorkspace}){
 }
 
 function Sidebar({ page, setPage, workspace, setWorkspace, me }){
-  const allowed = WORKSPACES[workspace].pages;
+  const allowed = [...accessiblePages(workspace)];
   const navItems = NAV.filter(n=>allowed.includes(n.id));
   const navGroups = NAV_GROUPS.filter(section=>navItems.some(n=>n.section===section));
   return html`
@@ -818,7 +833,6 @@ function Sidebar({ page, setPage, workspace, setWorkspace, me }){
         <div class="logo-mark">N</div>
         <div><div class="logo-name">Nashemann</div><div class="logo-sub">Co-Founder OS</div></div>
       </div>
-      <${WorkspaceOptions} workspace=${workspace} setWorkspace=${setWorkspace}/>
       <div class="nav-scroll">
         <${LayoutGroup}>
           ${navGroups.map(section => html`
@@ -1132,7 +1146,7 @@ function ThemeToggle({ theme, setTheme }){
 }
 
 function MobileNavigation({page,setPage,workspace}){
-  const items=NAV.filter(n=>WORKSPACES[workspace].pages.includes(n.id));
+  const items=NAV.filter(n=>accessiblePages(workspace).has(n.id));
   return html`<nav class="mobile-nav" aria-label="${WORKSPACES[workspace].label} workspace pages">${items.map(n => html`<button key=${n.id} type="button" aria-current=${page===n.id?'page':undefined} class=${page===n.id?'active':''} onClick=${() => setPage(n.id)}>${n.id==='chat'?'✉':n.id==='finance'?'$':n.id==='marketing'?'↗':n.id==='tech'?'⌘':'✦'} ${n.label}</button>`)}</nav>`;
 }
 
@@ -1328,6 +1342,11 @@ function BusinessPage({page,theme,setTheme}){
       ${notices.length===0
         ? html`<${EmptyState} title="Nothing in the inbox." hint="Use notifications to flag decisions, approvals, and releases for the other founders."/>`
         : notices.map(n=>html`<div key=${n.id} class="list-row" style=${n.read?{opacity:.62}:{}}><div class="small-icon">${n.icon||'!'}</div><div class="list-row-body"><div class="list-row-title">${n.title} ${!n.read&&html`<span class="status-pill good">New</span>`}</div><div class="list-row-desc">${n.desc}</div><div class="list-row-meta">${n.time}</div></div>${!n.read&&html`<button class="link-button" onClick=${()=>setNotices(rows=>rows.map(x=>x.id===n.id?{...x,read:true}:x))}>Mark read</button>`}</div>`)}
+    </section>
+    <section class="panel-card"><div class="card-head"><div class="card-title">Recent activity by founder</div></div>
+      ${(!metrics||!metrics.activity||!metrics.activity.length)
+        ? html`<${EmptyState} title="No activity yet." hint="Actions you and the other founders take are attributed to them here."/>`
+        : metrics.activity.slice(0,12).map(a=>html`<div key=${a.id} class="list-row"><div class="chat-avatar" style=${{width:'32px',height:'32px',fontSize:'11px',background:'linear-gradient(135deg,'+a.color+',#3b2a8f)'}}>${a.initials}</div><div class="list-row-body"><div class="list-row-title">${a.text}</div><div class="list-row-meta">${a.actor} � ${relativeTime(a.at)||a.at}</div></div><span class="status-pill">${a.category}</span></div>`)}
     </section>`;
 
   else if(page==='settings') body = html`
@@ -1388,7 +1407,7 @@ function OwnerChatPage(){
       <section class="hero" style=${{marginBottom:'26px'}}>
         <${motion.div} variants=${rise} class="crumb"><span class="live-dot"/>CO-FOUNDER COLLABORATION · PRIVATE GROUP</>
         <${motion.h1}><span class="h1-line">One room. <span class="grad">Every founder.</span></span><//>
-        <${motion.p} variants=${rise}>A shared thread for cross-domain discussion, approvals, and document verification. Messages are written as you — the server never trusts a claimed identity.<//>
+        <${motion.p} variants=${rise} class="muted-small">Cross-domain discussion, approvals, and document verification. Only the signed-in founder can post as themselves.<//>
       </section>
       <section class="panel-card owner-chat">
         <div class="chat-toolbar"><div class="chat-title"><div class="small-icon" style=${{width:'44px',height:'44px',fontSize:'19px'}}>✉</div><div><h3>Nashemann Owners</h3><div class="chat-presence"><span class="live-dot"/>${roster.length} founder${roster.length===1?'':'s'} on this thread</div></div></div><div><label class="field-label" style=${{marginTop:0}}>Signed in as</label><div class="form-field" style=${{minWidth:'205px',background:'transparent',border:'none',color:'var(--txt)',fontWeight:600}}>${me.name} (you)</div></div></div>
@@ -1408,7 +1427,7 @@ function OwnerChatPage(){
           <div class="chat-compose-actions"><div style=${{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap'}}><label class="attach-label">＋ Attach image / document<input type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.ppt,.pptx" style=${{display:'none'}} onChange=${attachFiles}/></label><span class="muted-small">Images, PDF, Office files, CSV and text — 512 KB each</span></div><button class="btn btn-pri" onClick=${send}>Send message ↗</button></div>
         </div>
       </section>
-      <section class="page-grid" style=${{marginTop:'14px'}}><div class="panel-card"><div class="card-title">Good verification habits</div>${['State what needs approval before attaching a document.','Include date, amount, supplier/client, and context where relevant.','Keep sensitive details out of chat where possible.','Record the final decision on the decisions page.'].map(x=>html`<div key=${x} class="action-line"><span>${x}</span><span class="status-pill">Guide</span></div>`)}</div><div class="panel-card"><div class="card-title">How identity works</div><p style=${{marginTop:'8px'}}>Every message is written against your authenticated session. The workspace never accepts a claimed sender from the interface, so a message can only ever come from the founder who actually sent it.</p></div></section>
+      <p class="muted-small" style=${{marginTop:'14px',textAlign:'center'}}>Messages are written against your authenticated session - the sender is always the signed-in founder. Record final decisions on the Decisions page.</p>
     <//>`;
 }
 
@@ -1578,19 +1597,17 @@ function App(){
   // trusted.
   const [storedWorkspace, setWorkspaceState] = useLocalState("nashe:workspace", "technology");
   const [storedTheme, setTheme] = useLocalState("nashe:theme", "dark");
-  const workspace = WORKSPACES[storedWorkspace] ? storedWorkspace : "technology";
+
+  // A founder's workspace is determined by their identity, never by the device.
+  // Locking it here is what keeps each founder's domain unbothered by the
+  // other two: no cross-workspace preview, no stale "tech" preference.
+  const ownerWorkspace = owner && owner.workspace && WORKSPACES[owner.workspace] ? owner.workspace : null;
+  const workspace = ownerWorkspace || (WORKSPACES[storedWorkspace] ? storedWorkspace : "technology");
   const theme = storedTheme === "light" ? "light" : "dark";
 
-  const [page, setPageState] = useState(() => WORKSPACES[workspace].home);
-  const [booted, setBooted] = useState(false);
-  const [cmdk, setCmdk] = useState(false);
-
   useEffect(() => {
-    if (storedWorkspace !== workspace) setWorkspaceState(workspace);
+    if (ownerWorkspace && storedWorkspace !== ownerWorkspace) setWorkspaceState(ownerWorkspace);
     if (storedTheme !== theme) setTheme(theme);
-    // Everything else under `nashe:` is server-backed now. Anything left in
-    // localStorage is residue from the standalone prototype, and keeping it
-    // would make the panel disagree with the database.
     const PER_DEVICE = new Set(["nashe:workspace", "nashe:theme", "nashe:workspace-seeded"]);
     for (let i = window.localStorage.length - 1; i >= 0; i -= 1) {
       const key = window.localStorage.key(i);
@@ -1598,19 +1615,28 @@ function App(){
         window.localStorage.removeItem(key);
       }
     }
-  }, [storedWorkspace, workspace, storedTheme, theme]);
+  }, [ownerWorkspace, storedWorkspace, storedTheme, theme]);
+
+  const accessible = accessiblePages(workspace);
 
   const setWorkspace = id => {
-    if(!WORKSPACES[id]) return;
-    setWorkspaceState(id);
-    setPageState(WORKSPACES[id].home);
+    // Workspace follows identity; ignore cross-workspace switching.
+    if (!WORKSPACES[id] || id !== workspace) return;
   };
   const navigateTo = id => {
-    if(!NAV.some(n=>n.id===id)) return;
-    const target = PAGE_WORKSPACE[id];
-    if(target && target!==workspace) setWorkspaceState(target);
+    if (!accessible.has(id)) { setPageState(WORKSPACES[workspace].home); return; }
+    if (!NAV.some(n=>n.id===id)) return;
     setPageState(id);
   };
+
+  const [page, setPageState] = useState(() => WORKSPACES[workspace].home);
+  const [booted, setBooted] = useState(false);
+  const [cmdk, setCmdk] = useState(false);
+
+  // Keep the visible page inside the founder's accessible set.
+  useEffect(() => {
+    if (!accessible.has(page)) setPageState(WORKSPACES[workspace].home);
+  }, [accessible, page, workspace]);
 
   // Land the founder in their own workspace the first time this browser opens.
   useEffect(() => {
@@ -1649,7 +1675,7 @@ function App(){
           <${ThemeToggle} theme=${theme} setTheme=${setTheme}/>
         </div>
       </div>
-      <div class="mobile-workspace-switcher"><${WorkspaceOptions} workspace=${workspace} setWorkspace=${setWorkspace}/></div>
+      <div class="mobile-workspace-switcher" style=${{display:'none'}}><${WorkspaceOptions} workspace=${workspace} setWorkspace=${setWorkspace}/></div>
       <${MobileNavigation} page=${page} setPage=${navigateTo} workspace=${workspace}/>
       <${AnimatePresence} mode="wait">
         <${motion.div} key=${page} initial=${{ opacity:0, y:22 }} animate=${{ opacity:1, y:0 }} exit=${{ opacity:0, y:-14 }}

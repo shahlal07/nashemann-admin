@@ -86,6 +86,13 @@ async function fetchRoster(supabase: Supabase) {
     .filter((profile): profile is FounderProfile => profile !== null);
 }
 
+/** Domain-specific collections: only the owning founder receives them. */
+const DOMAIN_COLLECTIONS: Record<string, CollectionName[]> = {
+  technology: ["techItems"],
+  finance: ["transactions"],
+  marketing: ["campaigns", "leads", "vendors", "customerIssues"],
+};
+
 /** Reads every collection table in one round trip each, in parallel. */
 async function fetchCollections(
   supabase: Supabase,
@@ -202,7 +209,7 @@ const ACTIVITY_SOURCES: Array<{
   {
     collection: "chatMessages",
     category: "collab",
-    describe: (row) => (row.text ? `${row.name ?? "An owner"} posted in the owner chat` : null),
+    describe: (row) => (row.text ? "Posted a message in the owner chat" : null),
   },
   {
     collection: "notices",
@@ -327,15 +334,35 @@ export async function GET() {
     ),
   ]);
 
+  // Domain isolation: a founder may only receive the domain-specific collections
+  // they own. Shared collections (tasks, risks, milestones, documents, chat, ...)
+  // are returned to everyone. Foreign domain data never reaches the browser.
+  const primaryWorkspace = toFounderProfile(membership)?.workspace ?? null;
+  const ownedDomains = primaryWorkspace
+    ? new Set([primaryWorkspace])
+    : new Set(Object.keys(DOMAIN_COLLECTIONS));
+  const forbidden = new Set<CollectionName>();
+  for (const [workspace, cols] of Object.entries(DOMAIN_COLLECTIONS)) {
+    if (!ownedDomains.has(workspace)) for (const c of cols) forbidden.add(c as CollectionName);
+  }
+  const filteredCollections: Record<string, string> = {};
+  for (const [key, value] of Object.entries(collections)) {
+    const collection = (Object.keys(COLLECTION_TABLES) as CollectionName[]).find(
+      (c) => storageKeyForCollection(c) === key,
+    );
+    if (collection && forbidden.has(collection)) continue;
+    filteredCollections[key] = value;
+  }
+
   const scalars = Object.fromEntries(
     scalarEntries.filter((entry): entry is readonly [string, string] => entry !== null),
   );
   const session = { owner: toFounderProfile(membership), roster };
 
   return NextResponse.json({
-    localStorageState: { ...collections, ...scalars },
+    localStorageState: { ...filteredCollections, ...scalars },
     session,
-    metrics: buildMetrics(collections, names, roster, session.owner),
+    metrics: buildMetrics(filteredCollections, names, roster, session.owner),
     serverTime: new Date().toISOString(),
   });
 }
@@ -386,15 +413,22 @@ async function writeCollection(
 
     // Never re-attribute an existing proposal: `created_by` is only set for rows
     // this request is actually introducing.
-    const { data: existing, error: readError } = await supabase.from(table).select("id");
+    const { data: existing, error: readError } = await supabase.from(table).select("id, created_by");
     if (readError) {
       console.error(`[owner-workspace] reading ${table}:`, readError.message);
       return { ok: false, error: readError.message };
     }
-    const known = new Set((existing ?? []).map((row) => String((row as Row).id)));
-    const payload = rows.map((row) =>
-      known.has(String(row.id)) ? row : { ...row, created_by: userId },
+    const createdByById = new Map(
+      (existing ?? []).map((row) => [String((row as Row).id), (row as Row).created_by]),
     );
+    const known = new Set(createdByById.keys());
+    const payload = rows.map((row) => ({
+      ...row,
+      created_by: createdByById.has(String(row.id))
+        ? createdByById.get(String(row.id))
+        : userId,
+      updated_by: userId,
+    }));
 
     const { error } = await supabase.from(table).upsert(payload, { onConflict: "id" });
     if (error) {
@@ -405,14 +439,34 @@ async function writeCollection(
   }
 
   // Text-keyed operational tables are owned wholesale by the workspace, so the
-  // simplest correct sync is delete-then-insert inside one request.
+  // simplest correct sync is delete-then-insert inside one request. We still
+  // preserve `created_by` for rows that already existed so the activity feed
+  // keeps attributing each record to the founder who originally created it;
+  // `updated_by` (and `updated_at`, via trigger) reflect this sync's actor.
+  const { data: existing, error: readError } = await supabase.from(table).select("id, created_by");
+  if (readError) {
+    console.error(`[owner-workspace] reading ${table}:`, readError.message);
+    return { ok: false, error: readError.message };
+  }
+  const createdByById = new Map(
+    (existing ?? []).map((row) => [String((row as Row).id), (row as Row).created_by]),
+  );
+
   const { error: clearError } = await supabase.from(table).delete().neq("id", "");
   if (clearError) {
     console.error(`[owner-workspace] clearing ${table}:`, clearError.message);
     return { ok: false, error: clearError.message };
   }
   if (rows.length) {
-    const { error } = await supabase.from(table).insert(rows.map((row) => ({ ...row, created_by: userId })));
+    const { error } = await supabase.from(table).insert(
+      rows.map((row) => ({
+        ...row,
+        created_by: createdByById.has(String(row.id))
+          ? createdByById.get(String(row.id))
+          : userId,
+        updated_by: userId,
+      })),
+    );
     if (error) {
       console.error(`[owner-workspace] inserting ${table}:`, error.message);
       return { ok: false, error: error.message };

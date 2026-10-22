@@ -571,7 +571,7 @@ for each row execute function public.touch_owner_platform_features_updated_at();
 -- ---------- OWNER CHAT MESSAGES -------------------------------
 create table if not exists public.owner_chat_messages (
   id text primary key,
-  owner text not null check (owner in ('tech','finance','marketing')),
+  owner text not null check (owner in ('technology','finance','marketing')),
   name text not null,
   initials text not null,
   color text not null,
