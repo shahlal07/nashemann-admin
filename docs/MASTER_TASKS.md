@@ -23,13 +23,15 @@ Use this shared view for cross-repository priorities. Detailed technical discuss
 | WA-05 | P1 | Adversarial QA, controlled live pilot, vendor settlement reconciliation and production acceptance | All relevant repos + Meta | Product & Technology + Finance | Blocked on WA-01 through WA-04 |
 
 
-## WA-01 execution update — 2026-10-22
+## WA-01 execution update — 2026-10-22 (latest)
 
-- Merged/deployed the three app-level security remediations: storefront PR #9 (guest lookup), storefront PR #10 (rate limiter), and vendor-admins PR #9 (trusted rate-limit call sites).
-- Applied and verified the two production permission migrations for guest-order lookup and generic rate-limit RPCs only after the relevant production app deployments reported READY. Browser roles are denied; `service_role` remains allowed. The Supabase advisor still reports separate unrelated security findings.
-- The order-integrity branch/PR #11 has passing CI and a READY Vercel preview. It remains Draft because its coupled order-INSERT lockdown and stock-trigger migration have not yet been exercised in a separate database.
-- A Supabase test branch costs USD $0.01344/hour according to the connected account's quote. Explicit user cost approval is required before creating one. No production inventory or order data is to be used as a concurrency-test fixture.
-- Keep WA-01 In progress and WA-02–WA-05 gated until stock concurrency/rollback, duplicate-order replay, identity and finance acceptance evidence is recorded. Current live pricing remains Rs 20/order and Rs 7,000/month; the Rs 5,999 note is not permission to change prices.
+- Merged/deployed order engine work: [vendor-storefronts PR #12](https://github.com/shahlal07/vendor-storefronts/pull/12), commit `ed79c82294cc77e454c558b268d7d056ee33e7c4`. Production deployment READY; post-merge Actions run passed tests, Next route types, TypeScript, ESLint and build. Checkout retry key writes to existing unique `orders.idempotency_key`; existing canonical order triggers remain in use.
+- Applied/verified production migration `20261022_lock_down_direct_order_insert`: direct anon/authenticated INSERT on `public.orders` denied; customer INSERT policy removed; service_role retains INSERT.
+- Previously merged/deployed storefront PR #9 guest-order lookup and PR #10 generic rate-limiter remediation plus vendor-admins PR #9 rate-limit call sites. Production ACL checks confirm anon/authenticated cannot execute the three targeted SECURITY DEFINER functions; service_role can.
+- Closed superseded, conflicted PR #11; replacement [Draft PR #13](https://github.com/shahlal07/vendor-storefronts/pull/13) isolates the row-locked, fail-closed stock function migration and acceptance matrix.
+- WA-01 remains In progress: SQL migration needs concurrency and rollback validation in a separate database. Supabase quoted the optional development branch at USD $0.01344/hour; do not create it without explicit user approval and do not use production inventory for testing.
+- Fees untouched: active runtime config remains Rs 20/order and Rs 7,000/month; old Rs 5,999 baseline needs Finance reconciliation. WhatsApp guest identity and Meta event-to-order uniqueness remain WA-04 gates.
+
 
 ## WhatsApp Commerce Phase 0 — 2026-10-22
 
