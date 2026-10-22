@@ -1,3 +1,16 @@
+## 2026-10-22 — WA-01 complete: zero-cost stock and idempotency validation applied to production
+
+- **Checkout:** [vendor-storefronts PR #12](https://github.com/shahlal07/vendor-storefronts/pull/12) merged; per-checkout idempotency and server-only validated order creation are in production. The production build for the merged order engine is READY.
+- **Security:** storefront PR #9 guest lookup, storefront PR #10 rate limit RPC, and vendor-admins PR #9 trusted server rate limiting are merged/deployed. Production privilege read-back confirmed anon/authenticated cannot execute the targeted lookup/rate-limit RPCs. Order INSERT privileges are also locked to the validated server path (anon/authenticated denied; service_role allowed).
+- **Inventory:** [vendor-storefronts PR #13](https://github.com/shahlal07/vendor-storefronts/pull/13) merged. Stock migration recorded and applied as Supabase version `20261022180345` / `20261022_fail_closed_order_stock_races`. Read-back confirmed `adjust_stock_for_order_items` uses row locks and shortage/vendor/product guards; the existing order decrement and cancellation/refund restock triggers still reference their intended functions.
+- **No-cost tests:** [GitHub Actions run #39828688758](https://github.com/shahlal07/vendor-storefronts/actions/runs/39828688758) passed app-quality and PostgreSQL integration. [PR #14](https://github.com/shahlal07/vendor-storefronts/pull/14) added duplicate-idempotency-key and refund-restock-once regression cases; its integration + app-quality run [#39828498738](https://github.com/shahlal07/vendor-storefronts/actions/runs/39828498738) passed. Tests run in a disposable PostgreSQL 16 service on public-repository GitHub Actions; no paid Supabase branch and no real customer/order/stock fixtures.
+- **Migration history:** [PR #15](https://github.com/shahlal07/vendor-storefronts/pull/15) merged the migration file name matching the applied production version, updated the CI path, and finalized [docs/WA-01_ORDER_INTEGRITY.md](https://github.com/shahlal07/vendor-storefronts/blob/main/docs/WA-01_ORDER_INTEGRITY.md). Its branch CI [#39828972072](https://github.com/shahlal07/vendor-storefronts/actions/runs/39828972072) passed.
+- **Fee boundary preserved:** no fee rates or settlement logic changed. Runtime stays Rs 20/order and Rs 7,000/month; pending-order eligibility remains existing behavior. Older Rs 5,999 notes are stale policy text and are not permission to alter live pricing.
+- **Known limitation:** no authenticated production checkout E2E was run because it would create a real order and mutate inventory. Unit/build and synthetic database checks passed. Actual Meta webhook send/receive and verified WhatsApp identity conversion remain WA-02–WA-04 rollout work.
+- **Tracker:** WA-01 marked Done; WA-02–WA-04 Ready; WA-05 remains blocked on the feature phases and controlled pilot prerequisites.
+
+---
+
 ## 2026-10-22 — WA-01 stock-only migration isolated and app checks passed
 
 - Closed the conflicted combined [PR #11](https://github.com/shahlal07/vendor-storefronts/pull/11) after separating the already merged checkout code from the inventory SQL.
