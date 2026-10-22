@@ -1,3 +1,14 @@
+## 2026-10-22 — WA-01 first implementation slice opened for review
+
+- **Repository/branch:** `shahlal07/vendor-storefronts`, `feature/wa-01-order-integrity`.
+- **Draft PR:** [#11 — Harden canonical order creation and inventory integrity](https://github.com/shahlal07/vendor-storefronts/pull/11).
+- **Code added:** per-tab checkout idempotency token and user-scoped key; same-key replay returns the existing order; canonical order insert now uses the server-only service-role client after current action-level validation; helper unit tests; SQL migration to deny direct anon/authenticated writes to `public.orders` and fail stock decrements closed under row locks.
+- **Current verification status:** at the last check GitHub Actions was in progress during locked dependency installation; Vitest, typecheck, ESLint and production build had not completed. Vercel preview was BUILDING. Do not infer a passing build from a deployment being created.
+- **Safety:** no migration was applied to the production Supabase project; no live orders, inventory, or billing settings changed. PR is draft and not ready to merge until CI passes, the migration and all canonical order writers are reviewed, and concurrency/rollback cases are verified.
+- **Still unresolved:** transaction-safe intent-to-order idempotency for webhooks needs a durable conversion boundary; live pending-order billing eligibility must be approved; monthly price mismatch (Rs 7,000 active DB vs Rs 5,999 project policy) must be reconciled; open guest-order lookup and rate-limit RPC PRs need coordinated deployment and grant-migration verification.
+
+---
+
 ## 2026-10-22 — WhatsApp Commerce Phase 0 complete (WA-00)
 
 - **Report:** [docs/WHATSAPP_COMMERCE_PHASE_0_AUDIT.md](WHATSAPP_COMMERCE_PHASE_0_AUDIT.md) — read-only trace across all four active repositories, active Supabase schema/RLS/RPC grants, Vercel deployment and environment metadata, order/settlement functions, and current Meta onboarding requirements.
