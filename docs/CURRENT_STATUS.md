@@ -1,5 +1,14 @@
 # Current Status
 
+## 2026-10-22 — WA-01 implementation started
+
+- **Work branch:** [vendor-storefronts feature/wa-01-order-integrity](https://github.com/shahlal07/vendor-storefronts/tree/feature/wa-01-order-integrity).
+- **Draft PR:** [#11 — Harden canonical order creation and inventory integrity](https://github.com/shahlal07/vendor-storefronts/pull/11). Changes so far: checkout retry token/idempotency handling; validated service-role order writes; proposed migration to deny direct browser-role order insertion and fail closed on inventory shortage.
+- **Verification:** GitHub Actions storefront-quality run started; at the last check dependency installation was in progress and tests/typecheck/lint/build had not run yet. Vercel preview deployment was also BUILDING. Do not mark the slice verified until these return terminal statuses and the SQL migration is reviewed/tested.
+- **Safety:** no production database migration was applied and no order/stock/billing data was changed. The database migration is coupled to the server action and must be reviewed before merge.
+- **Open gates:** verify every canonical order insertion path, test same-token races and stock rollback/concurrency, coordinate existing open security PRs/migrations, decide Rs 5,999 vs Rs 7,000 monthly fee and document pending-order billing eligibility before WhatsApp activation.
+
+
 ## 2026-10-22 — WhatsApp commerce Phase 0 audit complete (WA-00)
 
 - **Audit report:** [docs/WHATSAPP_COMMERCE_PHASE_0_AUDIT.md](WHATSAPP_COMMERCE_PHASE_0_AUDIT.md). Read-only audit of the four active repos, active Supabase schema/RLS/RPC grants, Vercel production deployment/environment metadata, and pending security PRs.
