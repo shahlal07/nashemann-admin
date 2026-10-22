@@ -23,6 +23,14 @@ Use this shared view for cross-repository priorities. Detailed technical discuss
 | WA-05 | P1 | Adversarial QA, controlled live pilot, vendor settlement reconciliation and production acceptance | All relevant repos + Meta | Product & Technology + Finance | Blocked on WA-01 through WA-04 |
 
 
+## WA-01 execution update — 2026-10-22
+
+- Merged/deployed the three app-level security remediations: storefront PR #9 (guest lookup), storefront PR #10 (rate limiter), and vendor-admins PR #9 (trusted rate-limit call sites).
+- Applied and verified the two production permission migrations for guest-order lookup and generic rate-limit RPCs only after the relevant production app deployments reported READY. Browser roles are denied; `service_role` remains allowed. The Supabase advisor still reports separate unrelated security findings.
+- The order-integrity branch/PR #11 has passing CI and a READY Vercel preview. It remains Draft because its coupled order-INSERT lockdown and stock-trigger migration have not yet been exercised in a separate database.
+- A Supabase test branch costs USD $0.01344/hour according to the connected account's quote. Explicit user cost approval is required before creating one. No production inventory or order data is to be used as a concurrency-test fixture.
+- Keep WA-01 In progress and WA-02–WA-05 gated until stock concurrency/rollback, duplicate-order replay, identity and finance acceptance evidence is recorded. Current live pricing remains Rs 20/order and Rs 7,000/month; the Rs 5,999 note is not permission to change prices.
+
 ## WhatsApp Commerce Phase 0 — 2026-10-22
 
 - **Audit:** [docs/WHATSAPP_COMMERCE_PHASE_0_AUDIT.md](docs/WHATSAPP_COMMERCE_PHASE_0_AUDIT.md). WA-00 is complete; scope is architecture/readiness, not a whole-app security certification.
