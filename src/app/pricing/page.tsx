@@ -26,7 +26,7 @@ export default async function PricingPlansPage() {
   return (
     <PricingForm
       initialPricing={{
-        perOrderFee: Number(pricing?.per_order_fee ?? 15),
+        perOrderFee: Number(pricing?.per_order_fee ?? 20),
         monthlyFee: Number(pricing?.monthly_fee ?? 7000),
         customDomainFee: Number(pricing?.custom_domain_fee ?? 4600),
       }}
